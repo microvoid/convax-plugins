@@ -1,0 +1,14 @@
+{
+  "name": "@microvoid/convax-plugins-registry",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "validate": "bun tooling/validate.mjs",
+    "test": "bun test",
+    "pack": "bun tooling/pack.mjs",
+    "build:index": "bun tooling/build-index.mjs",
+    "check": "bun run validate && bun test && bun run pack && bun run build:index"
+  }
+}
