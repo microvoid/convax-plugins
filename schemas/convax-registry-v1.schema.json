@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-registry-v1.schema.json",
+  "title": "Convax Plugin and Skill Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "sequence", "revision", "packages"],
+  "properties": {
+    "schema": { "const": "convax.registry/1" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "packages": {
+      "type": "array",
+      "items": { "oneOf": [{ "$ref": "#/$defs/plugin" }, { "$ref": "#/$defs/skill" }] }
+    }
+  },
+  "$defs": {
+    "baseProperties": {
+      "kind": { "enum": ["plugin", "skill"] },
+      "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+      "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+      "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+      "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
+      "artifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "size", "sha256"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^https://github\\.com/microvoid/convax-plugins/releases/download/" },
+          "size": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      },
+      "yanked": { "type": "boolean" }
+    },
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "name", "description", "version", "compatibility", "artifact", "yanked", "manifest"],
+      "properties": {
+        "kind": { "const": "plugin" },
+        "id": { "$ref": "#/$defs/baseProperties/id" },
+        "name": { "$ref": "#/$defs/baseProperties/name" },
+        "description": { "$ref": "#/$defs/baseProperties/description" },
+        "version": { "$ref": "#/$defs/baseProperties/version" },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pluginSchema", "pluginHost"],
+          "properties": {
+            "pluginSchema": { "const": "convax.plugin/1" },
+            "pluginHost": { "const": "convax.plugin-host/1" }
+          }
+        },
+        "artifact": { "$ref": "#/$defs/baseProperties/artifact" },
+        "yanked": { "$ref": "#/$defs/baseProperties/yanked" },
+        "manifest": { "$ref": "./convax-plugin-manifest-v1.schema.json" }
+      }
+    },
+    "skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "name", "description", "version", "compatibility", "artifact", "yanked"],
+      "properties": {
+        "kind": { "const": "skill" },
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+        "name": { "$ref": "#/$defs/baseProperties/name" },
+        "description": { "$ref": "#/$defs/baseProperties/description" },
+        "version": { "$ref": "#/$defs/baseProperties/version" },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skillSchema"],
+          "properties": { "skillSchema": { "const": "opencode.skill/1" } }
+        },
+        "artifact": { "$ref": "#/$defs/baseProperties/artifact" },
+        "yanked": { "$ref": "#/$defs/baseProperties/yanked" }
+      }
+    }
+  }
+}
