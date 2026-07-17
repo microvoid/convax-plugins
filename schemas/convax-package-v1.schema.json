@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-package-v1.schema.json",
+  "title": "Convax source package metadata",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"],
+      "properties": {
+        "schema": { "const": "convax.package/1" },
+        "kind": { "const": "plugin" },
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/name" },
+        "description": { "$ref": "#/$defs/description" },
+        "version": { "$ref": "#/$defs/semver" },
+        "license": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pluginSchema", "pluginHost"],
+          "properties": {
+            "pluginSchema": { "const": "convax.plugin/1" },
+            "pluginHost": { "const": "convax.plugin-host/1" }
+          }
+        },
+        "yanked": { "type": "boolean" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"],
+      "properties": {
+        "schema": { "const": "convax.package/1" },
+        "kind": { "const": "skill" },
+        "id": { "$ref": "#/$defs/skillId" },
+        "name": { "$ref": "#/$defs/name" },
+        "description": { "$ref": "#/$defs/description" },
+        "version": { "$ref": "#/$defs/semver" },
+        "license": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skillSchema"],
+          "properties": { "skillSchema": { "const": "opencode.skill/1" } }
+        },
+        "yanked": { "type": "boolean" }
+      }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+    "skillId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    }
+  }
+}

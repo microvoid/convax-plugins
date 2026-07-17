@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-plugin-manifest-v1.schema.json",
+  "title": "Convax Plugin manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "name", "description", "version", "entry", "capabilities", "contributes"],
+  "properties": {
+    "schema": { "const": "convax.plugin/1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "entry": { "$ref": "#/$defs/path" },
+    "skill": { "$ref": "#/$defs/path" },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 4,
+      "items": { "enum": ["canvas.node.read", "canvas.node.write", "project.files.read", "agent.prompt"] }
+    },
+    "contributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canvas"],
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["renderer"],
+          "properties": {
+            "renderer": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "create": { "type": "boolean" },
+                "extensions": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^\\.[a-z0-9][a-z0-9._+-]{0,31}$" } },
+                "mimeTypes": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$" } },
+                "nodeKinds": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$" } },
+                "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+                "height": { "type": "integer", "minimum": 1, "maximum": 8192 }
+              },
+              "anyOf": [
+                { "properties": { "create": { "const": true } }, "required": ["create"] },
+                { "properties": { "extensions": { "minItems": 1 } }, "required": ["extensions"] },
+                { "properties": { "mimeTypes": { "minItems": 1 } }, "required": ["mimeTypes"] },
+                { "properties": { "nodeKinds": { "minItems": 1 } }, "required": ["nodeKinds"] }
+              ]
+            },
+            "toolbar": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "title", "command"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$", "maxLength": 80 },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "command": { "type": "string", "minLength": 1, "maxLength": 256 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\u0000-\\u001f\\u007f:]+$"
+    }
+  }
+}

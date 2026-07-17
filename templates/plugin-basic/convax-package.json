@@ -1,0 +1,14 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "__PLUGIN_ID__",
+  "name": "__PLUGIN_NAME__",
+  "description": "__PLUGIN_DESCRIPTION__",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/1",
+    "pluginHost": "convax.plugin-host/1"
+  },
+  "yanked": false
+}
