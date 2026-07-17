@@ -1,0 +1,4 @@
+interface:
+  display_name: "__SKILL_NAME__"
+  short_description: "__SKILL_SHORT_DESCRIPTION__"
+  default_prompt: "Use $__SKILL_ID__ to __SKILL_DEFAULT_TASK__."

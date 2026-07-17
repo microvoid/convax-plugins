@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Creator"
+  short_description: "Create concise, portable Agent Skill bundles"
+  default_prompt: "Use $skill-creator to turn this workflow into a concise, portable Agent Skill."

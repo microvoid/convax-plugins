@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ad Idea"
+  short_description: "Develop distinct, production-ready advertising concepts"
+  default_prompt: "Use $ad-idea to develop three distinct campaign concepts from this brief."

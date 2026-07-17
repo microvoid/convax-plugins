@@ -1,0 +1,4 @@
+interface:
+  display_name: "Film Shot"
+  short_description: "Design cinematic coverage, shots, and camera plans"
+  default_prompt: "Use $film-shot to turn this scene into a shootable cinematic shot plan."

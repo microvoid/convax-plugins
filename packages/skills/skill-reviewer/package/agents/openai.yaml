@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Reviewer"
+  short_description: "Audit Agent Skills for quality, safety, and portability"
+  default_prompt: "Use $skill-reviewer to audit this Skill bundle and return prioritized findings."
