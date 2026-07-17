@@ -15,7 +15,13 @@ export async function validateRepository() {
     throw new Error("registry/config.json: yanked must contain unique kind/id@version identities")
   }
   const schemaDirectory = path.join(root, "schemas")
-  const schemaNames = ["convax-package-v1.schema.json", "convax-plugin-manifest-v1.schema.json", "convax-registry-v1.schema.json"]
+  const schemaNames = [
+    "convax-package-v1.schema.json",
+    "convax-plugin-manifest-v1.schema.json",
+    "convax-registry-v1.schema.json",
+    "convax-showcase-entry-v1.schema.json",
+    "convax-showcase-v1.schema.json",
+  ]
   for (const name of schemaNames) await readJson(path.join(schemaDirectory, name), `schemas/${name}`)
   const packages = await discoverPackages()
   if (packages.length === 0) throw new Error("At least one source package is required")

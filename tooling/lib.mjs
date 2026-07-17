@@ -6,14 +6,22 @@ import { fileURLToPath } from "node:url"
 export const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)))
 export const repository = "microvoid/convax-plugins"
 export const registrySchema = "convax.registry/1"
+export const showcaseSchema = "convax.showcase/1"
+export const showcaseEntrySchema = "convax.showcase-entry/1"
 export const maxFileBytes = 2 * 1024 * 1024
 export const maxPackageBytes = 10 * 1024 * 1024
+export const maxPosterBytes = 5 * 1024 * 1024
+export const maxAnimationBytes = 20 * 1024 * 1024
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const windowsReservedName = /^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$)$/i
 const capabilities = new Set(["canvas.node.read", "canvas.node.write", "project.files.read", "agent.prompt"])
 const nativeExtensions = new Set([".app", ".bat", ".cmd", ".com", ".dll", ".dylib", ".exe", ".msi", ".node", ".ps1", ".so", ".wasm"])
+const showcaseMimes = {
+  poster: new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"]]),
+  animation: new Map([["image/gif", ".gif"], ["video/mp4", ".mp4"]]),
+}
 
 function error(label, message) {
   throw new Error(`${label}: ${message}`)
@@ -48,10 +56,40 @@ export function parseId(value, label = "id") {
   return result
 }
 
-function parseSemver(value, label = "version") {
+export function parseSemver(value, label = "version") {
   const result = cleanString(value, label, 128)
   if (!semverPattern.test(result)) error(label, "must be valid SemVer")
   return result
+}
+
+function parseShowcaseSourceMedia(value, role, label) {
+  exactKeys(value, ["alt", "height", "mime", "path", "width"], ["alt", "height", "mime", "path", "width"], label)
+  const relativePath = parseRelativePath(value.path, `${label} path`)
+  if (!relativePath.startsWith("showcase/") || relativePath.split("/").length !== 2) {
+    error(label, "path must name one file directly below showcase/")
+  }
+  const mime = cleanString(value.mime, `${label} mime`, 80)
+  const extension = showcaseMimes[role].get(mime)
+  if (!extension) error(label, `unsupported ${role} MIME type ${mime}`)
+  if (!relativePath.endsWith(extension)) error(label, `path extension must be ${extension}`)
+  return {
+    path: relativePath,
+    alt: cleanString(value.alt, `${label} alt`, 500),
+    mime,
+    width: dimension(value.width, `${label} width`),
+    height: dimension(value.height, `${label} height`),
+  }
+}
+
+function parseShowcaseSource(value, label) {
+  if (value === undefined) return undefined
+  exactKeys(value, ["animation", "poster"], ["poster"], label)
+  const poster = parseShowcaseSourceMedia(value.poster, "poster", `${label} poster`)
+  const animation = value.animation === undefined
+    ? undefined
+    : parseShowcaseSourceMedia(value.animation, "animation", `${label} animation`)
+  if (animation?.path === poster.path) error(label, "poster and animation must use different files")
+  return { poster, ...(animation ? { animation } : {}) }
 }
 
 export function validatePortableSegment(value, label = "path") {
@@ -89,8 +127,8 @@ function parseCompatibility(value, kind, label) {
 }
 
 export function parseSourceMetadata(value, label = "convax-package.json") {
-  const keys = ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"]
-  exactKeys(value, keys, keys, label)
+  const required = ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"]
+  exactKeys(value, [...required, "showcase"], required, label)
   if (value.schema !== "convax.package/1") error(label, "unsupported schema")
   if (value.kind !== "plugin" && value.kind !== "skill") error(label, "kind must be plugin or skill")
   if (typeof value.yanked !== "boolean") error(label, "yanked must be a boolean")
@@ -107,6 +145,7 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
     license: cleanString(value.license, `${label} license`, 120),
     compatibility: parseCompatibility(value.compatibility, kind, `${label} compatibility`),
     yanked: value.yanked,
+    ...(value.showcase === undefined ? {} : { showcase: parseShowcaseSource(value.showcase, `${label} showcase`) }),
   }
 }
 
@@ -276,6 +315,130 @@ async function listCollection(kind) {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => ({ kind, id: entry.name, directory: path.join(collection, entry.name) }))
 }
 
+function pngDimensions(data, label) {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  if (data.length < 24 || !data.subarray(0, 8).equals(signature) || data.toString("ascii", 12, 16) !== "IHDR") {
+    error(label, "content is not a PNG image")
+  }
+  return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) }
+}
+
+function gifDimensions(data, label) {
+  const signature = data.toString("ascii", 0, 6)
+  if (data.length < 10 || (signature !== "GIF87a" && signature !== "GIF89a")) error(label, "content is not a GIF image")
+  return { width: data.readUInt16LE(6), height: data.readUInt16LE(8) }
+}
+
+function jpegDimensions(data, label) {
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) error(label, "content is not a JPEG image")
+  const sof = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf])
+  let offset = 2
+  while (offset + 4 <= data.length) {
+    if (data[offset] !== 0xff) error(label, "JPEG contains an invalid marker")
+    while (data[offset] === 0xff) offset += 1
+    const marker = data[offset++]
+    if (marker === 0xd9 || marker === 0xda) break
+    const length = data.readUInt16BE(offset)
+    if (length < 2 || offset + length > data.length) error(label, "JPEG contains an invalid segment")
+    if (sof.has(marker)) {
+      if (length < 7) error(label, "JPEG frame header is truncated")
+      return { width: data.readUInt16BE(offset + 5), height: data.readUInt16BE(offset + 3) }
+    }
+    offset += length
+  }
+  error(label, "JPEG dimensions were not found")
+}
+
+function webpDimensions(data, label) {
+  if (data.length < 30 || data.toString("ascii", 0, 4) !== "RIFF" || data.toString("ascii", 8, 12) !== "WEBP") {
+    error(label, "content is not a WebP image")
+  }
+  const chunk = data.toString("ascii", 12, 16)
+  if (chunk === "VP8X") {
+    return {
+      width: 1 + data.readUIntLE(24, 3),
+      height: 1 + data.readUIntLE(27, 3),
+    }
+  }
+  if (chunk === "VP8L" && data[20] === 0x2f) {
+    const bits = data.readUInt32LE(21)
+    return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) }
+  }
+  if (chunk === "VP8 " && data[23] === 0x9d && data[24] === 0x01 && data[25] === 0x2a) {
+    return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff }
+  }
+  error(label, "unsupported or malformed WebP bitstream")
+}
+
+function mp4Dimensions(data, label) {
+  if (data.length < 24 || data.toString("ascii", 4, 8) !== "ftyp") error(label, "content is not an MP4 file")
+  for (let offset = 4; offset + 4 <= data.length; offset += 1) {
+    if (data.toString("ascii", offset, offset + 4) !== "tkhd" || offset < 4) continue
+    const start = offset - 4
+    const size = data.readUInt32BE(start)
+    if (size < 84 || start + size > data.length) continue
+    const widthFixed = data.readUInt32BE(start + size - 8)
+    const heightFixed = data.readUInt32BE(start + size - 4)
+    if ((widthFixed & 0xffff) !== 0 || (heightFixed & 0xffff) !== 0) error(label, "MP4 dimensions must use whole pixels")
+    const width = widthFixed >>> 16
+    const height = heightFixed >>> 16
+    if (width > 0 && height > 0) return { width, height }
+  }
+  error(label, "MP4 video track dimensions were not found")
+}
+
+export function inspectShowcaseMedia(input, mime, label = "showcase media") {
+  const data = Buffer.from(input)
+  const result = mime === "image/png" ? pngDimensions(data, label)
+    : mime === "image/gif" ? gifDimensions(data, label)
+      : mime === "image/jpeg" ? jpegDimensions(data, label)
+        : mime === "image/webp" ? webpDimensions(data, label)
+          : mime === "video/mp4" ? mp4Dimensions(data, label)
+            : error(label, `unsupported MIME type ${mime}`)
+  if (!Number.isSafeInteger(result.width) || !Number.isSafeInteger(result.height) ||
+      result.width < 1 || result.height < 1 || result.width > 8192 || result.height > 8192) {
+    error(label, "media dimensions must be from 1 to 8192 pixels")
+  }
+  return result
+}
+
+async function readShowcaseMedia(packageDirectory, descriptor, role, label) {
+  let current = packageDirectory
+  for (const segment of descriptor.path.split("/")) {
+    current = path.join(current, segment)
+    let stat
+    try { stat = await fs.lstat(current) } catch (cause) {
+      if (cause?.code === "ENOENT") error(label, `missing declared file ${descriptor.path}`)
+      throw cause
+    }
+    if (stat.isSymbolicLink()) error(label, `symlink is forbidden: ${descriptor.path}`)
+  }
+  const stat = await fs.stat(current)
+  if (!stat.isFile()) error(label, `must be a regular file: ${descriptor.path}`)
+  const maximum = role === "poster" ? maxPosterBytes : maxAnimationBytes
+  if (stat.size < 1 || stat.size > maximum) error(label, `${role} exceeds ${maximum} bytes`)
+  const realRoot = await fs.realpath(packageDirectory)
+  const realFile = await fs.realpath(current)
+  const relative = path.relative(realRoot, realFile)
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) error(label, "media resolves outside its package")
+  const data = await fs.readFile(realFile)
+  if (data.length < 1 || data.length > maximum) error(label, `${role} exceeds ${maximum} bytes`)
+  const actual = inspectShowcaseMedia(data, descriptor.mime, label)
+  if (actual.width !== descriptor.width || actual.height !== descriptor.height) {
+    error(label, `declared ${descriptor.width}x${descriptor.height} does not match ${actual.width}x${actual.height}`)
+  }
+  return { ...descriptor, data }
+}
+
+export async function loadShowcaseAssets(metadata, packageDirectory, label = `${metadata.kind}/${metadata.id} showcase`) {
+  if (!metadata.showcase) return undefined
+  const poster = await readShowcaseMedia(packageDirectory, metadata.showcase.poster, "poster", `${label} poster`)
+  const animation = metadata.showcase.animation
+    ? await readShowcaseMedia(packageDirectory, metadata.showcase.animation, "animation", `${label} animation`)
+    : undefined
+  return { poster, ...(animation ? { animation } : {}) }
+}
+
 export async function discoverPackages() {
   const candidates = [...await listCollection("plugin"), ...await listCollection("skill")]
     .sort((left, right) => `${left.kind}/${left.id}`.localeCompare(`${right.kind}/${right.id}`, "en"))
@@ -286,6 +449,7 @@ export async function discoverPackages() {
     if (metadata.kind !== candidate.kind || metadata.id !== candidate.id) error(`${candidate.kind}/${candidate.id}`, "directory and metadata identity differ")
     const packageRoot = path.join(candidate.directory, "package")
     const files = await collectFiles(packageRoot, `${candidate.kind}/${candidate.id}`)
+    const showcase = await loadShowcaseAssets(metadata, candidate.directory)
     let manifest
     if (candidate.kind === "plugin") {
       assertPluginStatic(files, `${candidate.kind}/${candidate.id}`)
@@ -308,7 +472,7 @@ export async function discoverPackages() {
         if (nativeExtensions.has(path.posix.extname(file.relativePath).toLowerCase())) error(`${candidate.kind}/${candidate.id}`, `native executable is forbidden: ${file.relativePath}`)
       }
     }
-    packages.push({ ...candidate, files, manifest, metadata, packageRoot })
+    packages.push({ ...candidate, files, manifest, metadata, packageRoot, showcase })
   }
   return packages
 }
@@ -319,6 +483,12 @@ export function tagFor(metadata) {
 
 export function assetNameFor(metadata) {
   return `convax-${metadata.kind}-${metadata.id}-${metadata.version}.zip`
+}
+
+export function showcaseAssetNameFor(metadata, role, mime) {
+  const extension = showcaseMimes[role]?.get(mime)
+  if (!extension) error("showcase asset", `unsupported ${role} MIME type ${mime}`)
+  return `convax-showcase-${metadata.kind}-${metadata.id}-${metadata.version}-${role}${extension}`
 }
 
 let crcTable
@@ -430,6 +600,107 @@ export function createRegistryEntry(pkg, zip) {
     yanked: metadata.yanked,
     ...(metadata.kind === "plugin" ? { manifest: pkg.manifest } : {}),
   }
+}
+
+function createShowcaseMediaArtifact(metadata, media, role) {
+  const assetName = showcaseAssetNameFor(metadata, role, media.mime)
+  return {
+    url: `https://github.com/${repository}/releases/download/${tagFor(metadata)}/${assetName}`,
+    mime: media.mime,
+    size: media.data.length,
+    sha256: sha256(media.data),
+    width: media.width,
+    height: media.height,
+    alt: media.alt,
+  }
+}
+
+export function createShowcaseEntry(pkg) {
+  if (!pkg.showcase) return undefined
+  const metadata = pkg.metadata
+  return {
+    schema: showcaseEntrySchema,
+    kind: metadata.kind,
+    id: metadata.id,
+    version: metadata.version,
+    poster: createShowcaseMediaArtifact(metadata, pkg.showcase.poster, "poster"),
+    ...(pkg.showcase.animation
+      ? { animation: createShowcaseMediaArtifact(metadata, pkg.showcase.animation, "animation") }
+      : {}),
+  }
+}
+
+function parseShowcaseIdentity(value, label) {
+  if (value.kind !== "plugin" && value.kind !== "skill") error(label, "kind must be plugin or skill")
+  const id = parseId(value.id, `${label} id`)
+  if (value.kind === "skill" && id.length > 64) error(label, "Skill id must be at most 64 characters")
+  return { kind: value.kind, id, version: parseSemver(value.version, `${label} version`) }
+}
+
+function parseShowcaseMediaArtifact(value, metadata, role, label) {
+  exactKeys(value, ["alt", "height", "mime", "sha256", "size", "url", "width"],
+    ["alt", "height", "mime", "sha256", "size", "url", "width"], label)
+  const mime = cleanString(value.mime, `${label} mime`, 80)
+  if (!showcaseMimes[role].has(mime)) error(label, `unsupported ${role} MIME type ${mime}`)
+  const assetName = showcaseAssetNameFor(metadata, role, mime)
+  const expectedUrl = `https://github.com/${repository}/releases/download/${tagFor(metadata)}/${assetName}`
+  if (value.url !== expectedUrl) error(label, `url must equal ${expectedUrl}`)
+  const maximum = role === "poster" ? maxPosterBytes : maxAnimationBytes
+  if (!Number.isSafeInteger(value.size) || value.size < 1 || value.size > maximum) error(label, "invalid size")
+  if (typeof value.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.sha256)) error(label, "invalid sha256")
+  const width = dimension(value.width, `${label} width`)
+  const height = dimension(value.height, `${label} height`)
+  if (width === undefined || height === undefined) error(label, "width and height are required")
+  return {
+    url: value.url,
+    mime,
+    size: value.size,
+    sha256: value.sha256,
+    width,
+    height,
+    alt: cleanString(value.alt, `${label} alt`, 500),
+  }
+}
+
+function parseShowcasePackage(value, label) {
+  const required = ["kind", "id", "version", "poster"]
+  exactKeys(value, [...required, "animation"], required, label)
+  const metadata = parseShowcaseIdentity(value, label)
+  return {
+    ...metadata,
+    poster: parseShowcaseMediaArtifact(value.poster, metadata, "poster", `${label} poster`),
+    ...(value.animation === undefined
+      ? {}
+      : { animation: parseShowcaseMediaArtifact(value.animation, metadata, "animation", `${label} animation`) }),
+  }
+}
+
+export function parseShowcaseEntry(value, label = "Showcase entry") {
+  exactKeys(value, ["animation", "id", "kind", "poster", "schema", "version"],
+    ["id", "kind", "poster", "schema", "version"], label)
+  if (value.schema !== showcaseEntrySchema) error(label, "unsupported schema")
+  return { schema: showcaseEntrySchema, ...parseShowcasePackage({
+    kind: value.kind,
+    id: value.id,
+    version: value.version,
+    poster: value.poster,
+    ...(value.animation === undefined ? {} : { animation: value.animation }),
+  }, label) }
+}
+
+export function parseShowcase(value, label = "Showcase") {
+  exactKeys(value, ["packages", "revision", "schema", "sequence"], ["packages", "revision", "schema", "sequence"], label)
+  if (value.schema !== showcaseSchema) error(label, "unsupported schema")
+  if (!Number.isSafeInteger(value.sequence) || value.sequence < 1) error(label, "sequence must be a positive integer")
+  const revision = cleanString(value.revision, `${label} revision`, 40)
+  if (!/^[a-f0-9]{40}$/.test(revision)) error(label, "revision must be a lowercase 40-character Git SHA")
+  if (!Array.isArray(value.packages) || value.packages.length > 10_000) error(label, "packages must be an array with at most 10000 items")
+  const packages = value.packages.map((entry, index) => parseShowcasePackage(entry, `${label} package ${index}`))
+  const identities = packages.map((entry) => `${entry.kind}/${entry.id}`)
+  if (new Set(identities).size !== identities.length) error(label, "contains more than one version for a package")
+  const urls = packages.flatMap((entry) => [entry.poster.url, ...(entry.animation ? [entry.animation.url] : [])])
+  if (new Set(urls).size !== urls.length) error(label, "reuses a media URL")
+  return { schema: showcaseSchema, sequence: value.sequence, revision, packages }
 }
 
 function parseArtifact(value, metadata, label) {
