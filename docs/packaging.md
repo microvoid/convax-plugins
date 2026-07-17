@@ -48,3 +48,8 @@ The Pages workflow aggregates entry documents from GitHub Releases and publishes
 only valid entries. The production catalog is:
 
 `https://microvoid.github.io/convax-plugins/registry/v1/index.json`
+
+Registry deployment is atomic with respect to the package versions on `main`.
+Pages waits until every source package has a matching published Release, so a batch
+of package tags becomes visible as one catalog update under a single new Registry
+sequence instead of exposing partially published batches.

@@ -1,8 +1,6 @@
 name: Publish Registry Pages
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
   workflow_run:
     workflows: ["Publish package"]
@@ -18,6 +16,8 @@ permissions:
 jobs:
   build:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      ready: ${{ steps.coverage.outputs.ready }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -34,7 +34,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bun tooling/fetch-release-entries.mjs
+      - name: Require every source package Release
+        id: coverage
+        run: bun tooling/check-release-coverage.mjs
       - name: Build and stage strict Registry
+        if: steps.coverage.outputs.ready == 'true'
         run: |
           bun tooling/build-index.mjs \
             --entries dist/release-entries \
@@ -43,14 +47,17 @@ jobs:
           cp dist/registry/v1/index.json dist/site/registry/v1/index.json
           cp schemas/*.json dist/site/schemas/
       - name: Configure Pages
+        if: steps.coverage.outputs.ready == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - name: Upload Pages artifact
+        if: steps.coverage.outputs.ready == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist/site
 
   deploy:
     needs: build
+    if: needs.build.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

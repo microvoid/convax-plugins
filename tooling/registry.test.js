@@ -4,6 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import vm from "node:vm"
 import { buildIndex } from "./build-index.mjs"
+import { checkReleaseCoverage } from "./check-release-coverage.mjs"
 import { fetchReleaseEntries } from "./fetch-release-entries.mjs"
 import { discoverPackages, parseRegistry, readStoredZip, root, sha256 } from "./lib.mjs"
 import { packPackages } from "./pack.mjs"
@@ -20,11 +21,21 @@ afterAll(async () => {
 })
 
 describe("source packages", () => {
-  test("validates the Plugin and Skill examples", async () => {
+  test("validates the complete Plugin and Skill catalog", async () => {
     const packages = await discoverPackages()
     expect(packages.map((pkg) => `${pkg.metadata.kind}/${pkg.metadata.id}`)).toEqual([
       "plugin/hello-convax",
+      "skill/ad-idea",
+      "skill/audiobook",
+      "skill/clip-export",
+      "skill/ecommerce-image",
+      "skill/film-shot",
       "skill/hello-convax-guide",
+      "skill/image-remix",
+      "skill/short-drama-screenwriter",
+      "skill/skill-creator",
+      "skill/skill-reviewer",
+      "skill/video-prompting",
     ])
     expect(packages[0].manifest.schema).toBe("convax.plugin/1")
     expect(packages[0].manifest.capabilities).toEqual([])
@@ -84,6 +95,19 @@ describe("source packages", () => {
 
     release.assets[1].size += 1
     await expect(fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).rejects.toThrow("size does not match")
+  })
+
+  test("defers Registry deployment until every source version has a Release entry", async () => {
+    const packages = await discoverPackages()
+    const directory = await temporaryDirectory()
+    const results = await packPackages(packages, directory)
+    expect(await checkReleaseCoverage({ entriesDirectory: directory })).toEqual({ missing: [], ready: true })
+
+    await fs.rm(results.at(-1).entryPath)
+    expect(await checkReleaseCoverage({ entriesDirectory: directory })).toEqual({
+      missing: [results.at(-1).tag],
+      ready: false,
+    })
   })
 })
 
