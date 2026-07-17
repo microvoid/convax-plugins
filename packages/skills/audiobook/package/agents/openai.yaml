@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audiobook"
+  short_description: "Plan scripts, voices, cues, and audiobook production"
+  default_prompt: "Use $audiobook to turn this source into a narration-ready audiobook production pack."

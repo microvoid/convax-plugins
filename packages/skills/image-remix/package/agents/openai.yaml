@@ -1,0 +1,4 @@
+interface:
+  display_name: "Image Remix"
+  short_description: "Plan controlled image remixes from visual references"
+  default_prompt: "Use $image-remix to create a controlled remix plan from these reference images."

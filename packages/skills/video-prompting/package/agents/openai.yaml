@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Prompting"
+  short_description: "Write model-aware prompts for video generation"
+  default_prompt: "Use $video-prompting to turn this concept into a model-aware video prompt package."

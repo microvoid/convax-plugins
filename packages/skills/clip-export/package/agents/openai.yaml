@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clip Export"
+  short_description: "Export scoped Canvas media safely to JianYing drafts"
+  default_prompt: "Use $clip-export to check available export tools and send selected Canvas media to JianYing."

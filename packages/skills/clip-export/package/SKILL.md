@@ -8,6 +8,13 @@ description: Export image and video nodes from the active Convax Canvas into Jia
 Use the scoped Canvas and JianYing tools only. Never inspect native draft files,
 automate the editor through shell commands, or write `.convax` data.
 
+Before planning an export, confirm that the current host exposes
+`canvas_query_nodes`, `jianying_get_draft_status`, and
+`jianying_export_canvas_media`, together with an active scoped Canvas. If any
+required capability is missing, explain that this host cannot perform the export
+and stop. Do not simulate success or substitute shell, filesystem, or UI
+automation.
+
 ## Select export material
 
 1. Resolve the active Canvas from host context and call `canvas_query_nodes` before

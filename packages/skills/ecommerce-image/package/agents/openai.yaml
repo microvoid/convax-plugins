@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ecommerce Image"
+  short_description: "Plan coherent ecommerce product image sets"
+  default_prompt: "Use $ecommerce-image to plan a channel-ready product image set from these references."

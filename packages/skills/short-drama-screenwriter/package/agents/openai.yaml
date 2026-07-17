@@ -1,0 +1,4 @@
+interface:
+  display_name: "Short Drama Screenwriter"
+  short_description: "Write producible short-form episodic drama scripts"
+  default_prompt: "Use $short-drama-screenwriter to develop this premise into a producible short episode."
