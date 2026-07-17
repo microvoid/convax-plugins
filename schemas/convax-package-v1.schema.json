@@ -24,7 +24,8 @@
             "pluginHost": { "const": "convax.plugin-host/1" }
           }
         },
-        "yanked": { "type": "boolean" }
+        "yanked": { "type": "boolean" },
+        "showcase": { "$ref": "#/$defs/showcase" }
       }
     },
     {
@@ -45,7 +46,8 @@
           "required": ["skillSchema"],
           "properties": { "skillSchema": { "const": "opencode.skill/1" } }
         },
-        "yanked": { "type": "boolean" }
+        "yanked": { "type": "boolean" },
+        "showcase": { "$ref": "#/$defs/showcase" }
       }
     }
   ],
@@ -57,6 +59,48 @@
     "semver": {
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "showcase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["poster"],
+      "properties": {
+        "poster": { "$ref": "#/$defs/poster" },
+        "animation": { "$ref": "#/$defs/animation" }
+      }
+    },
+    "poster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "alt", "mime", "width", "height"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^showcase/[^/]+\\.(?:jpg|png|webp)$", "maxLength": 1024 },
+        "alt": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "mime": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+        "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 8192 }
+      },
+      "allOf": [
+        { "if": { "properties": { "mime": { "const": "image/jpeg" } } }, "then": { "properties": { "path": { "pattern": "\\.jpg$" } } } },
+        { "if": { "properties": { "mime": { "const": "image/png" } } }, "then": { "properties": { "path": { "pattern": "\\.png$" } } } },
+        { "if": { "properties": { "mime": { "const": "image/webp" } } }, "then": { "properties": { "path": { "pattern": "\\.webp$" } } } }
+      ]
+    },
+    "animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "alt", "mime", "width", "height"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^showcase/[^/]+\\.(?:gif|mp4)$", "maxLength": 1024 },
+        "alt": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "mime": { "enum": ["image/gif", "video/mp4"] },
+        "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 8192 }
+      },
+      "allOf": [
+        { "if": { "properties": { "mime": { "const": "image/gif" } } }, "then": { "properties": { "path": { "pattern": "\\.gif$" } } } },
+        { "if": { "properties": { "mime": { "const": "video/mp4" } } }, "then": { "properties": { "path": { "pattern": "\\.mp4$" } } } }
+      ]
     }
   }
 }

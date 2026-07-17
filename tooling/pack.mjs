@@ -4,10 +4,12 @@ import {
   assetNameFor,
   createDeterministicZip,
   createRegistryEntry,
+  createShowcaseEntry,
   discoverPackages,
   json,
   parseArgs,
   root,
+  showcaseAssetNameFor,
   tagFor,
 } from "./lib.mjs"
 
@@ -25,7 +27,23 @@ export async function packPackages(packages, outputDirectory) {
     const entryPath = path.join(directory, "registry-entry.json")
     await fs.writeFile(zipPath, zip)
     await fs.writeFile(entryPath, json(entry))
-    results.push({ assetName, directory, entry, entryPath, pkg, tag, zip, zipPath })
+    const showcaseEntry = createShowcaseEntry(pkg)
+    const showcaseAssets = []
+    let showcaseEntryPath
+    if (showcaseEntry) {
+      showcaseEntryPath = path.join(directory, "showcase-entry.json")
+      await fs.writeFile(showcaseEntryPath, json(showcaseEntry))
+      for (const role of ["poster", "animation"]) {
+        const media = pkg.showcase[role]
+        if (!media) continue
+        const name = showcaseAssetNameFor(pkg.metadata, role, media.mime)
+        const assetPath = path.join(directory, name)
+        await fs.writeFile(assetPath, media.data)
+        showcaseAssets.push({ assetName: name, data: media.data, path: assetPath, role })
+      }
+    }
+    results.push({ assetName, directory, entry, entryPath, pkg, showcaseAssets, showcaseEntry, showcaseEntryPath,
+      tag, zip, zipPath })
   }
   return results
 }
@@ -48,5 +66,8 @@ export async function packFromArgs(argv) {
 
 if (import.meta.main) {
   const results = await packFromArgs(process.argv.slice(2))
-  for (const result of results) console.log(`${result.tag}: ${path.relative(root, result.zipPath)} (${result.zip.length} bytes)`)
+  for (const result of results) {
+    const showcase = result.showcaseEntry ? `, ${result.showcaseAssets.length} showcase assets` : ""
+    console.log(`${result.tag}: ${path.relative(root, result.zipPath)} (${result.zip.length} bytes${showcase})`)
+  }
 }

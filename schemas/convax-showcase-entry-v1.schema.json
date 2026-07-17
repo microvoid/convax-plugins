@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-showcase-entry-v1.schema.json",
+  "title": "Convax release showcase entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "kind", "id", "version", "poster"],
+  "properties": {
+    "schema": { "const": "convax.showcase-entry/1" },
+    "kind": { "enum": ["plugin", "skill"] },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+    "version": { "$ref": "./convax-showcase-v1.schema.json#/$defs/semver" },
+    "poster": { "$ref": "./convax-showcase-v1.schema.json#/$defs/poster" },
+    "animation": { "$ref": "./convax-showcase-v1.schema.json#/$defs/animation" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "skill" } }, "required": ["kind"] },
+      "then": { "properties": { "id": { "maxLength": 64 } } }
+    }
+  ]
+}

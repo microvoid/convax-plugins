@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-showcase-v1.schema.json",
+  "title": "Convax package showcase catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "sequence", "revision", "packages"],
+  "properties": {
+    "schema": { "const": "convax.showcase/1" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "packages": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/package" }
+    }
+  },
+  "$defs": {
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "version", "poster"],
+      "properties": {
+        "kind": { "enum": ["plugin", "skill"] },
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+        "version": { "$ref": "#/$defs/semver" },
+        "poster": { "$ref": "#/$defs/poster" },
+        "animation": { "$ref": "#/$defs/animation" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "skill" } }, "required": ["kind"] },
+          "then": { "properties": { "id": { "maxLength": 64 } } }
+        }
+      ]
+    },
+    "poster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "mime", "size", "sha256", "width", "height", "alt"],
+      "properties": {
+        "url": { "$ref": "#/$defs/url" },
+        "mime": { "enum": ["image/jpeg", "image/png", "image/webp"] },
+        "size": { "type": "integer", "minimum": 1, "maximum": 5242880 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "width": { "$ref": "#/$defs/dimension" },
+        "height": { "$ref": "#/$defs/dimension" },
+        "alt": { "$ref": "#/$defs/alt" }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "mime", "size", "sha256", "width", "height", "alt"],
+      "properties": {
+        "url": { "$ref": "#/$defs/url" },
+        "mime": { "enum": ["image/gif", "video/mp4"] },
+        "size": { "type": "integer", "minimum": 1, "maximum": 20971520 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "width": { "$ref": "#/$defs/dimension" },
+        "height": { "$ref": "#/$defs/dimension" },
+        "alt": { "$ref": "#/$defs/alt" }
+      }
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https://github\\.com/microvoid/convax-plugins/releases/download/(?:plugin|skill)-[a-z0-9-]+-v[^/]+/convax-showcase-(?:plugin|skill)-[a-z0-9-]+-[^/]+-(?:poster|animation)\\.(?:gif|jpg|mp4|png|webp)$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "dimension": { "type": "integer", "minimum": 1, "maximum": 8192 },
+    "alt": { "type": "string", "minLength": 1, "maxLength": 500 }
+  }
+}
