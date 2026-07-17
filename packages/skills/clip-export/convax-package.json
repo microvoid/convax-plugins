@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "clip-export",
+  "name": "Clip Export",
+  "description": "Safely export selected image and video nodes from the active Convax Canvas into JianYing.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}
