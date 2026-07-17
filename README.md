@@ -1,12 +1,16 @@
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 # Convax Plugins
 
 The official source registry, authoring kit, and release catalog for Convax
 Plugins and OpenCode-compatible Skills.
 
-本仓库让作者和 AI 从模板开始，产出可独立验证、确定性打包并由 Convax
-安全下载的 Plugin 或 Skill。包源码在 Git 中审查，GitHub Release 承载不可变
-ZIP，GitHub Pages 发布轻量 Registry：
-`https://microvoid.github.io/convax-plugins/registry/v1/index.json`。
+This repository lets people and AI agents start from a template and produce a
+Plugin or Skill that can be validated independently, packaged deterministically,
+and downloaded safely by Convax. Package source is reviewed in Git, immutable ZIPs
+are published through GitHub Releases, and GitHub Pages hosts the lightweight
+Registry at
+`https://microvoid.github.io/convax-plugins/registry/v1/index.json`.
 
 ## Quick start
 
@@ -32,6 +36,17 @@ See the working example in
 - [`docs/packaging.md`](docs/packaging.md) for ZIP and release rules;
 - [`docs/registry-spec.md`](docs/registry-spec.md) for the client contract;
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
+
+## Install in Convax
+
+Open **Settings → Skills and Plugins** in a compatible Convax build. The catalog is
+loaded from the public Registry above; selecting **Install Plugin** or **Install
+Skill** sends only the package id to Convax main, which downloads and validates the
+corresponding immutable Release ZIP.
+
+The `microvoid/convax-plugins` repository, Registry, and Release assets are public
+and require no GitHub account or token. The main `microvoid/convax` application
+repository may remain private without affecting package installation.
 
 ## Repository layout
 
@@ -69,6 +84,20 @@ For example: `plugin-hello-convax-v0.1.0`. The publish workflow validates the
 tag, creates the deterministic ZIP and Registry entry, attests the ZIP, and creates
 a GitHub Release. The Pages workflow rebuilds the catalog from published Release
 entries only.
+
+## Troubleshooting installation
+
+- `Redirect was cancelled` indicates an older Convax host that did not adapt
+  Electron's manual redirect behavior for GitHub Release downloads. Update to a
+  build containing the Electron Release redirect adapter.
+- `Unable to connect` usually indicates a proxy, DNS, firewall, or offline problem.
+  Verify that both the Registry URL and the package's `artifact.url` are reachable
+  from the same machine.
+- HTTP `404` or `403` should be checked against the public URLs in the Registry. No
+  request should depend on access to the private Convax application repository.
+- A size, SHA-256, schema, compatibility, or ZIP validation failure is intentional
+  fail-closed behavior. Do not bypass it; inspect the published Registry entry and
+  Release asset instead.
 
 ## Trust boundary
 
