@@ -8,6 +8,7 @@
     "validate": "bun tooling/validate.mjs",
     "test": "bun test",
     "pack": "bun tooling/pack.mjs",
+    "render:showcases": "bun tooling/render-showcases.mjs",
     "build:index": "bun tooling/build-index.mjs && bun tooling/build-showcase.mjs",
     "check": "bun run validate && bun test && bun run pack && bun run build:index"
   }

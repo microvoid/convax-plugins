@@ -4,10 +4,26 @@
   "id": "ad-idea",
   "name": "Ad Idea",
   "description": "Turn a brand or product brief into differentiated advertising concepts, scripts, and production-ready creative directions.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Ad Idea workflow turning a verified campaign brief into three distinct creative territories and a production-ready concept pack.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Ad Idea workflow comparing three campaign territories before selecting a direction and completing the production pack.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

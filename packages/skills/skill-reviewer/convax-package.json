@@ -4,10 +4,26 @@
   "id": "skill-reviewer",
   "name": "Skill Reviewer",
   "description": "Review an agent Skill bundle for trigger quality, operational correctness, portability, safety, and maintainability.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Skill Reviewer workbench inspecting a bounded Skill bundle across triggering, workflow, capabilities, state safety, and portability.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Skill Reviewer workbench scanning a Skill bundle and producing a readiness verdict with concrete fixes.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

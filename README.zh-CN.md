@@ -96,6 +96,7 @@ dist/                      # 生成目录，不提交到 Git
 ```sh
 bun run validate            # 校验全部源码包
 bun test                    # 运行校验器、ZIP、Registry 和协议测试
+bun run render:showcases -- --id ad-idea # 渲染单个封面和动图
 bun run pack                # 将全部包写入 dist/packages
 bun run build:index         # 生成版本一致的 Registry 和 Showcase 索引
 bun run check               # 执行完整本地 CI

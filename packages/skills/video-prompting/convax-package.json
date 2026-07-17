@@ -4,10 +4,26 @@
   "id": "video-prompting",
   "name": "Video Prompting",
   "description": "Write clear, model-aware prompts and reference plans for text-to-video and image-to-video generation.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Video Prompting workflow assigning reference roles and separating identity, visible motion, and camera intent into a testable prompt package.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Video Prompting workflow composing locked identity, visible motion, camera intent, negatives, and timing into a master prompt.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }
