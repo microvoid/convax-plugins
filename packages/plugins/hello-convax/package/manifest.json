@@ -1,0 +1,26 @@
+{
+  "schema": "convax.plugin/1",
+  "id": "hello-convax",
+  "name": "Hello Convax",
+  "description": "Checks the scoped Convax Plugin host connection and shows its active context.",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "capabilities": [],
+  "contributes": {
+    "canvas": {
+      "renderer": {
+        "create": true,
+        "width": 480,
+        "height": 300
+      },
+      "toolbar": [
+        {
+          "id": "refresh",
+          "title": "Refresh context",
+          "command": "refresh"
+        }
+      ]
+    }
+  },
+  "skill": "SKILL.md"
+}
