@@ -36,6 +36,12 @@ git tag -a plugin-hello-convax-v0.1.0 -m "hello-convax 0.1.0"
 git push origin plugin-hello-convax-v0.1.0
 ```
 
+Push batch tags in separate `git push` invocations and confirm that every tag
+creates a **Publish package** run. GitHub does not create tag push events when more
+than three tags are pushed at once, so a single bulk push can leave valid tags with
+no Releases. See GitHub's
+[push event documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#push).
+
 The tag must match source metadata exactly. The workflow validates all packages,
 packs only the tagged package, attests its ZIP, creates a draft Release, uploads the
 ZIP plus `registry-entry.json`, and only then publishes it. Published versions are
