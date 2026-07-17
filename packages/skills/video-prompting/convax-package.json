@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "video-prompting",
+  "name": "Video Prompting",
+  "description": "Write clear, model-aware prompts and reference plans for text-to-video and image-to-video generation.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}

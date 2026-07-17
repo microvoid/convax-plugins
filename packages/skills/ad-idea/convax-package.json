@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "ad-idea",
+  "name": "Ad Idea",
+  "description": "Turn a brand or product brief into differentiated advertising concepts, scripts, and production-ready creative directions.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}
