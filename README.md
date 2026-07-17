@@ -107,6 +107,7 @@ dist/                      # generated; never committed
 ```sh
 bun run validate            # validate all source packages
 bun test                    # validator, ZIP, Registry, and protocol tests
+bun run render:showcases -- --id ad-idea # render one poster and animation
 bun run pack                # pack every package into dist/packages
 bun run build:index         # create matching Registry and Showcase indexes
 bun run check               # complete local CI sequence

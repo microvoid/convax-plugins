@@ -4,10 +4,26 @@
   "id": "short-drama-screenwriter",
   "name": "Short Drama Screenwriter",
   "description": "Develop short-form episodic drama into a structured beat plan, production script, and continuity package.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Short Drama workflow shaping a series promise into an escalating episode ladder, production script, and continuity package.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Short Drama workflow progressing from character engine through hooks and reversals to an earned cliffhanger.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

@@ -281,10 +281,302 @@ function ecommerce(progress) {
   `, { accent, footer: ["SOURCE", "SHOT MATRIX", "GENERATE", "QUALITY CHECK"], label: "COMMERCE WORKFLOW", subtitle: "One verified product. A coherent, channel-ready image set.", title: "Ecommerce Image" }, progress)
 }
 
+function creativeWorkflow(spec, progress) {
+  const source = smooth(0.07, 0.25, progress)
+  const connection = smooth(0.2, 0.48, progress)
+  const result = smooth(0.62, 0.84, progress)
+  const cursorX = mix(392, 1170, connection)
+  const cards = spec.cards.map((card, index) => {
+    const visible = smooth(0.28 + index * 0.08, 0.5 + index * 0.08, progress)
+    const selected = index === spec.selectedIndex ? smooth(0.62, 0.82, progress) : 0
+    const x = 438 + index * 250
+    const color = card.color ?? spec.accent
+    const bars = [0.78, 0.58, 0.86].map((ratio, barIndex) =>
+      `<rect x="${x + 24}" y="${390 + barIndex * 17}" width="${n(164 * ratio * visible)}" height="6" rx="3" fill="${color}" fill-opacity="${n(0.2 + barIndex * 0.08)}"/>`,
+    ).join("")
+    return `<g opacity="${n(visible)}" transform="translate(0 ${n(mix(22, 0, visible))})">
+      ${roundedRect(x, 274, 224, 184, { fill: selected > 0.5 ? color : "#0f1b2e", opacity: selected > 0.5 ? 0.1 : 1, radius: 18, stroke: color, strokeOpacity: 0.28 + selected * 0.52, strokeWidth: selected > 0.5 ? 2 : 1 })}
+      <circle cx="${x + 28}" cy="302" r="8" fill="${color}" fill-opacity="0.18"/>
+      <circle cx="${x + 28}" cy="302" r="3" fill="${color}"/>
+      ${text(card.label, x + 46, 307, { fill: color, size: 10, tracking: 1.1, weight: 750 })}
+      ${text(card.title, x + 22, 348, { size: 18, weight: 720 })}
+      ${text(card.detail, x + 22, 373, { fill: "#8796ab", size: 11 })}
+      ${bars}
+      ${selected > 0.01 ? `<g opacity="${n(selected)}">${roundedRect(x + 144, 290, 58, 24, { fill: color, opacity: 0.13, radius: 12, stroke: color, strokeOpacity: 0.35 })}${text("READY", x + 173, 306, { anchor: "middle", fill: color, size: 9, tracking: 0.8, weight: 750 })}</g>` : ""}
+    </g>`
+  }).join("")
+  const sourceFacts = spec.sourceFacts.map((fact, index) => {
+    const reveal = smooth(0.12 + index * 0.035, 0.3 + index * 0.035, progress)
+    return `<g opacity="${n(reveal)}"><circle cx="108" cy="${390 + index * 39}" r="4" fill="${spec.accent}" fill-opacity="0.78"/>${text(fact, 124, 395 + index * 39, { fill: "#acb8c8", size: 12 })}</g>`
+  }).join("")
+  const resultItems = spec.resultItems.map((item, index) => {
+    const x = 458 + index * 176
+    return `${roundedRect(x, 506, 158, 34, { fill: index === spec.resultItems.length - 1 ? spec.accent : "#17253a", opacity: index === spec.resultItems.length - 1 ? 0.11 : 0.72, radius: 10, stroke: index === spec.resultItems.length - 1 ? spec.accent : "#33445e", strokeOpacity: 0.4 })}${text(item, x + 79, 528, { anchor: "middle", fill: index === spec.resultItems.length - 1 ? spec.accent : "#94a2b6", size: 10, tracking: 0.55, weight: 680 })}`
+  }).join("")
+  return shell(`
+    <g opacity="${n(source)}" filter="url(#shadow)">
+      ${roundedRect(72, 220, 320, 362, { fill: "url(#surface)", radius: 24, stroke: spec.accent, strokeOpacity: 0.28 })}
+      ${text(spec.sourceLabel, 98, 254, { fill: "#8f9db2", size: 11, tracking: 1.35, weight: 720 })}
+      ${roundedRect(98, 277, 268, 82, { fill: spec.accent, opacity: 0.08, radius: 14, stroke: spec.accent, strokeOpacity: 0.24 })}
+      ${text(spec.sourceTitle, 116, 311, { size: 20, weight: 730 })}
+      ${text(spec.sourceDetail, 116, 335, { fill: spec.accent, size: 11, tracking: 0.5, weight: 650 })}
+      ${sourceFacts}
+      ${roundedRect(98, 533, 268, 27, { fill: "#17253a", opacity: 0.8, radius: 13, stroke: "#33445e", strokeOpacity: 0.45 })}
+      ${text(spec.sourceStatus, 232, 551, { anchor: "middle", fill: "#8c9aaf", size: 10, tracking: 0.7, weight: 680 })}
+    </g>
+    <g opacity="${n(connection)}">
+      <path d="M392 366 C410 336 416 336 432 336" fill="none" stroke="${spec.accent}" stroke-opacity="0.54" stroke-width="2" stroke-dasharray="5 7"/>
+      <line x1="438" y1="474" x2="1162" y2="474" stroke="#2f405a" stroke-opacity="0.75"/>
+      <line x1="438" y1="474" x2="${n(cursorX)}" y2="474" stroke="${spec.accent}" stroke-opacity="0.72" stroke-width="3"/>
+      <circle cx="${n(cursorX)}" cy="474" r="6" fill="${spec.accent}"/>
+    </g>
+    ${cards}
+    <g opacity="${n(result)}">
+      ${roundedRect(438, 488, 724, 70, { fill: "#0e1a2c", radius: 18, stroke: spec.accent, strokeOpacity: 0.2 })}
+      ${resultItems}
+    </g>
+  `, spec, progress)
+}
+
+function transferWorkflow(spec, progress) {
+  const source = smooth(0.07, 0.26, progress)
+  const transfer = smooth(0.24, 0.68, progress)
+  const destination = smooth(0.5, 0.78, progress)
+  const complete = smooth(0.72, 0.9, progress)
+  const cursorX = mix(430, 846, transfer)
+  const sourceItems = spec.sourceItems.map((item, index) => {
+    const y = 294 + index * 82
+    const visible = smooth(0.12 + index * 0.05, 0.32 + index * 0.05, progress)
+    return `<g opacity="${n(visible)}">
+      ${roundedRect(98, y, 278, 64, { fill: "#101d30", radius: 13, stroke: item.color ?? spec.accent, strokeOpacity: 0.27 })}
+      <rect x="110" y="${y + 11}" width="54" height="42" rx="8" fill="${item.color ?? spec.accent}" fill-opacity="0.16"/>
+      <path d="M120 ${y + 42} l12 -12 9 8 8 -11 7 15z" fill="${item.color ?? spec.accent}" fill-opacity="0.7"/>
+      ${text(item.label, 178, y + 28, { size: 12, weight: 700 })}
+      ${text(item.detail, 178, y + 46, { fill: "#8291a7", size: 10 })}
+    </g>`
+  }).join("")
+  const checkpoints = spec.checkpoints.map((checkpoint, index) => {
+    const x = 484 + index * 132
+    const active = smooth(0.28 + index * 0.1, 0.5 + index * 0.1, progress)
+    return `<g opacity="${n(0.3 + active * 0.7)}">
+      <circle cx="${x}" cy="376" r="27" fill="${spec.accent}" fill-opacity="${n(0.05 + active * 0.12)}" stroke="${spec.accent}" stroke-opacity="${n(0.2 + active * 0.55)}"/>
+      <circle cx="${x}" cy="376" r="6" fill="${active > 0.6 ? spec.accent : "#43536b"}"/>
+      ${text(checkpoint, x, 423, { anchor: "middle", fill: active > 0.6 ? spec.accent : "#7f8ea4", size: 9, tracking: 0.8, weight: 700 })}
+    </g>`
+  }).join("")
+  const destinationRows = spec.destinationRows.map((row, index) => {
+    const y = 356 + index * 45
+    return `${roundedRect(910, y, 250, 32, { fill: index === spec.destinationRows.length - 1 ? spec.accent : "#17253a", opacity: index === spec.destinationRows.length - 1 ? 0.11 : 0.72, radius: 10, stroke: index === spec.destinationRows.length - 1 ? spec.accent : "#33445e", strokeOpacity: 0.38 })}${text(row, 1035, y + 21, { anchor: "middle", fill: index === spec.destinationRows.length - 1 ? spec.accent : "#96a4b7", size: 10, tracking: 0.45, weight: 680 })}`
+  }).join("")
+  return shell(`
+    <g opacity="${n(source)}" filter="url(#shadow)">
+      ${roundedRect(72, 220, 330, 360, { fill: "url(#surface)", radius: 24, stroke: spec.accent, strokeOpacity: 0.27 })}
+      ${text(spec.sourceLabel, 98, 254, { fill: "#8f9db2", size: 11, tracking: 1.35, weight: 720 })}
+      ${sourceItems}
+      ${text(spec.sourceStatus, 100, 548, { fill: spec.accent, size: 11, tracking: 0.8, weight: 720 })}
+    </g>
+    <g opacity="${n(transfer)}">
+      <line x1="430" y1="376" x2="846" y2="376" stroke="#33445d" stroke-width="2" stroke-dasharray="7 9"/>
+      <line x1="430" y1="376" x2="${n(cursorX)}" y2="376" stroke="${spec.accent}" stroke-opacity="0.75" stroke-width="3"/>
+      <circle cx="${n(cursorX)}" cy="376" r="22" fill="${spec.accent}" fill-opacity="0.08"/>
+      <circle cx="${n(cursorX)}" cy="376" r="6" fill="${spec.accent}"/>
+      ${checkpoints}
+    </g>
+    <g opacity="${n(destination)}" filter="url(#shadow)">
+      ${roundedRect(874, 220, 334, 360, { fill: "url(#surface)", radius: 24, stroke: spec.accent, strokeOpacity: 0.29 })}
+      ${text(spec.destinationLabel, 900, 254, { fill: "#8f9db2", size: 11, tracking: 1.35, weight: 720 })}
+      ${roundedRect(900, 278, 282, 58, { fill: spec.accent, opacity: 0.08, radius: 14, stroke: spec.accent, strokeOpacity: 0.23 })}
+      <circle cx="926" cy="307" r="10" fill="${spec.accent}" fill-opacity="0.2"/>
+      <path d="M921 307 l4 4 8 -9" fill="none" stroke="${spec.accent}" stroke-width="2.5" stroke-linecap="round"/>
+      ${text(spec.destinationTitle, 946, 305, { size: 14, weight: 720 })}
+      ${text(spec.destinationDetail, 946, 323, { fill: "#8291a7", size: 9 })}
+      ${destinationRows}
+      <g opacity="${n(complete)}">
+        ${roundedRect(900, 518, 282, 36, { fill: spec.accent, opacity: 0.12, radius: 12, stroke: spec.accent, strokeOpacity: 0.4 })}
+        ${text(spec.completeLabel, 1041, 541, { anchor: "middle", fill: spec.accent, size: 10, tracking: 0.7, weight: 750 })}
+      </g>
+    </g>
+  `, spec, progress)
+}
+
+function skillWorkbench(spec, progress) {
+  const tree = smooth(0.07, 0.26, progress)
+  const editor = smooth(0.24, 0.52, progress)
+  const review = smooth(0.48, 0.8, progress)
+  const complete = smooth(0.76, 0.91, progress)
+  const treeRows = spec.tree.map((item, index) => {
+    const visible = smooth(0.1 + index * 0.035, 0.3 + index * 0.035, progress)
+    const y = 298 + index * 41
+    return `<g opacity="${n(visible)}">
+      <path d="M${104 + item.depth * 18} ${y - 8} v18" stroke="#34455f" stroke-opacity="0.7"/>
+      <rect x="${116 + item.depth * 18}" y="${y - 14}" width="18" height="16" rx="4" fill="${item.folder ? spec.accent : "#5f718a"}" fill-opacity="${item.folder ? 0.18 : 0.13}"/>
+      ${text(item.label, 145 + item.depth * 18, y, { fill: item.active ? spec.accent : "#a2afc0", size: 11, weight: item.active ? 700 : 520 })}
+    </g>`
+  }).join("")
+  const editorLines = spec.editorLines.map((line, index) => {
+    const visible = smooth(0.3 + index * 0.045, 0.52 + index * 0.045, progress)
+    const y = 311 + index * 34
+    const lineWidth = Math.min(382, 94 + line.length * 5.1)
+    return `<g opacity="${n(visible)}">${text(String(index + 1), 424, y, { anchor: "end", fill: "#53627a", size: 10 })}<rect x="443" y="${y - 9}" width="${n(lineWidth)}" height="8" rx="4" fill="${index === 0 ? spec.accent : "#8292a9"}" fill-opacity="${index === 0 ? 0.58 : 0.26}"/>${text(line, 451, y - 1, { fill: index === 0 ? "#d8c8ff" : "#aab6c7", size: 9 })}</g>`
+  }).join("")
+  const checks = spec.checks.map((check, index) => {
+    const active = smooth(0.5 + index * 0.06, 0.7 + index * 0.06, progress)
+    const y = 307 + index * 49
+    return `<g opacity="${n(0.2 + active * 0.8)}">
+      <circle cx="958" cy="${y - 4}" r="10" fill="${spec.accent}" fill-opacity="${n(0.06 + active * 0.16)}" stroke="${spec.accent}" stroke-opacity="${n(0.2 + active * 0.65)}"/>
+      <path d="M953 ${y - 4} l3 3 6 -7" fill="none" stroke="${active > 0.5 ? spec.accent : "#687891"}" stroke-width="2"/>
+      ${text(check, 978, y, { fill: active > 0.5 ? "#b5c0ce" : "#718198", size: 11, weight: 620 })}
+    </g>`
+  }).join("")
+  const scanY = mix(280, 526, smooth(0.32, 0.72, progress))
+  return shell(`
+    <g opacity="${n(tree)}" filter="url(#shadow)">
+      ${roundedRect(72, 220, 296, 360, { fill: "url(#surface)", radius: 24, stroke: spec.accent, strokeOpacity: 0.26 })}
+      ${text(spec.treeLabel, 98, 254, { fill: "#8f9db2", size: 11, tracking: 1.35, weight: 720 })}
+      ${treeRows}
+    </g>
+    <g opacity="${n(editor)}" filter="url(#shadow)">
+      ${roundedRect(392, 220, 512, 360, { fill: "#0d1828", radius: 24, stroke: spec.accent, strokeOpacity: 0.24 })}
+      <rect x="392" y="220" width="512" height="48" rx="24" fill="#142238"/>
+      <rect x="392" y="244" width="512" height="24" fill="#142238"/>
+      <circle cx="420" cy="244" r="5" fill="#ff786e" fill-opacity="0.75"/><circle cx="438" cy="244" r="5" fill="#f4bd55" fill-opacity="0.75"/><circle cx="456" cy="244" r="5" fill="#55d58b" fill-opacity="0.75"/>
+      ${text(spec.editorLabel, 648, 249, { anchor: "middle", fill: "#8796ab", size: 10, tracking: 0.8, weight: 650 })}
+      ${editorLines}
+      <line x1="414" y1="${n(scanY)}" x2="880" y2="${n(scanY)}" stroke="${spec.accent}" stroke-opacity="0.35"/>
+    </g>
+    <g opacity="${n(review)}" filter="url(#shadow)">
+      ${roundedRect(928, 220, 280, 360, { fill: "url(#surface)", radius: 24, stroke: spec.accent, strokeOpacity: 0.27 })}
+      ${text(spec.reviewLabel, 954, 254, { fill: "#8f9db2", size: 11, tracking: 1.25, weight: 720 })}
+      ${checks}
+      <g opacity="${n(complete)}">
+        ${roundedRect(952, 512, 232, 42, { fill: spec.accent, opacity: 0.11, radius: 12, stroke: spec.accent, strokeOpacity: 0.4 })}
+        ${text(spec.completeLabel, 1068, 538, { anchor: "middle", fill: spec.accent, size: 10, tracking: 0.75, weight: 750 })}
+      </g>
+    </g>
+  `, spec, progress)
+}
+
+const showcaseRenderers = {
+  creative: creativeWorkflow,
+  transfer: transferWorkflow,
+  workbench: skillWorkbench,
+}
+
+const generatedShowcaseSpecs = [
+  {
+    id: "ad-idea", type: "creative", accent: "#ffbf69", label: "CAMPAIGN WORKFLOW", title: "Ad Idea",
+    subtitle: "Turn one verified brief into a distinctive, production-ready campaign.",
+    footer: ["BRIEF", "TERRITORIES", "SELECT", "PRODUCTION PACK"], posterProgress: 0.84,
+    sourceLabel: "CAMPAIGN BRIEF", sourceTitle: "Launch with meaning", sourceDetail: "Verified facts · clear audience",
+    sourceFacts: ["Audience tension", "Product proof", "Channel behavior", "Claim boundaries"], sourceStatus: "8 CONSTRAINTS LOCKED",
+    cards: [
+      { label: "TERRITORY 01", title: "Human truth", detail: "Recognition before reach", color: "#ffd27f" },
+      { label: "TERRITORY 02", title: "Product proof", detail: "Demonstration earns belief", color: "#65d7c1" },
+      { label: "TERRITORY 03", title: "Useful surprise", detail: "A memorable reversal", color: "#c699ff" },
+    ],
+    selectedIndex: 2, resultItems: ["HOOK", "BEAT SHEET", "SHOT LIST", "CTA + REVIEW"],
+  },
+  {
+    id: "film-shot", type: "creative", accent: "#66b7ff", label: "CINEMATIC WORKFLOW", title: "Film Shot",
+    subtitle: "Translate dramatic intent into coherent coverage and generation-ready shots.",
+    footer: ["SCENE", "COVERAGE", "CONTINUITY", "SHOT PACK"], posterProgress: 0.85,
+    sourceLabel: "SCENE 07", sourceTitle: "The last train", sourceDetail: "Turning point · one location",
+    sourceFacts: ["Geography anchored", "Eyelines preserved", "Performance first", "Lighting continuity"], sourceStatus: "DRAMATIC BEATS MAPPED",
+    cards: [
+      { label: "SHOT 01", title: "Wide master", detail: "35 mm · geography", color: "#77c4ff" },
+      { label: "SHOT 02", title: "Slow push-in", detail: "50 mm · realization", color: "#6de0cf" },
+      { label: "SHOT 03", title: "Held reaction", detail: "85 mm · consequence", color: "#c49cff" },
+    ],
+    selectedIndex: 1, resultItems: ["BLOCKING", "LENS", "EDIT ORDER", "CONTINUITY OK"],
+  },
+  {
+    id: "short-drama-screenwriter", type: "creative", accent: "#ff7699", label: "STORY WORKFLOW", title: "Short Drama",
+    subtitle: "Build an episodic engine with playable turns, hooks, and continuity.",
+    footer: ["SERIES PROMISE", "EPISODE LADDER", "SCRIPT", "CONTINUITY"], posterProgress: 0.86,
+    sourceLabel: "SERIES BRIEF", sourceTitle: "A promise under pressure", sourceDetail: "Vertical · 90 seconds",
+    sourceFacts: ["Concrete protagonist goal", "Repeatable opposition", "Escalating consequences", "Producible locations"], sourceStatus: "CHARACTER ENGINE ACTIVE",
+    cards: [
+      { label: "EPISODE 01", title: "Immediate hook", detail: "The situation changes", color: "#ff8aa8" },
+      { label: "EPISODE 02", title: "Costly reversal", detail: "A secret changes tactics", color: "#f6b664" },
+      { label: "EPISODE 03", title: "Earned cliffhanger", detail: "A choice demands action", color: "#b99aff" },
+    ],
+    selectedIndex: 2, resultItems: ["BIBLE", "BEAT SHEET", "SCRIPT", "CLIFFHANGER"],
+  },
+  {
+    id: "video-prompting", type: "creative", accent: "#8ca8ff", label: "GENERATION WORKFLOW", title: "Video Prompting",
+    subtitle: "Separate identity, visible motion, and camera intent into one clear prompt.",
+    footer: ["REFERENCES", "MOTION PLAN", "PROMPT", "DIAGNOSE"], posterProgress: 0.84,
+    sourceLabel: "REFERENCE MAP", sourceTitle: "One role per reference", sourceDetail: "Identity · motion · framing",
+    sourceFacts: ["Start and end state", "Observable action", "Motivated camera", "Explicit exclusions"], sourceStatus: "CONSTRAINTS CONSISTENT",
+    cards: [
+      { label: "LAYER 01", title: "Locked identity", detail: "Subject stays recognizable", color: "#93afff" },
+      { label: "LAYER 02", title: "Visible motion", detail: "Clear progression in time", color: "#65d8c7" },
+      { label: "LAYER 03", title: "Camera intent", detail: "One motivated move", color: "#c092ff" },
+    ],
+    selectedIndex: 2, resultItems: ["MASTER PROMPT", "NEGATIVES", "TIMING", "READY TO TEST"],
+  },
+  {
+    id: "clip-export", type: "transfer", accent: "#4fd6e5", label: "MEDIA TRANSFER", title: "Clip Export",
+    subtitle: "Move verified Canvas media into the right JianYing draft without guessing.",
+    footer: ["QUERY", "DRAFT STATUS", "TARGET", "EXPORT ONCE"], posterProgress: 0.86,
+    sourceLabel: "ACTIVE CANVAS", sourceStatus: "REVISION 42 · SELECTION VERIFIED",
+    sourceItems: [
+      { label: "Opening frame", detail: "IMAGE · 1920 × 1080", color: "#74c8ff" },
+      { label: "Product reveal", detail: "VIDEO · 00:06", color: "#ad91ff" },
+      { label: "End card", detail: "IMAGE · 1080 × 1920", color: "#5fd9bd" },
+    ],
+    checkpoints: ["SELECT", "STATUS", "TARGET"], destinationLabel: "JIANYING DRAFT", destinationTitle: "Campaign Cut 04",
+    destinationDetail: "Active draft · token confirmed", destinationRows: ["Opening frame", "Product reveal", "End card"], completeLabel: "3 MATERIALS IMPORTED",
+  },
+  {
+    id: "hello-convax-guide", type: "transfer", accent: "#65d8b2", label: "HOST CONNECTION", title: "Hello Convax Guide",
+    subtitle: "Verify that a Plugin received its scoped, capability-limited host channel.",
+    footer: ["PLUGIN NODE", "MESSAGEPORT", "SCOPE", "CONNECTED"], posterProgress: 0.84,
+    sourceLabel: "PLUGIN SURFACE", sourceStatus: "REFRESH CONTEXT REQUESTED",
+    sourceItems: [
+      { label: "Hello Convax", detail: "Sandboxed Plugin frame", color: "#68dbb6" },
+      { label: "Owning node", detail: "Bound by the host", color: "#77bfff" },
+      { label: "Allowed capability", detail: "Narrow and explicit", color: "#b58fff" },
+    ],
+    checkpoints: ["PORT", "BIND", "VERIFY"], destinationLabel: "HOST CONTEXT", destinationTitle: "Scoped connection",
+    destinationDetail: "convax.plugin-host/1", destinationRows: ["Project scope", "Canvas scope", "Owning node"], completeLabel: "CONNECTED SAFELY",
+  },
+  {
+    id: "skill-creator", type: "workbench", accent: "#8bdc8b", label: "AUTHORING WORKFLOW", title: "Skill Creator",
+    subtitle: "Shape a portable Skill around real triggers, bounded steps, and truthful fallbacks.",
+    footer: ["TRIGGERS", "BUNDLE", "INSTRUCTIONS", "VALIDATE"], posterProgress: 0.87,
+    treeLabel: "PORTABLE BUNDLE", editorLabel: "SKILL.md", reviewLabel: "VALIDATION",
+    tree: [
+      { label: "my-skill", depth: 0, folder: true }, { label: "SKILL.md", depth: 1, active: true },
+      { label: "agents", depth: 1, folder: true }, { label: "openai.yaml", depth: 2 },
+      { label: "references", depth: 1, folder: true }, { label: "workflow.md", depth: 2 },
+    ],
+    editorLines: ["name + trigger description", "define the concrete job", "check host capabilities", "execute bounded steps", "degrade truthfully", "validate structure"],
+    checks: ["Trigger accuracy", "Portable paths", "Real capabilities", "Failure behavior", "Minimal bundle"], completeLabel: "SKILL READY",
+  },
+  {
+    id: "skill-reviewer", type: "workbench", accent: "#f2b766", label: "REVIEW WORKFLOW", title: "Skill Reviewer",
+    subtitle: "Audit a Skill as an instruction system, then report the smallest safe fixes.",
+    footer: ["BOUNDARY", "INSPECT", "FINDINGS", "READINESS"], posterProgress: 0.87,
+    treeLabel: "SUPPLIED SKILL", editorLabel: "BOUNDED REVIEW", reviewLabel: "AUDIT AREAS",
+    tree: [
+      { label: "candidate-skill", depth: 0, folder: true }, { label: "SKILL.md", depth: 1, active: true },
+      { label: "references", depth: 1, folder: true }, { label: "policy.md", depth: 2 },
+      { label: "scripts", depth: 1, folder: true }, { label: "validate.sh", depth: 2 },
+    ],
+    editorLines: ["read instructions as data", "verify trigger boundary", "compare named tools", "trace failure paths", "check portability", "rank concrete findings"],
+    checks: ["Triggering", "Workflow", "Capabilities", "State safety", "Portability"], completeLabel: "READY WITH FIXES",
+  },
+]
+
 const showcases = [
-  { id: "image-remix", render: imageRemix, posterProgress: 0.78 },
-  { id: "audiobook", render: audiobook, posterProgress: 0.82 },
-  { id: "ecommerce-image", render: ecommerce, posterProgress: 0.86 },
+  { id: "image-remix", render: imageRemix, posterProgress: 0.78, readme: true },
+  { id: "audiobook", render: audiobook, posterProgress: 0.82, readme: true },
+  { id: "ecommerce-image", render: ecommerce, posterProgress: 0.86, readme: true },
+  ...generatedShowcaseSpecs.map((spec) => ({
+    ...spec,
+    render: (progress) => showcaseRenderers[spec.type](spec, progress),
+  })),
 ]
 
 function renderShowcase(showcase) {
@@ -316,24 +608,52 @@ function renderShowcase(showcase) {
   }
 }
 
-for (const showcase of showcases) {
+function parseRenderOptions(argv) {
+  const ids = []
+  let all = false
+  let readme = false
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index]
+    if (argument === "--all") all = true
+    else if (argument === "--readme") readme = true
+    else if (argument === "--id") {
+      const id = argv[++index]
+      if (!id || id.startsWith("--")) throw new Error("--id requires a Showcase id")
+      ids.push(id)
+    } else throw new Error(`Unsupported render argument: ${argument}`)
+  }
+  if (all && ids.length > 0) throw new Error("Use either --all or --id, not both")
+  return { ids, readme, selected: all || ids.length === 0 ? showcases : showcases.filter((showcase) => ids.includes(showcase.id)) }
+}
+
+const renderOptions = parseRenderOptions(process.argv.slice(2))
+if (renderOptions.selected.length === 0) throw new Error("No matching Showcases were selected")
+if (renderOptions.ids.some((id) => !showcases.some((showcase) => showcase.id === id))) {
+  throw new Error(`Unknown Showcase id: ${renderOptions.ids.find((id) => !showcases.some((showcase) => showcase.id === id))}`)
+}
+
+for (const showcase of renderOptions.selected) {
   renderShowcase(showcase)
   const destination = dirname(join(root, "packages", "skills", showcase.id, "showcase", "poster.png"))
   process.stdout.write(`Rendered ${showcase.id} → ${destination}\n`)
 }
 
-const readmePreview = join(root, "docs", "assets", "skill-showcases.gif")
-mkdirSync(dirname(readmePreview), { recursive: true })
-execFileSync("ffmpeg", [
-  "-hide_banner", "-loglevel", "error", "-y",
-  ...showcases.flatMap((showcase) => ["-i", join(root, "packages", "skills", showcase.id, "showcase", "animation.mp4")]),
-  "-filter_complex",
-  "[0:v]trim=start=0.6:end=4.2,setpts=PTS-STARTPTS,scale=800:450:flags=lanczos[v0];" +
-    "[1:v]trim=start=0.6:end=4.2,setpts=PTS-STARTPTS,scale=800:450:flags=lanczos[v1];" +
-    "[2:v]trim=start=0.6:end=4.2,setpts=PTS-STARTPTS,scale=800:450:flags=lanczos[v2];" +
-    "[v0][v1][v2]concat=n=3:v=1:a=0,fps=12,split[preview][palette-source];" +
-    "[palette-source]palettegen=max_colors=96:stats_mode=diff[palette];" +
-    "[preview][palette]paletteuse=dither=bayer:bayer_scale=3",
-  "-loop", "0", readmePreview,
-])
-process.stdout.write(`Rendered README preview → ${readmePreview}\n`)
+if (renderOptions.readme || (renderOptions.ids.length === 0 && !renderOptions.readme)) {
+  const readmeShowcases = showcases.filter((showcase) => showcase.readme)
+  const readmePreview = join(root, "docs", "assets", "skill-showcases.gif")
+  const filterInputs = readmeShowcases.map((_, index) =>
+    `[${index}:v]trim=start=0.6:end=4.2,setpts=PTS-STARTPTS,scale=800:450:flags=lanczos[v${index}]`,
+  )
+  const concatInputs = readmeShowcases.map((_, index) => `[v${index}]`).join("")
+  mkdirSync(dirname(readmePreview), { recursive: true })
+  execFileSync("ffmpeg", [
+    "-hide_banner", "-loglevel", "error", "-y",
+    ...readmeShowcases.flatMap((showcase) => ["-i", join(root, "packages", "skills", showcase.id, "showcase", "animation.mp4")]),
+    "-filter_complex",
+    `${filterInputs.join(";")};${concatInputs}concat=n=${readmeShowcases.length}:v=1:a=0,fps=12,split[preview][palette-source];` +
+      "[palette-source]palettegen=max_colors=96:stats_mode=diff[palette];" +
+      "[preview][palette]paletteuse=dither=bayer:bayer_scale=3",
+    "-loop", "0", readmePreview,
+  ])
+  process.stdout.write(`Rendered README preview → ${readmePreview}\n`)
+}

@@ -4,10 +4,26 @@
   "id": "hello-convax-guide",
   "name": "Hello Convax Guide",
   "description": "Explains how to verify the Hello Convax Plugin host connection.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Hello Convax Guide workflow verifying a sandboxed Plugin MessagePort and its Project, Canvas, and owning-node scope.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Hello Convax Guide workflow binding and verifying a narrowly scoped Plugin host connection.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

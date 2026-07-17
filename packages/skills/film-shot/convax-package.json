@@ -4,10 +4,26 @@
   "id": "film-shot",
   "name": "Film Shot",
   "description": "Convert a scene or script into a coherent cinematic shot plan with coverage, continuity, and generation-ready prompts.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Film Shot workflow translating a dramatic scene into a wide master, motivated push-in, held reaction, and continuity-checked shot pack.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Film Shot workflow mapping scene constraints into coherent coverage, lens choices, edit order, and continuity checks.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

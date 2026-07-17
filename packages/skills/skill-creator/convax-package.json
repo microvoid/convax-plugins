@@ -4,10 +4,26 @@
   "id": "skill-creator",
   "name": "Skill Creator",
   "description": "Design and author concise, portable agent Skills grounded in real workflows and available host capabilities.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Skill Creator workbench organizing a portable Skill bundle, authoring bounded instructions, and validating trigger and capability behavior.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Skill Creator workbench building a compact Agent Skill bundle and completing portability and failure-behavior checks.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }
