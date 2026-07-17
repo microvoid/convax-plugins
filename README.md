@@ -3,7 +3,9 @@
 # Convax Plugins
 
 The official source registry, authoring kit, and release catalog for Convax
-Plugins and OpenCode-compatible Skills.
+Plugins and portable [Agent Skills](https://agentskills.io/). Published Skills
+follow the open `SKILL.md` format and can be used by compatible agents such as
+OpenAI Codex; they are not designed exclusively for Convax.
 
 This repository lets people and AI agents start from a template and produce a
 Plugin or Skill that can be validated independently, packaged deterministically,
@@ -11,6 +13,12 @@ and downloaded safely by Convax. Package source is reviewed in Git, immutable ZI
 are published through GitHub Releases, and GitHub Pages hosts the lightweight
 Registry at
 `https://microvoid.github.io/convax-plugins/registry/v1/index.json`.
+
+![Animated previews of the Image Remix, Audiobook, and Ecommerce Image Skills](docs/assets/skill-showcases.gif)
+
+Featured Skills can publish a poster and an animation beside their immutable
+Release ZIP. Convax verifies that media through the separate Showcase index and
+plays it in the catalog; the media never becomes part of the portable Skill.
 
 ## Quick start
 
@@ -22,6 +30,16 @@ cp -R templates/plugin-basic packages/plugins/my-plugin
 bun run validate
 bun test
 bun run pack -- --kind plugin --id my-plugin
+```
+
+For a Skill, start from the portable Skill template instead:
+
+```sh
+cp -R templates/skill-basic packages/skills/my-skill
+# Replace every __TOKEN__ in convax-package.json, SKILL.md, and agents/openai.yaml.
+bun run validate
+bun test
+bun run pack -- --kind skill --id my-skill
 ```
 
 The generated Plugin ZIP has `manifest.json` at its root. A Skill ZIP has
@@ -36,6 +54,26 @@ See the working example in
 - [`docs/packaging.md`](docs/packaging.md) for ZIP and release rules;
 - [`docs/registry-spec.md`](docs/registry-spec.md) for the client contract;
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
+
+## Portable Skill boundary
+
+For a Skill package, only the contents of `package/` are placed in the published
+ZIP. That directory is a standard Agent Skill root: `SKILL.md` is required, while
+`scripts/`, `references/`, `assets/`, and client metadata such as
+`agents/openai.yaml` are optional. A compatible client may ignore metadata intended
+for another client without changing the Skill workflow.
+
+Do not add a `README.md`, installation guide, changelog, or publishing notes to an
+individual Skill bundle. `SKILL.md` is the agent-facing entry point; repository and
+marketplace documentation belongs outside `package/`. Likewise,
+`convax-package.json` stays beside `package/`. It describes Convax catalog and
+release metadata and is deliberately excluded from the portable Skill ZIP.
+
+A Skill may name a host integration, but it must first use capabilities actually
+available in the current session. Optional tool absence, denial, cancellation, or
+failure must have an honest fallback: produce a useful handoff when possible, or
+stop and identify the unavailable operation. Never invent a tool call or claim an
+artifact, installation, or mutation succeeded when it did not.
 
 ## Install in Convax
 
@@ -52,11 +90,12 @@ repository may remain private without affecting package installation.
 
 ```text
 packages/plugins/<id>/
-  convax-package.json
+  convax-package.json      # Convax publishing metadata; excluded from the ZIP
   package/                 # ZIP root; manifest.json must be here
 packages/skills/<id>/
-  convax-package.json
-  package/                 # ZIP root; SKILL.md must be here
+  convax-package.json      # Convax publishing metadata; excluded from the ZIP
+  package/                 # portable Skill root; SKILL.md must be here
+  showcase/                # optional catalog poster/animation; excluded from ZIP
 templates/                 # copy-only author starters
 tooling/                   # validation and deterministic ZIP
 schemas/                   # package, Registry, and Plugin JSON Schemas
@@ -69,7 +108,7 @@ dist/                      # generated; never committed
 bun run validate            # validate all source packages
 bun test                    # validator, ZIP, Registry, and protocol tests
 bun run pack                # pack every package into dist/packages
-bun run build:index         # create dist/registry/v1/index.json at current Git SHA
+bun run build:index         # create matching Registry and Showcase indexes
 bun run check               # complete local CI sequence
 ```
 

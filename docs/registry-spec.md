@@ -49,8 +49,30 @@ complete validated manifest. Plugin compatibility is exactly
 `size`, and lowercase hex `sha256`; URLs always target
 `microvoid/convax-plugins` Release assets.
 
+`opencode.skill/1` is the retained Registry v1 compatibility label used by current
+Convax clients; it is not the bundle format. Published Skill ZIPs follow the open
+Agent Skills `SKILL.md` layout and may include client-specific metadata such as
+`agents/openai.yaml`. Renaming this strict field requires a future Registry
+version so older clients do not reject an otherwise valid catalog.
+
 The production builder reads historical Release entries but emits only the highest
 stable SemVer for each kind/id; prereleases never replace a stable catalog item.
 Packages are sorted by kind then id for deterministic output. Unknown fields are
 rejected. Clients must ignore yanked items for new installs while still
 allowing inventory/diagnostics for already-installed versions.
+
+## Showcase sidecar (`convax.showcase/1`)
+
+Presentation media is published separately at
+`https://microvoid.github.io/convax-plugins/showcase/v1/index.json`. It never adds
+fields to strict Registry v1 items and never enters a package ZIP. The top-level
+`sequence` and `revision` must exactly match the Registry fetched by the client;
+otherwise the whole sidecar is ignored.
+
+Each sidecar item identifies the same `kind`, `id`, and `version` as a current
+Registry package and contains a required `poster` plus an optional `animation`.
+Media objects contain exactly `url`, `mime`, `size`, `sha256`, `width`, `height`,
+and `alt`. URLs target immutable assets on that package's own GitHub Release.
+Clients verify identity, URL, MIME, byte count, digest, and file signature before
+rendering media. A missing or invalid sidecar degrades to an unanimated catalog;
+it must not prevent listing or installing packages.
