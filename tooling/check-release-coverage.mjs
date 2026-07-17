@@ -1,9 +1,9 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
-import { discoverPackages, parseArgs, readJson, root, tagFor } from "./lib.mjs"
+import { createShowcaseEntry, discoverPackages, parseArgs, parseShowcaseEntry, readJson, root, tagFor } from "./lib.mjs"
 
-export async function checkReleaseCoverage({ entriesDirectory }) {
-  const packages = await discoverPackages()
+export async function checkReleaseCoverage({ entriesDirectory, packages: suppliedPackages }) {
+  const packages = suppliedPackages ?? await discoverPackages()
   const missing = []
 
   for (const pkg of packages) {
@@ -22,9 +22,26 @@ export async function checkReleaseCoverage({ entriesDirectory }) {
     if (entry.kind !== pkg.metadata.kind || entry.id !== pkg.metadata.id || entry.version !== pkg.metadata.version) {
       throw new Error(`${tag}: Release entry identity does not match source metadata`)
     }
+
+    const showcaseFile = path.join(entriesDirectory, tag, "showcase-entry.json")
+    let publishedShowcase
+    try {
+      publishedShowcase = parseShowcaseEntry(await readJson(showcaseFile, path.relative(root, showcaseFile)), `${tag} Showcase entry`)
+    } catch (cause) {
+      if (cause.cause?.code !== "ENOENT") throw cause
+    }
+    const expectedShowcase = createShowcaseEntry(pkg)
+    if (expectedShowcase && !publishedShowcase) {
+      missing.push(tag)
+    } else if (!expectedShowcase && publishedShowcase) {
+      throw new Error(`${tag}: Release has Showcase assets not declared by source metadata`)
+    } else if (expectedShowcase && JSON.stringify(expectedShowcase) !== JSON.stringify(publishedShowcase)) {
+      throw new Error(`${tag}: Release Showcase entry does not match source metadata and media`)
+    }
   }
 
-  return { missing, ready: missing.length === 0 }
+  const uniqueMissing = [...new Set(missing)]
+  return { missing: uniqueMissing, ready: uniqueMissing.length === 0 }
 }
 
 if (import.meta.main) {
@@ -36,7 +53,7 @@ if (import.meta.main) {
   })
   const summary = result.ready
     ? "Every source package has a matching published Release."
-    : `Registry deployment deferred; missing Releases: ${result.missing.join(", ")}`
+    : `Catalog deployment deferred; missing or incomplete Releases: ${result.missing.join(", ")}`
   console.log(summary)
   if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `ready=${result.ready}\n`)
 }

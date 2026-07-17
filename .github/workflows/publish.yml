@@ -59,6 +59,7 @@ jobs:
           test -n "$zip_path"
           echo "zip=$zip_path" >> "$GITHUB_OUTPUT"
           echo "entry=$package_dir/registry-entry.json" >> "$GITHUB_OUTPUT"
+          echo "directory=$package_dir" >> "$GITHUB_OUTPUT"
       - name: Attest package ZIP
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
@@ -76,7 +77,18 @@ jobs:
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
             --notes "Deterministic Convax package. Verify the ZIP against registry-entry.json and its build provenance attestation."
-          gh release upload "$GITHUB_REF_NAME" \
-            "${{ steps.package.outputs.zip }}" \
+          shopt -s nullglob
+          assets=(
+            "${{ steps.package.outputs.zip }}"
             "${{ steps.package.outputs.entry }}"
+          )
+          showcase_entry="${{ steps.package.outputs.directory }}/showcase-entry.json"
+          showcase_assets=("${{ steps.package.outputs.directory }}"/convax-showcase-*)
+          if [[ -f "$showcase_entry" ]]; then
+            assets+=("$showcase_entry" "${showcase_assets[@]}")
+          elif (( ${#showcase_assets[@]} > 0 )); then
+            echo "Showcase assets exist without showcase-entry.json." >&2
+            exit 1
+          fi
+          gh release upload "$GITHUB_REF_NAME" "${assets[@]}"
           gh release edit "$GITHUB_REF_NAME" --draft=false
