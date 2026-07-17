@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "audiobook",
+  "name": "Audiobook Producer",
+  "description": "Turns prose or a narration brief into an audiobook script, voice bible, cue sheet, and production-ready asset plan.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}
