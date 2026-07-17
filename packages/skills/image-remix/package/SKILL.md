@@ -47,10 +47,15 @@ directions in a single ambiguous prompt.
 3. If no compatible image tool is available, return a complete production pack:
    master prompt, negative prompt, reference-role map, size and crop settings,
    variation matrix, fidelity checklist, and recommended iteration order.
-4. If the user requested Canvas placement and a real output file exists, re-query
+4. If generation fails or is cancelled, stop downstream tool calls, report the last
+   confirmed result and unfinished steps, and do not retry or publish without
+   explicit approval.
+5. If the user requested Canvas placement and a real output file exists, re-query
    the Canvas and add it with `canvas_add_resources` using the latest revision.
-5. Use `canvas_view` only to reveal completed additions; a view failure does not
+6. Use `canvas_view` only to reveal completed additions; a view failure does not
    mean a successfully saved resource was reverted.
+7. If the required Canvas tools are unavailable, return the production pack and
+   mark Canvas placement as not performed.
 
 Stay within the active Project and Canvas. Do not edit `.convax`, infer private file
 paths, overwrite references, or perform unrelated Canvas mutations.

@@ -10,7 +10,8 @@ Create a decision-ready concept pack before attempting asset generation.
 ## Frame the problem
 
 1. Extract the product, audience, desired action, channel, format, duration, locale,
-   brand voice, mandatory elements, and prohibited claims.
+   brand voice, budget, available source assets, production resources, mandatory
+   elements, and prohibited claims.
 2. Separate verified facts from aspirations. Never invent performance evidence,
    endorsements, scarcity, certifications, prices, or legal clearance.
 3. When source material is on Canvas, call `canvas_query_nodes` in the active scope
@@ -48,6 +49,12 @@ large-batch work and generate only a small proof first. Never claim an asset exi
 until a tool returns it. If generation is unavailable, the complete concept,
 script, shot, prompt, and review pack is the finished deliverable.
 
+If a tool fails or the user cancels, stop further tool calls, report the last
+confirmed result and unfinished steps, and keep the production pack usable. Do not
+retry, publish, or start another batch without explicit approval.
+
 When Canvas delivery is requested, re-query first and add the pack through
 `canvas_add_resources` with the latest revision and stable ids. Add only real output
 files or URLs, reveal them with `canvas_view` if useful, and never write `.convax`.
+If the required Canvas tools are unavailable, return the pack and mark Canvas
+delivery as not performed.

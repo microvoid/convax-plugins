@@ -34,6 +34,10 @@ Do not use confusion as a substitute for suspense. Avoid repetitive humiliation,
 coercive romance, unsupported medical or legal claims, and cliffhangers unrelated
 to the episode's central choice.
 
+For a multi-episode request, default to the series bible, complete season beat
+ladder, and one fully written representative episode. Expand every episode into a
+production script only when the user requests that scope.
+
 ## Write the production script
 
 1. Use scene headings, visible action, speaker names, concise dialogue, and only
@@ -51,6 +55,12 @@ The complete deliverable is the series bible, episode beat sheet, production
 script, and continuity report. Optional image or video tools may create references
 only when actually available; never fabricate generated assets.
 
+If optional generation fails or is cancelled, stop downstream tool calls, report
+the last confirmed result and unfinished steps, and keep the text deliverable. Do
+not retry or publish without explicit approval.
+
 For requested Canvas delivery, re-query and add the text pack through
 `canvas_add_resources` with stable ids and the latest revision. Do not overwrite
-source nodes, mutate unrelated content, or write `.convax` directly.
+source nodes, mutate unrelated content, or write `.convax` directly. If the
+required Canvas tools are unavailable, return the pack and mark delivery as not
+performed.
