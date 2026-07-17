@@ -4,10 +4,26 @@
   "id": "audiobook",
   "name": "Audiobook Producer",
   "description": "Turns prose or a narration brief into an audiobook script, voice bible, cue sheet, and production-ready asset plan.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Audiobook workflow turning a manuscript into narration, waveform, chapter cues, and delivery stages.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Audiobook workflow turning a manuscript into a narrated chapter and production cue sheet.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

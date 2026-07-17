@@ -4,10 +4,26 @@
   "id": "ecommerce-image",
   "name": "Ecommerce Image",
   "description": "Plan and produce product-focused ecommerce image sets with channel-specific composition and fidelity controls.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Ecommerce image workflow expanding one verified product into hero, detail, lifestyle, campaign, and mobile views.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Ecommerce Image workflow generating and quality-checking a channel-ready product image set.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

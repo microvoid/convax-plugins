@@ -4,10 +4,26 @@
   "id": "image-remix",
   "name": "Image Remix",
   "description": "Rework a reference image into controlled visual variations while preserving declared subject and brand constraints.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "Image Remix workflow preserving a product identity while producing three controlled visual variations.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated Image Remix workflow moving from a locked reference through transformation and verification to three variations.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
   },
   "yanked": false
 }

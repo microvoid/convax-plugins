@@ -8,6 +8,7 @@ scripts, installs its dependencies, or follows symlinks.
 ```text
 packages/<kind>/<id>/convax-package.json  # catalog metadata, not shipped
 packages/<kind>/<id>/package/             # exact ZIP root
+packages/<kind>/<id>/showcase/            # optional catalog media, not shipped
 ```
 
 Plugin ZIPs require root `manifest.json`; Skill ZIPs require root `SKILL.md`.
@@ -25,7 +26,10 @@ extensions are rejected for Plugins.
 
 `bun run pack -- --kind plugin --id hello-convax` writes a versioned ZIP and
 `registry-entry.json` below `dist/packages/`. `bun run build:index` reads those
-entries and writes `dist/registry/v1/index.json`.
+entries and writes `dist/registry/v1/index.json`. A package with `showcase`
+metadata also produces `showcase-entry.json` and versioned poster/animation assets;
+the index build writes `dist/showcase/v1/index.json` with the same sequence and
+revision as the Registry.
 
 ## Release
 
@@ -44,7 +48,8 @@ no Releases. See GitHub's
 
 The tag must match source metadata exactly. The workflow validates all packages,
 packs only the tagged package, attests its ZIP, creates a draft Release, uploads the
-ZIP plus `registry-entry.json`, and only then publishes it. Published versions are
+ZIP plus `registry-entry.json` and any declared Showcase assets, and only then
+publishes it. Published versions are
 immutable; never move or reuse a tag. Change bytes by publishing a higher SemVer. To
 disable a compromised version, add its `kind/id@version` identity to
 `registry/config.json`, bump the Registry sequence, and manually run the protected
@@ -54,6 +59,10 @@ The Pages workflow aggregates entry documents from GitHub Releases and publishes
 only valid entries. The production catalog is:
 
 `https://microvoid.github.io/convax-plugins/registry/v1/index.json`
+
+The matching presentation sidecar is:
+
+`https://microvoid.github.io/convax-plugins/showcase/v1/index.json`
 
 Registry deployment is atomic with respect to the package versions on `main`.
 Pages waits until every source package has a matching published Release, so a batch
