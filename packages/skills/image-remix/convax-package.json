@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "image-remix",
+  "name": "Image Remix",
+  "description": "Rework a reference image into controlled visual variations while preserving declared subject and brand constraints.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}

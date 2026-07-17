@@ -1,0 +1,13 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "film-shot",
+  "name": "Film Shot",
+  "description": "Convert a scene or script into a coherent cinematic shot plan with coverage, continuity, and generation-ready prompts.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "yanked": false
+}
