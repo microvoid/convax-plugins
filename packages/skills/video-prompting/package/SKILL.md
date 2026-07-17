@@ -48,5 +48,10 @@ likely failure mechanism and change one major variable per iteration.
 
 Call a generator only when one is actually available and the user requested
 generation; confirm before costly batches. Never claim a clip exists without a
-successful result. If Canvas delivery is requested, re-query before adding the
-prompt pack or real outputs with `canvas_add_resources`. Never write `.convax`.
+successful result. If generation fails or is cancelled, stop downstream tool
+calls, report the last confirmed result and unfinished steps, and do not retry or
+publish without explicit approval.
+
+If Canvas delivery is requested, re-query before adding the prompt pack or real
+outputs with `canvas_add_resources`. Never write `.convax`. If the required Canvas
+tools are unavailable, return the prompt pack and mark delivery as not performed.

@@ -48,7 +48,10 @@ Create concise, independently usable sections:
 2. Confirm once before a paid, long-running, irreversible, or large batch generation.
 3. Generate in reviewable chapter-sized segments and preserve the exact prompt and voice settings in the pack.
 4. Add returned assets to Canvas only when the tool provides a supported host file or URL.
-5. If generation is unavailable or fails, deliver the complete script, cue, voice, prompt, and asset production pack; do not fabricate audio.
+5. If generation is unavailable, fails, or is cancelled, stop downstream tool
+   calls and deliver the complete script, cue, voice, prompt, and asset production
+   pack. Name the last confirmed result and unfinished steps; do not fabricate
+   audio or retry without approval.
 
 ## Place results on Canvas
 
@@ -57,5 +60,7 @@ Create concise, independently usable sections:
 3. Add generated host files or URLs through the same business tool rather than private filesystem edits.
 4. Use `canvas_apply_primitive` only for necessary layout or connections, after a fresh query.
 5. Optionally call `canvas_view` once at the end to reveal the finished pack; a view failure does not undo saved work.
+6. If the required Canvas tools are unavailable, return the production pack and
+   mark Canvas delivery as not performed.
 
 Report completed artifacts, assumptions, unresolved review items, and the next executable production step.

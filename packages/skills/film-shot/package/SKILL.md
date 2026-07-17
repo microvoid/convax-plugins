@@ -11,7 +11,8 @@ beat with unnecessary camera movement.
 ## Read the scene
 
 1. Identify the dramatic objective, turning point, point of view, characters,
-   location, time, duration, delivery format, and available references.
+   location, time, duration, delivery format, capture format, available lenses and
+   support, lighting limits, location restrictions, and references.
 2. Inspect relevant active Canvas nodes with `canvas_query_nodes` and keep the
    returned revision. Never widen the host-provided scope.
 3. Establish continuity anchors: screen direction, geography, eyelines, wardrobe,
@@ -47,6 +48,11 @@ If an appropriate generator is available, confirm before expensive batches and
 test one representative shot. Otherwise the shot table and prompt pack are the
 complete deliverable; never fabricate frames or clips.
 
+If generation fails or is cancelled, stop downstream tool calls, report the last
+confirmed result and unfinished steps, and keep the shot and prompt pack as the
+deliverable. Do not retry or publish without explicit approval.
+
 When Canvas placement is requested, re-query and add the plan or real outputs with
 `canvas_add_resources` using the latest revision. Use primitives only for necessary
-layout, keep stable command ids, and never edit `.convax` directly.
+layout, keep stable command ids, and never edit `.convax` directly. If the required
+Canvas tools are unavailable, return the pack and mark placement as not performed.

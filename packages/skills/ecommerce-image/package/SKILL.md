@@ -44,8 +44,13 @@ Add fidelity checks for geometry, color, label spelling, variant, and item count
    master product description, per-shot prompts, negative prompt, reference map,
    dimensions, crop guidance, variation matrix, and acceptance checklist.
 4. Never report an image as generated unless a tool returned a real output.
+5. If generation fails or is cancelled, stop downstream tool calls, report the last
+   confirmed result and unfinished steps, and do not retry or publish without
+   explicit approval.
 
 If the user requested Canvas delivery and output files exist, re-query first and use
 `canvas_add_resources` with the latest revision. Add a markdown production pack as
 an inline-text resource only when requested. Reveal additions with `canvas_view`;
 do not modify unrelated nodes or write `.convax` directly.
+If the required Canvas tools are unavailable, return the production pack and mark
+Canvas delivery as not performed.
