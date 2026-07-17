@@ -1,4 +1,4 @@
-name: Publish Registry Pages
+name: Publish Catalog Pages
 
 on:
   workflow_dispatch:
@@ -37,14 +37,18 @@ jobs:
       - name: Require every source package Release
         id: coverage
         run: bun tooling/check-release-coverage.mjs
-      - name: Build and stage strict Registry
+      - name: Build and stage strict catalogs
         if: steps.coverage.outputs.ready == 'true'
         run: |
           bun tooling/build-index.mjs \
             --entries dist/release-entries \
-            --revision "$GITHUB_SHA"
-          mkdir -p dist/site/registry/v1 dist/site/schemas
+            --revision "$(git rev-parse HEAD)"
+          bun tooling/build-showcase.mjs \
+            --entries dist/release-entries \
+            --registry dist/registry/v1/index.json
+          mkdir -p dist/site/registry/v1 dist/site/showcase/v1 dist/site/schemas
           cp dist/registry/v1/index.json dist/site/registry/v1/index.json
+          cp dist/showcase/v1/index.json dist/site/showcase/v1/index.json
           cp schemas/*.json dist/site/schemas/
       - name: Configure Pages
         if: steps.coverage.outputs.ready == 'true'
