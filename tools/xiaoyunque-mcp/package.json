@@ -1,0 +1,21 @@
+{
+  "name": "@microvoid/convax-xiaoyunque-mcp",
+  "version": "0.2.12",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "convax-xiaoyunque-mcp": "dist/convax-xiaoyunque-mcp"
+  },
+  "scripts": {
+    "build": "bun build --compile --minify --outfile dist/convax-xiaoyunque-mcp src/index.ts",
+    "build:release:darwin-arm64": "bun build --compile --minify --target=bun-darwin-arm64 --outfile dist/darwin-arm64/convax-xiaoyunque-mcp src/index.ts",
+    "clean": "rm -rf dist",
+    "smoke:live:video": "bun scripts/live-video-smoke.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
