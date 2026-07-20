@@ -1,0 +1,39 @@
+{
+  "schema": "convax.plugin/2",
+  "id": "ffmpeg-tools",
+  "name": "FFmpeg Tools",
+  "description": "Runs reviewed local FFmpeg transforms against host-staged Canvas media without exposing native paths or a shell.",
+  "version": "0.1.0",
+  "contributes": {
+    "generation": {
+      "tools": [
+        {
+          "id": "run.image",
+          "title": "FFmpeg · Image output",
+          "description": "Run FFmpeg arguments that create one image from staged Canvas media.",
+          "output": "image",
+          "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
+        },
+        {
+          "id": "run.video",
+          "title": "FFmpeg · Video output",
+          "description": "Run FFmpeg arguments that create one video from staged Canvas media.",
+          "output": "video",
+          "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
+        },
+        {
+          "id": "run.audio",
+          "title": "FFmpeg · Audio output",
+          "description": "Run FFmpeg arguments that create one audio file from staged Canvas media.",
+          "output": "audio",
+          "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "type": "mcp-stdio",
+    "command": "convax-ffmpeg-mcp"
+  },
+  "skill": "skills/ffmpeg-canvas/SKILL.md"
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "convax.package/1",
+  "kind": "skill",
+  "id": "ffmpeg-canvas",
+  "name": "FFmpeg Canvas",
+  "description": "Compose safe, tokenized FFmpeg transforms for active Canvas media and save the verified result as a new managed node.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "skillSchema": "opencode.skill/1"
+  },
+  "showcase": {
+    "poster": {
+      "path": "showcase/poster.png",
+      "alt": "FFmpeg Canvas workflow selecting a managed video node, composing a tokenized argv, running local FFmpeg, and saving the verified output as a new Canvas node.",
+      "mime": "image/png",
+      "width": 1280,
+      "height": 720
+    },
+    "animation": {
+      "path": "showcase/animation.mp4",
+      "alt": "Animated FFmpeg Canvas workflow preserving a managed source, building FFmpeg arguments, executing locally, and admitting the verified result as a new Canvas node.",
+      "mime": "video/mp4",
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "yanked": false
+}

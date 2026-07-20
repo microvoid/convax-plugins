@@ -529,6 +529,19 @@ const generatedShowcaseSpecs = [
     destinationDetail: "Active draft · token confirmed", destinationRows: ["Opening frame", "Product reveal", "End card"], completeLabel: "3 MATERIALS IMPORTED",
   },
   {
+    id: "ffmpeg-canvas", type: "transfer", accent: "#62d8ff", label: "LOCAL MEDIA TOOL", title: "FFmpeg Canvas",
+    subtitle: "Compose a full FFmpeg argv and save the verified output as a new Canvas node.",
+    footer: ["SELECT NODE", "BUILD ARGV", "LOCAL FFMPEG", "NEW NODE"], posterProgress: 0.87,
+    sourceLabel: "ACTIVE CANVAS", sourceStatus: "SOURCE PRESERVED · SCOPE VERIFIED",
+    sourceItems: [
+      { label: "Product reveal", detail: "VIDEO · MANAGED ASSET", color: "#72c9ff" },
+      { label: "00:04.2 → 00:09.8", detail: "TRIM RANGE", color: "#b68fff" },
+      { label: "1080 × 1080", detail: "CROP · H.264", color: "#67dab8" },
+    ],
+    checkpoints: ["SELECT", "ARGV", "RUN"], destinationLabel: "MANAGED OUTPUT", destinationTitle: "trim-square.mp4",
+    destinationDetail: "Verified video · new Canvas node", destinationRows: ["Input unchanged", "Asset admitted", "Node + edge created"], completeLabel: "OUTPUT SAVED TO CANVAS",
+  },
+  {
     id: "hello-convax-guide", type: "transfer", accent: "#65d8b2", label: "HOST CONNECTION", title: "Hello Convax Guide",
     subtitle: "Verify that a Plugin received its scoped, capability-limited host channel.",
     footer: ["PLUGIN NODE", "MESSAGEPORT", "SCOPE", "CONNECTED"], posterProgress: 0.84,
