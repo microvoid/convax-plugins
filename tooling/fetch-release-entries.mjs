@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs"
 import path from "node:path"
 import {
   assetNameFor,
+  companionAssetNameFor,
   inspectShowcaseMedia,
   json,
   parseArgs,
@@ -56,6 +57,64 @@ async function verifyShowcaseMedia(release, entry, role, token, fetchImpl) {
   }
 }
 
+async function readBoundedBytes(response, maximum, label) {
+  const declared = response.headers.get("content-length")
+  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > maximum)) {
+    throw new Error(`${label}: response exceeds ${maximum} bytes`)
+  }
+  if (!response.body) throw new Error(`${label}: response body is missing`)
+  const reader = response.body.getReader()
+  const chunks = []
+  let total = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > maximum) throw new Error(`${label}: response exceeds ${maximum} bytes`)
+      chunks.push(Buffer.from(value))
+    }
+  } catch (cause) {
+    await reader.cancel().catch(() => {})
+    throw cause
+  } finally {
+    reader.releaseLock()
+  }
+  return Buffer.concat(chunks, total)
+}
+
+async function verifyCompanionArtifacts(release, entry, token, fetchImpl) {
+  const expectedNames = []
+  for (const companion of entry.companions ?? []) {
+    for (const target of companion.targets) {
+      const name = companionAssetNameFor(entry, companion, target)
+      expectedNames.push(name)
+      const asset = findAsset(release, name)
+      if (asset.size !== target.artifact.size) {
+        throw new Error(`Release ${release.tag_name}: ${name} size does not match Registry entry`)
+      }
+      if (asset.browser_download_url !== target.artifact.url) {
+        throw new Error(`Release ${release.tag_name}: ${name} download URL does not match Registry entry`)
+      }
+      if (asset.digest !== undefined && asset.digest !== `sha256:${target.artifact.sha256}`) {
+        throw new Error(`Release ${release.tag_name}: ${name} digest does not match Registry entry`)
+      }
+      const response = await githubJson(asset.url, token, "application/octet-stream", fetchImpl)
+      const data = await readBoundedBytes(response, target.artifact.size, `Release ${release.tag_name} ${name}`)
+      if (data.length !== target.artifact.size) {
+        throw new Error(`Release ${release.tag_name}: downloaded ${name} size does not match Registry entry`)
+      }
+      if (sha256(data) !== target.artifact.sha256) {
+        throw new Error(`Release ${release.tag_name}: ${name} SHA-256 does not match Registry entry`)
+      }
+    }
+  }
+  const reserved = release.assets.filter((candidate) => candidate?.name?.startsWith("convax-companion-"))
+  if (reserved.length !== expectedNames.length || reserved.some((candidate) => !expectedNames.includes(candidate.name))) {
+    throw new Error(`Release ${release.tag_name}: unexpected or missing companion executable asset`)
+  }
+}
+
 export async function fetchReleaseEntries({ outputDirectory, token, fetchImpl = globalThis.fetch }) {
   if (!token) throw new Error("GITHUB_TOKEN is required")
   await fs.rm(outputDirectory, { recursive: true, force: true })
@@ -84,6 +143,7 @@ export async function fetchReleaseEntries({ outputDirectory, token, fetchImpl = 
       if (zipAsset.size !== entry.artifact.size) {
         throw new Error(`Release ${release.tag_name}: ${zipName} size does not match Registry entry`)
       }
+      await verifyCompanionArtifacts(release, entry, token, fetchImpl)
       await fs.mkdir(path.join(outputDirectory, expectedTag), { recursive: true })
       await fs.writeFile(path.join(outputDirectory, expectedTag, "registry-entry.json"), text.endsWith("\n") ? text : `${text}\n`)
 

@@ -1,6 +1,23 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
-import { createShowcaseEntry, discoverPackages, parseArgs, parseShowcaseEntry, readJson, root, tagFor } from "./lib.mjs"
+import {
+  createShowcaseEntry,
+  discoverPackages,
+  parseArgs,
+  parseRegistryEntry,
+  parseShowcaseEntry,
+  readJson,
+  root,
+  tagFor,
+} from "./lib.mjs"
+
+function companionDeclaration(value) {
+  return (value ?? []).map((companion) => ({
+    command: companion.command,
+    version: companion.version,
+    targets: companion.targets.map((target) => ({ platform: target.platform, arch: target.arch })),
+  }))
+}
 
 export async function checkReleaseCoverage({ entriesDirectory, packages: suppliedPackages }) {
   const packages = suppliedPackages ?? await discoverPackages()
@@ -11,7 +28,10 @@ export async function checkReleaseCoverage({ entriesDirectory, packages: supplie
     const entryFile = path.join(entriesDirectory, tag, "registry-entry.json")
     let entry
     try {
-      entry = await readJson(entryFile, path.relative(root, entryFile))
+      entry = parseRegistryEntry(
+        await readJson(entryFile, path.relative(root, entryFile)),
+        `${tag} Registry entry`,
+      )
     } catch (cause) {
       if (cause.cause?.code === "ENOENT") {
         missing.push(tag)
@@ -21,6 +41,13 @@ export async function checkReleaseCoverage({ entriesDirectory, packages: supplie
     }
     if (entry.kind !== pkg.metadata.kind || entry.id !== pkg.metadata.id || entry.version !== pkg.metadata.version) {
       throw new Error(`${tag}: Release entry identity does not match source metadata`)
+    }
+    const expectedCompanions = companionDeclaration(pkg.metadata.companions)
+    const publishedCompanions = companionDeclaration(entry.companions)
+    if (expectedCompanions.length > 0 && publishedCompanions.length === 0) {
+      missing.push(tag)
+    } else if (JSON.stringify(expectedCompanions) !== JSON.stringify(publishedCompanions)) {
+      throw new Error(`${tag}: Release companion targets do not match source metadata`)
     }
 
     const showcaseFile = path.join(entriesDirectory, tag, "showcase-entry.json")

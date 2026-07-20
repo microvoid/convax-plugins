@@ -12,12 +12,33 @@ export const maxFileBytes = 2 * 1024 * 1024
 export const maxPackageBytes = 10 * 1024 * 1024
 export const maxPosterBytes = 5 * 1024 * 1024
 export const maxAnimationBytes = 20 * 1024 * 1024
+export const maxCompanionBytes = 128 * 1024 * 1024
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const windowsReservedName = /^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$)$/i
-const capabilities = new Set(["canvas.node.read", "canvas.node.write", "project.files.read", "agent.prompt"])
+const pluginCapabilities = new Set([
+  "canvas.connectedImages.read",
+  "canvas.node.read",
+  "canvas.node.write",
+  "project.files.read",
+  "agent.prompt",
+  "generation.execute",
+  "ui.fullscreen",
+])
+const generationModalities = new Set(["text", "image", "video", "audio"])
+const generationInputRoles = new Set([
+  "reference_image",
+  "reference_video",
+  "first_frame",
+  "last_frame",
+  "audio",
+  "text",
+])
+const companionPlatforms = new Set(["darwin", "linux", "win32"])
+const companionArchitectures = new Set(["arm64", "x64"])
 const nativeExtensions = new Set([".app", ".bat", ".cmd", ".com", ".dll", ".dylib", ".exe", ".msi", ".node", ".ps1", ".so", ".wasm"])
+const pluginExecutableSourceExtensions = new Set([".cjs", ".fish", ".jar", ".php", ".pl", ".py", ".rb", ".sh", ".ts", ".tsx", ".zsh"])
 const showcaseMimes = {
   poster: new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"]]),
   animation: new Map([["image/gif", ".gif"], ["video/mp4", ".mp4"]]),
@@ -116,25 +137,89 @@ export function parseRelativePath(value, label = "path") {
 function parseCompatibility(value, kind, label) {
   if (kind === "plugin") {
     exactKeys(value, ["pluginSchema", "pluginHost"], ["pluginSchema", "pluginHost"], label)
-    if (value.pluginSchema !== "convax.plugin/1" || value.pluginHost !== "convax.plugin-host/1") {
-      error(label, "must target convax.plugin/1 and convax.plugin-host/1")
+    const v1 = value.pluginSchema === "convax.plugin/1" && value.pluginHost === "convax.plugin-host/1"
+    const v2 = value.pluginSchema === "convax.plugin/2" && value.pluginHost === "convax.plugin-host/2"
+    if (!v1 && !v2) {
+      error(label, "must pair convax.plugin/1 with convax.plugin-host/1 or convax.plugin/2 with convax.plugin-host/2")
     }
-    return { pluginSchema: "convax.plugin/1", pluginHost: "convax.plugin-host/1" }
+    return { pluginSchema: value.pluginSchema, pluginHost: value.pluginHost }
   }
   exactKeys(value, ["skillSchema"], ["skillSchema"], label)
   if (value.skillSchema !== "opencode.skill/1") error(label, "must target opencode.skill/1")
   return { skillSchema: "opencode.skill/1" }
 }
 
+function parseCompanionCommand(value, label) {
+  const command = cleanString(value, label, 128)
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(command)) {
+    error(label, "must be a bare executable name")
+  }
+  validatePortableSegment(command, label)
+  return command
+}
+
+function parseCompanionTargetIdentity(value, label) {
+  const platform = cleanString(value.platform, `${label} platform`, 16)
+  const arch = cleanString(value.arch, `${label} arch`, 16)
+  if (!companionPlatforms.has(platform)) error(label, `unsupported platform ${platform}`)
+  if (!companionArchitectures.has(arch)) error(label, `unsupported architecture ${arch}`)
+  return { platform, arch }
+}
+
+function parseSourceCompanions(value, label) {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
+    error(label, "must be a non-empty array with at most 16 items")
+  }
+  const companions = value.map((item, index) => {
+    const itemLabel = `${label} item ${index}`
+    exactKeys(item, ["command", "source", "targets", "version"],
+      ["command", "source", "targets", "version"], itemLabel)
+    const source = parseRelativePath(item.source, `${itemLabel} source`)
+    if (!/^tools\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(source)) {
+      error(itemLabel, "source must name one reviewed directory directly below tools/")
+    }
+    if (!Array.isArray(item.targets) || item.targets.length < 1 || item.targets.length > 16) {
+      error(itemLabel, "targets must be a non-empty array with at most 16 items")
+    }
+    const targets = item.targets.map((target, targetIndex) => {
+      const targetLabel = `${itemLabel} target ${targetIndex}`
+      exactKeys(target, ["arch", "path", "platform"], ["arch", "path", "platform"], targetLabel)
+      return {
+        ...parseCompanionTargetIdentity(target, targetLabel),
+        path: parseRelativePath(target.path, `${targetLabel} path`),
+      }
+    })
+    const identities = targets.map((target) => `${target.platform}/${target.arch}`)
+    if (new Set(identities).size !== identities.length) error(itemLabel, "contains a duplicate platform/architecture target")
+    return {
+      command: parseCompanionCommand(item.command, `${itemLabel} command`),
+      version: parseSemver(item.version, `${itemLabel} version`),
+      source,
+      targets,
+    }
+  })
+  if (new Set(companions.map((item) => item.command)).size !== companions.length) {
+    error(label, "contains duplicate commands")
+  }
+  return companions
+}
+
 export function parseSourceMetadata(value, label = "convax-package.json") {
   const required = ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"]
-  exactKeys(value, [...required, "showcase"], required, label)
+  exactKeys(value, [...required, "companions", "showcase"], required, label)
   if (value.schema !== "convax.package/1") error(label, "unsupported schema")
   if (value.kind !== "plugin" && value.kind !== "skill") error(label, "kind must be plugin or skill")
   if (typeof value.yanked !== "boolean") error(label, "yanked must be a boolean")
   const kind = value.kind
   const id = parseId(value.id, `${label} id`)
   if (kind === "skill" && id.length > 64) error(label, "Skill id must be at most 64 characters")
+  if (kind === "skill" && value.companions !== undefined) error(label, "companions are available only to Plugins")
+  const compatibility = parseCompatibility(value.compatibility, kind, `${label} compatibility`)
+  const companions = parseSourceCompanions(value.companions, `${label} companions`)
+  if (companions && compatibility.pluginSchema !== "convax.plugin/2") {
+    error(label, "companions require convax.plugin/2 compatibility")
+  }
   return {
     schema: "convax.package/1",
     kind,
@@ -143,8 +228,9 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
     description: cleanString(value.description, `${label} description`, 2000),
     version: parseSemver(value.version, `${label} version`),
     license: cleanString(value.license, `${label} license`, 120),
-    compatibility: parseCompatibility(value.compatibility, kind, `${label} compatibility`),
+    compatibility,
     yanked: value.yanked,
+    ...(companions === undefined ? {} : { companions }),
     ...(value.showcase === undefined ? {} : { showcase: parseShowcaseSource(value.showcase, `${label} showcase`) }),
   }
 }
@@ -210,32 +296,137 @@ function parseToolbar(value, label) {
 }
 
 export function parsePluginManifest(value, label = "manifest.json") {
+  if (!isObject(value) || (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2")) {
+    error(label, "unsupported schema")
+  }
+  const v2 = value.schema === "convax.plugin/2"
+  const required = ["contributes", "description", "id", "name", "schema", "version"]
   exactKeys(value,
-    ["capabilities", "contributes", "description", "entry", "id", "name", "schema", "skill", "version"],
-    ["capabilities", "contributes", "description", "entry", "id", "name", "schema", "version"], label)
-  if (value.schema !== "convax.plugin/1") error(label, "unsupported schema")
-  const entry = parseRelativePath(value.entry, `${label} entry`)
-  if (!entry.toLowerCase().endsWith(".html")) error(label, "entry must be an HTML file")
-  if (!Array.isArray(value.capabilities) || value.capabilities.length > capabilities.size ||
-      value.capabilities.some((item) => typeof item !== "string" || !capabilities.has(item)) ||
-      new Set(value.capabilities).size !== value.capabilities.length) error(label, "invalid or duplicate capability")
-  exactKeys(value.contributes, ["canvas"], ["canvas"], `${label} contributes`)
-  exactKeys(value.contributes.canvas, ["renderer", "toolbar"], ["renderer"], `${label} canvas`)
-  const toolbar = parseToolbar(value.contributes.canvas.toolbar, `${label} toolbar`)
-  return {
-    capabilities: [...value.capabilities],
-    contributes: { canvas: {
+    ["capabilities", "contributes", "description", "entry", "id", "name", ...(v2 ? ["runtime"] : []), "schema", "skill", "version"],
+    [...required, ...(v2 ? [] : ["capabilities", "entry"])], label)
+
+  const capabilities = value.capabilities ?? []
+  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
+      capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
+      new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+  if (!v2 && capabilities.includes("generation.execute")) {
+    error(label, "generation.execute is available only to convax.plugin/2")
+  }
+
+  exactKeys(value.contributes, ["canvas", ...(v2 ? ["generation", "service"] : [])], v2 ? [] : ["canvas"], `${label} contributes`)
+  const hasEntry = value.entry !== undefined
+  const hasCanvas = value.contributes.canvas !== undefined
+  if (hasEntry !== hasCanvas) error(label, "entry and Canvas contribution must appear together")
+  if (!v2 && !hasCanvas) error(label, "convax.plugin/1 requires a static Canvas surface")
+  if (capabilities.includes("generation.execute") && !hasCanvas) {
+    error(label, "generation.execute requires a sandboxed Canvas surface")
+  }
+
+  let entry
+  let canvas
+  if (hasEntry) {
+    entry = parseRelativePath(value.entry, `${label} entry`)
+    if (!entry.toLowerCase().endsWith(".html")) error(label, "entry must be an HTML file")
+    exactKeys(value.contributes.canvas, ["renderer", "toolbar"], ["renderer"], `${label} canvas`)
+    const toolbar = parseToolbar(value.contributes.canvas.toolbar, `${label} toolbar`)
+    canvas = {
       renderer: parseRenderer(value.contributes.canvas.renderer, `${label} renderer`),
       ...(toolbar === undefined ? {} : { toolbar }),
-    } },
+    }
+  }
+
+  const hasRuntime = value.runtime !== undefined
+  const hasGeneration = value.contributes.generation !== undefined
+  const hasService = value.contributes.service !== undefined
+  const hasExecutableContribution = hasGeneration || hasService
+  if (v2 && hasRuntime !== hasExecutableContribution) {
+    error(label, "runtime and executable contribution must appear together")
+  }
+  if (v2 && !hasRuntime && !capabilities.includes("generation.execute")) {
+    error(label, "convax.plugin/2 must declare an executable contribution or request generation.execute")
+  }
+  const generation = hasGeneration ? parseGeneration(value.contributes.generation, `${label} generation`) : undefined
+  const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
+  const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
+
+  return {
+    capabilities: [...capabilities],
+    contributes: {
+      ...(canvas === undefined ? {} : { canvas }),
+      ...(generation === undefined ? {} : { generation }),
+      ...(service === undefined ? {} : { service }),
+    },
     description: cleanString(value.description, `${label} description`, 2000),
-    entry,
+    ...(entry === undefined ? {} : { entry }),
     id: parseId(value.id, `${label} id`),
     name: cleanString(value.name, `${label} name`, 120),
-    schema: "convax.plugin/1",
+    schema: value.schema,
     ...(value.skill === undefined ? {} : { skill: parseRelativePath(value.skill, `${label} skill`) }),
+    ...(runtime === undefined ? {} : { runtime }),
     version: parseSemver(value.version, `${label} version`),
   }
+}
+
+const serviceActions = new Set(["authorize", "reauthorize", "authorization.cancel", "sign_out"])
+
+function parseService(value, label) {
+  exactKeys(value, ["actions"], ["actions"], label)
+  if (!Array.isArray(value.actions) || value.actions.length > serviceActions.size ||
+      value.actions.some((action) => typeof action !== "string" || !serviceActions.has(action)) ||
+      new Set(value.actions).size !== value.actions.length) {
+    error(label, "actions contains an unsupported or duplicate fixed host action")
+  }
+  return { actions: [...value.actions] }
+}
+
+function parseMcpStdioRuntime(value, label) {
+  exactKeys(value, ["args", "command", "type"], ["command", "type"], label)
+  if (value.type !== "mcp-stdio") error(label, "type must be mcp-stdio")
+  const command = cleanString(value.command, `${label} command`, 128)
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(command)) error(label, "command must be a bare executable name")
+  validatePortableSegment(command, `${label} command`)
+  let args
+  if (value.args !== undefined) {
+    if (!Array.isArray(value.args) || value.args.length > 64) error(label, "args must contain at most 64 items")
+    args = value.args.map((item, index) => {
+      const argument = cleanString(item, `${label} arg ${index}`, 1024)
+      if (/[\s"'`;|&`$(){}[\]<>]/.test(argument) || argument.includes("\\") ||
+          /(^|=)(?:\/|[A-Za-z]:)/.test(argument) || /(^|[=/])\.{1,2}(?:\/|$)/.test(argument)) {
+        error(label, `arg ${index} must be a static CLI token without code, native paths, or traversal`)
+      }
+      return argument
+    })
+  }
+  return { ...(args === undefined ? {} : { args }), command, type: "mcp-stdio" }
+}
+
+function parseGeneration(value, label) {
+  exactKeys(value, ["tools"], ["tools"], label)
+  if (!Array.isArray(value.tools) || value.tools.length < 1 || value.tools.length > 64) {
+    error(label, "tools must be a non-empty array with at most 64 items")
+  }
+  const tools = value.tools.map((item, index) => {
+    const itemLabel = `${label} tool ${index}`
+    exactKeys(item, ["acceptedInputs", "description", "id", "output", "title"],
+      ["acceptedInputs", "description", "id", "output", "title"], itemLabel)
+    const id = cleanString(item.id, `${itemLabel} id`, 80)
+    if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) error(itemLabel, "invalid id")
+    if (!generationModalities.has(item.output)) error(itemLabel, "unsupported output")
+    if (!Array.isArray(item.acceptedInputs) || item.acceptedInputs.length > generationInputRoles.size ||
+        item.acceptedInputs.some((role) => typeof role !== "string" || !generationInputRoles.has(role)) ||
+        new Set(item.acceptedInputs).size !== item.acceptedInputs.length) {
+      error(itemLabel, "acceptedInputs contains an unsupported or duplicate role")
+    }
+    return {
+      acceptedInputs: [...item.acceptedInputs],
+      description: cleanString(item.description, `${itemLabel} description`, 2000),
+      id,
+      output: item.output,
+      title: cleanString(item.title, `${itemLabel} title`, 120),
+    }
+  })
+  if (new Set(tools.map((tool) => tool.id)).size !== tools.length) error(label, "tools contain duplicate ids")
+  return { tools }
 }
 
 export function parseSkill(markdown, expectedName, label = "SKILL.md") {
@@ -285,7 +476,7 @@ export async function collectFiles(directory, label = directory) {
       total += stat.size
       if (total > maxPackageBytes) error(label, "package exceeds 10 MiB")
       const data = await fs.readFile(absolutePath)
-      files.push({ absolutePath, data, relativePath })
+      files.push({ absolutePath, data, mode: stat.mode, relativePath })
     }
   }
   await visit(directory)
@@ -293,14 +484,23 @@ export async function collectFiles(directory, label = directory) {
   return files
 }
 
-function assertPluginStatic(files, label) {
+export function assertPluginStatic(files, label) {
   for (const file of files) {
     const extension = path.posix.extname(file.relativePath).toLowerCase()
+    if ((file.mode & 0o111) !== 0) error(label, `executable file mode is forbidden: ${file.relativePath}`)
     if (nativeExtensions.has(extension)) error(label, `executable file type is forbidden: ${file.relativePath}`)
-    if ([".html", ".css", ".js", ".mjs"].includes(extension)) {
+    if (pluginExecutableSourceExtensions.has(extension)) {
+      error(label, `executable or server source is forbidden: ${file.relativePath}`)
+    }
+    if ([".html", ".css", ".js", ".mjs", ".cjs"].includes(extension)) {
       const text = file.data.toString("utf8")
       if (/https?:\/\//i.test(text) || /\b(?:fetch|WebSocket|XMLHttpRequest|EventSource)\s*\(/.test(text) ||
           /navigator\.sendBeacon\s*\(/.test(text)) error(label, `remote runtime dependency is forbidden: ${file.relativePath}`)
+      if (text.startsWith("#!") || extension === ".cjs" ||
+          /(?:\bfrom\s*|\bimport\s*(?:\(|(?=["']))|\brequire\s*\()\s*["'](?:node:)?(?:child_process|cluster|fs|http|https|net|tls|worker_threads)\b/.test(text) ||
+          /\b(?:createServer|spawn|execFile|fork)\s*\(/.test(text)) {
+        error(label, `Node or executable runtime is forbidden: ${file.relativePath}`)
+      }
     }
   }
 }
@@ -439,6 +639,41 @@ export async function loadShowcaseAssets(metadata, packageDirectory, label = `${
   return { poster, ...(animation ? { animation } : {}) }
 }
 
+async function validateCompanionSourceDirectory(companion, label) {
+  const sourceDirectory = path.join(root, ...companion.source.split("/"))
+  let stat
+  try { stat = await fs.lstat(sourceDirectory) } catch (cause) {
+    if (cause?.code === "ENOENT") error(label, `missing reviewed source directory ${companion.source}`)
+    throw cause
+  }
+  if (stat.isSymbolicLink()) error(label, `source directory must not be a symlink: ${companion.source}`)
+  if (!stat.isDirectory()) error(label, `source must be a directory: ${companion.source}`)
+  const toolsRoot = await fs.realpath(path.join(root, "tools"))
+  const realSource = await fs.realpath(sourceDirectory)
+  const relative = path.relative(toolsRoot, realSource)
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative) || relative.includes(path.sep)) {
+    error(label, "source must resolve to one directory directly below tools/")
+  }
+  const packageFile = path.join(sourceDirectory, "package.json")
+  const packageStat = await fs.lstat(packageFile).catch((cause) => {
+    if (cause?.code === "ENOENT") error(label, "reviewed source must contain package.json")
+    throw cause
+  })
+  if (packageStat.isSymbolicLink() || !packageStat.isFile()) error(label, "source package.json must be a regular file, not a symlink")
+  const sourcePackage = await readJson(packageFile, `${label} package.json`)
+  if (sourcePackage.version !== companion.version) error(label, "companion version must equal source package version")
+  if (!isObject(sourcePackage.bin) || typeof sourcePackage.bin[companion.command] !== "string") {
+    error(label, "source package bin must declare the companion command")
+  }
+  for (const target of companion.targets) {
+    const script = `build:release:${target.platform}-${target.arch}`
+    if (!isObject(sourcePackage.scripts) || typeof sourcePackage.scripts[script] !== "string" ||
+        sourcePackage.scripts[script].trim().length === 0) {
+      error(label, `source package must declare the ${script} script`)
+    }
+  }
+}
+
 export async function discoverPackages() {
   const candidates = [...await listCollection("plugin"), ...await listCollection("skill")]
     .sort((left, right) => `${left.kind}/${left.id}`.localeCompare(`${right.kind}/${right.id}`, "en"))
@@ -454,11 +689,28 @@ export async function discoverPackages() {
     if (candidate.kind === "plugin") {
       assertPluginStatic(files, `${candidate.kind}/${candidate.id}`)
       manifest = parsePluginManifest(await readJson(path.join(packageRoot, "manifest.json")), `${candidate.kind}/${candidate.id} manifest`)
+      if (metadata.compatibility.pluginSchema !== manifest.schema) {
+        error(`${candidate.kind}/${candidate.id}`, "metadata compatibility must match manifest schema")
+      }
       for (const key of ["id", "name", "description", "version"]) {
         if (metadata[key] !== manifest[key]) error(`${candidate.kind}/${candidate.id}`, `metadata ${key} must equal manifest`)
       }
       const names = new Set(files.map((file) => file.relativePath))
-      if (!names.has(manifest.entry)) error(`${candidate.kind}/${candidate.id}`, `missing entry ${manifest.entry}`)
+      if (manifest.entry && !names.has(manifest.entry)) error(`${candidate.kind}/${candidate.id}`, `missing entry ${manifest.entry}`)
+      if (manifest.runtime && names.has(manifest.runtime.command)) {
+        error(`${candidate.kind}/${candidate.id}`, "external runtime executable must not be included in the Plugin ZIP")
+      }
+      const companions = metadata.companions ?? []
+      if (manifest.runtime) {
+        if (companions.length !== 1 || companions[0].command !== manifest.runtime.command) {
+          error(`${candidate.kind}/${candidate.id}`, "external runtime must have exactly one matching companion command")
+        }
+      } else if (companions.length > 0) {
+        error(`${candidate.kind}/${candidate.id}`, "companions require a declared external runtime")
+      }
+      for (const companion of companions) {
+        await validateCompanionSourceDirectory(companion, `${candidate.kind}/${candidate.id} companion ${companion.command}`)
+      }
       if (manifest.skill) {
         const skillFile = files.find((file) => file.relativePath === manifest.skill)
         if (!skillFile) error(`${candidate.kind}/${candidate.id}`, `missing companion Skill ${manifest.skill}`)
@@ -483,6 +735,14 @@ export function tagFor(metadata) {
 
 export function assetNameFor(metadata) {
   return `convax-${metadata.kind}-${metadata.id}-${metadata.version}.zip`
+}
+
+export function companionAssetNameFor(metadata, companion, target) {
+  if (metadata.kind !== "plugin") error("companion asset", "only Plugins may publish companions")
+  const suffix = target.platform === "win32" ? ".exe" : ""
+  const name = `convax-companion-${companion.command}-${companion.version}-${target.platform}-${target.arch}${suffix}`
+  validatePortableSegment(name, "companion asset")
+  return name
 }
 
 export function showcaseAssetNameFor(metadata, role, mime) {
@@ -581,7 +841,77 @@ export function sha256(data) {
   return createHash("sha256").update(data).digest("hex")
 }
 
-export function createRegistryEntry(pkg, zip) {
+async function readCompanionArtifact(sourceDirectory, target, label) {
+  const sourceStat = await fs.lstat(sourceDirectory)
+  if (sourceStat.isSymbolicLink()) error(label, "reviewed source directory must not be a symlink")
+  if (!sourceStat.isDirectory()) error(label, "reviewed source must be a directory")
+  let current = sourceDirectory
+  for (const segment of target.path.split("/")) {
+    current = path.join(current, segment)
+    let stat
+    try { stat = await fs.lstat(current) } catch (cause) {
+      if (cause?.code === "ENOENT") error(label, `missing built artifact ${target.path}`)
+      throw cause
+    }
+    if (stat.isSymbolicLink()) error(label, `symlink is forbidden: ${target.path}`)
+  }
+  const before = await fs.stat(current)
+  if (!before.isFile()) error(label, `artifact must be a regular file: ${target.path}`)
+  if (before.size < 1 || before.size > maxCompanionBytes) {
+    error(label, `artifact size must be from 1 to ${maxCompanionBytes} bytes`)
+  }
+  if (target.platform !== "win32" && (before.mode & 0o111) === 0) {
+    error(label, "POSIX companion artifact must have an executable mode")
+  }
+  if (target.platform === "win32" && !target.path.toLowerCase().endsWith(".exe")) {
+    error(label, "win32 companion artifact path must end in .exe")
+  }
+  const realSource = await fs.realpath(sourceDirectory)
+  const realFile = await fs.realpath(current)
+  const relative = path.relative(realSource, realFile)
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    error(label, "artifact resolves outside its reviewed source directory")
+  }
+  const data = await fs.readFile(realFile)
+  const after = await fs.stat(realFile)
+  if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || data.length !== after.size) {
+    error(label, "artifact changed while it was being read")
+  }
+  return data
+}
+
+export async function loadCompanionArtifacts(pkg, label = `${pkg.metadata.kind}/${pkg.metadata.id} companions`) {
+  const declarations = pkg.metadata.companions
+  if (!declarations) return []
+  const companions = []
+  const assetNames = new Set()
+  for (const companion of declarations) {
+    const sourceDirectory = path.join(root, ...companion.source.split("/"))
+    const targets = []
+    for (const target of companion.targets) {
+      const targetLabel = `${label} ${companion.command} ${target.platform}/${target.arch}`
+      const data = await readCompanionArtifact(sourceDirectory, target, targetLabel)
+      const assetName = companionAssetNameFor(pkg.metadata, companion, target)
+      if (assetNames.has(assetName)) error(label, `duplicate artifact asset name ${assetName}`)
+      assetNames.add(assetName)
+      targets.push({
+        platform: target.platform,
+        arch: target.arch,
+        assetName,
+        data,
+        artifact: {
+          url: `https://github.com/${repository}/releases/download/${tagFor(pkg.metadata)}/${assetName}`,
+          size: data.length,
+          sha256: sha256(data),
+        },
+      })
+    }
+    companions.push({ command: companion.command, version: companion.version, targets })
+  }
+  return companions
+}
+
+export function createRegistryEntry(pkg, zip, companionArtifacts = []) {
   const metadata = pkg.metadata
   const tag = tagFor(metadata)
   const assetName = assetNameFor(metadata)
@@ -598,7 +928,20 @@ export function createRegistryEntry(pkg, zip) {
       sha256: sha256(zip),
     },
     yanked: metadata.yanked,
-    ...(metadata.kind === "plugin" ? { manifest: pkg.manifest } : {}),
+    ...(metadata.kind === "plugin" ? {
+      manifest: pkg.manifest,
+      ...(companionArtifacts.length > 0 ? {
+        companions: companionArtifacts.map((companion) => ({
+          command: companion.command,
+          version: companion.version,
+          targets: companion.targets.map((target) => ({
+            platform: target.platform,
+            arch: target.arch,
+            artifact: target.artifact,
+          })),
+        })),
+      } : {}),
+    } : {}),
   }
 }
 
@@ -712,10 +1055,66 @@ function parseArtifact(value, metadata, label) {
   return { url: value.url, size: value.size, sha256: value.sha256 }
 }
 
+function parseCompanionArtifact(value, metadata, companion, target, label) {
+  exactKeys(value, ["sha256", "size", "url"], ["sha256", "size", "url"], label)
+  const assetName = companionAssetNameFor(metadata, companion, target)
+  const expected = `https://github.com/${repository}/releases/download/${tagFor(metadata)}/${assetName}`
+  if (value.url !== expected) error(label, `url must equal ${expected}`)
+  if (!Number.isSafeInteger(value.size) || value.size < 1 || value.size > maxCompanionBytes) {
+    error(label, "invalid size")
+  }
+  if (typeof value.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.sha256)) {
+    error(label, "invalid sha256")
+  }
+  return { url: value.url, size: value.size, sha256: value.sha256 }
+}
+
+function parseRegistryCompanions(value, metadata, manifest, label) {
+  if (value === undefined) return undefined
+  if (manifest.schema !== "convax.plugin/2" || !manifest.runtime) {
+    error(label, "companions require a convax.plugin/2 external runtime")
+  }
+  if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
+    error(label, "must be a non-empty array with at most 16 items")
+  }
+  const companions = value.map((item, index) => {
+    const itemLabel = `${label} item ${index}`
+    exactKeys(item, ["command", "targets", "version"], ["command", "targets", "version"], itemLabel)
+    const companion = {
+      command: parseCompanionCommand(item.command, `${itemLabel} command`),
+      version: parseSemver(item.version, `${itemLabel} version`),
+    }
+    if (!Array.isArray(item.targets) || item.targets.length < 1 || item.targets.length > 16) {
+      error(itemLabel, "targets must be a non-empty array with at most 16 items")
+    }
+    const targets = item.targets.map((target, targetIndex) => {
+      const targetLabel = `${itemLabel} target ${targetIndex}`
+      exactKeys(target, ["arch", "artifact", "platform"], ["arch", "artifact", "platform"], targetLabel)
+      const identity = parseCompanionTargetIdentity(target, targetLabel)
+      return {
+        ...identity,
+        artifact: parseCompanionArtifact(target.artifact, metadata, companion, identity, `${targetLabel} artifact`),
+      }
+    })
+    const identities = targets.map((target) => `${target.platform}/${target.arch}`)
+    if (new Set(identities).size !== identities.length) error(itemLabel, "contains a duplicate platform/architecture target")
+    return { ...companion, targets }
+  })
+  if (new Set(companions.map((item) => item.command)).size !== companions.length) {
+    error(label, "contains duplicate commands")
+  }
+  if (companions.length !== 1 || companions[0].command !== manifest.runtime.command) {
+    error(label, "must contain exactly the declared external runtime command")
+  }
+  return companions
+}
+
 export function parseRegistryEntry(value, label = "Registry entry") {
   if (!isObject(value) || (value.kind !== "plugin" && value.kind !== "skill")) error(label, "invalid kind")
-  const allowed = ["kind", "id", "name", "description", "version", "compatibility", "artifact", "yanked", ...(value.kind === "plugin" ? ["manifest"] : [])]
-  exactKeys(value, allowed, allowed, label)
+  const required = ["kind", "id", "name", "description", "version", "compatibility", "artifact", "yanked",
+    ...(value.kind === "plugin" ? ["manifest"] : [])]
+  const allowed = [...required, ...(value.kind === "plugin" ? ["companions"] : [])]
+  exactKeys(value, allowed, required, label)
   const metadata = parseSourceMetadata({ schema: "convax.package/1", kind: value.kind, id: value.id,
     name: value.name, description: value.description, version: value.version, license: "registry",
     compatibility: value.compatibility, yanked: value.yanked }, label)
@@ -731,10 +1130,14 @@ export function parseRegistryEntry(value, label = "Registry entry") {
   }
   if (metadata.kind === "plugin") {
     const manifest = parsePluginManifest(value.manifest, `${label} manifest`)
+    if (metadata.compatibility.pluginSchema !== manifest.schema) {
+      error(label, "compatibility must match manifest schema")
+    }
     for (const key of ["id", "name", "description", "version"]) {
       if (metadata[key] !== manifest[key]) error(label, `${key} must equal manifest`)
     }
-    return { ...result, manifest }
+    const companions = parseRegistryCompanions(value.companions, metadata, manifest, `${label} companions`)
+    return { ...result, manifest, ...(companions === undefined ? {} : { companions }) }
   }
   return result
 }
@@ -749,7 +1152,12 @@ export function parseRegistry(value, label = "Registry") {
   const packages = value.packages.map((entry, index) => parseRegistryEntry(entry, `${label} package ${index}`))
   const identities = packages.map((entry) => `${entry.kind}/${entry.id}`)
   if (new Set(identities).size !== identities.length) error(label, "contains more than one version for a package")
-  const artifactUrls = packages.map((entry) => entry.artifact.url)
+  const artifactUrls = packages.flatMap((entry) => [
+    entry.artifact.url,
+    ...(entry.kind === "plugin" && entry.companions
+      ? entry.companions.flatMap((companion) => companion.targets.map((target) => target.artifact.url))
+      : []),
+  ])
   if (new Set(artifactUrls).size !== artifactUrls.length) error(label, "reuses an artifact URL")
   return { schema: registrySchema, sequence: value.sequence, revision, packages }
 }
