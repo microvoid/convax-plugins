@@ -10,6 +10,7 @@
     "pack": "bun tooling/pack.mjs",
     "render:showcases": "bun tooling/render-showcases.mjs",
     "build:index": "bun tooling/build-index.mjs && bun tooling/build-showcase.mjs",
-    "check": "bun run validate && bun test && bun run pack && bun run build:index"
+    "build:companions": "bun tooling/build-companions.mjs",
+    "check": "bun run validate && bun --cwd=tools/ffmpeg-mcp run typecheck && bun --cwd=tools/ffmpeg-mcp test && bun run build:companions && bun test && bun run pack && bun run build:index && bun --cwd=tools/ffmpeg-mcp run build"
   }
 }
