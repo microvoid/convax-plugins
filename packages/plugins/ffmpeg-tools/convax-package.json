@@ -1,0 +1,28 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "ffmpeg-tools",
+  "name": "FFmpeg Tools",
+  "description": "Runs reviewed local FFmpeg transforms against host-staged Canvas media without exposing native paths or a shell.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/2",
+    "pluginHost": "convax.plugin-host/2"
+  },
+  "companions": [
+    {
+      "command": "convax-ffmpeg-mcp",
+      "version": "0.1.0",
+      "source": "tools/ffmpeg-mcp",
+      "targets": [
+        {
+          "platform": "darwin",
+          "arch": "arm64",
+          "path": "dist/darwin-arm64/convax-ffmpeg-mcp"
+        }
+      ]
+    }
+  ],
+  "yanked": false
+}
