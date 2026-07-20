@@ -13,6 +13,8 @@ catalog-changing release or yanking deployment. `revision` is the lowercase, ful
 
 Every item contains exactly `kind`, `id`, `name`, `description`, `version`,
 `compatibility`, `artifact`, `yanked`, plus a complete `manifest` for Plugin items.
+A `convax.plugin/2` item with a generation and/or service external runtime may additionally contain
+`companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
 
@@ -43,11 +45,43 @@ can render and filter without downloading ZIPs. Skill items have no `manifest`.
 ```
 
 The abbreviated manifest above is explanatory only; production entries contain the
-complete validated manifest. Plugin compatibility is exactly
-`convax.plugin/1` + `convax.plugin-host/1`. Skill compatibility is exactly
-`{"skillSchema":"opencode.skill/1"}`. Artifact objects contain only `url`,
-`size`, and lowercase hex `sha256`; URLs always target
-`microvoid/convax-plugins` Release assets.
+complete validated manifest. Plugin compatibility accepts exactly one
+version-matched pair: `convax.plugin/1` + `convax.plugin-host/1`, or
+`convax.plugin/2` + `convax.plugin-host/2`. The embedded manifest schema must match
+that pair. Crossed pairs and a v1 compatibility envelope around a v2 manifest are
+rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
+Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
+target `microvoid/convax-plugins` Release assets.
+
+## Verified companion executables
+
+An external v2 runtime is distributed beside, never inside, its static Plugin ZIP.
+Its Plugin item has the following optional strict field:
+
+```json
+"companions": [{
+  "command": "creative-tools-mcp",
+  "version": "1.2.3",
+  "targets": [{
+    "platform": "darwin",
+    "arch": "arm64",
+    "artifact": {
+      "url": "https://github.com/microvoid/convax-plugins/releases/download/plugin-creative-tools-v1.0.0/convax-companion-creative-tools-mcp-1.2.3-darwin-arm64",
+      "size": 123456,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }]
+}]
+```
+
+`command` must match the manifest runtime command one-to-one. Companion commands
+and each `platform`/`arch` target are unique. Platforms are `darwin`, `linux`, or
+`win32`; architectures are `arm64` or `x64`. A binary is at most 128 MiB. Its URL
+is not arbitrary: it must exactly equal the package's immutable Release tag plus
+`convax-companion-<command>-<companion-version>-<platform>-<arch>` (`.exe` on
+Windows). Clients select only their exact target, then verify byte count and SHA-256
+before admitting the executable to host-owned storage. An absent target is an
+unsupported platform, never permission to search `PATH` or download another URL.
 
 `opencode.skill/1` is the retained Registry v1 compatibility label used by current
 Convax clients; it is not the bundle format. Published Skill ZIPs follow the open

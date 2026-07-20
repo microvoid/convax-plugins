@@ -17,19 +17,65 @@ STORE method. Thus identical source bytes produce identical SHA-256 digests acro
 machines. Uncompressed storage is intentional: packages are already size-bounded,
 and avoiding compressor-version drift makes releases reproducible.
 
+A headless `convax.plugin/2` Tool Plugin may contain only `manifest.json` and a
+license notice. Its generation and/or service contribution uses one declared
+`mcp-stdio` executable that is a separate distributable and
+must never appear anywhere below `package/`; validation and packing do not install,
+build, or execute companion source under `tools/`.
+
+The matching source metadata declares the reviewed tool directory and build output
+for each target. For example:
+
+```json
+"companions": [{
+  "command": "creative-tools-mcp",
+  "version": "1.2.3",
+  "source": "tools/creative-tools-mcp",
+  "targets": [{
+    "platform": "darwin",
+    "arch": "arm64",
+    "path": "dist/darwin-arm64/creative-tools-mcp"
+  }]
+}]
+```
+
+`source` is exactly one directory below `tools/`; target `path` is relative to it.
+Both are publishing inputs and never enter the Registry or Plugin ZIP. Packing
+rejects missing files, symlinks at any path component, non-files, oversized files,
+non-executable POSIX artifacts, duplicate targets, and files resolving outside the
+reviewed source. It derives size and SHA-256 from the bytes it copies rather than
+trusting contributor-authored values.
+
+Each reviewed tool exposes one `build:release:<platform>-<arch>` package script per
+declared target. `bun run build:companions` discovers those declarations and invokes
+only that fixed reviewed script name (never a command supplied by package metadata),
+then immediately applies the same path, symlink, executable-mode, size, and digest
+admission checks used by packing.
+
 Paths must be portable POSIX relative paths. Symlinks, traversal, control characters,
 Windows device names, alternate data streams, case-insensitive collisions, files
-over 2 MiB, and packages over 10 MiB are rejected. Runtime CDN URLs and executable
-extensions are rejected for Plugins.
+over 2 MiB, and packages over 10 MiB are rejected. Runtime CDN URLs, executable file
+modes, native extensions, shebang scripts, and packaged Node/server entrypoints are
+rejected for Plugins.
 
 ## Local output
+
+Run the explicitly reviewed companion build before packing packages that declare
+one; packing itself never executes tool source:
+
+```sh
+bun run build:companions
+bun run pack
+```
 
 `bun run pack -- --kind plugin --id hello-convax` writes a versioned ZIP and
 `registry-entry.json` below `dist/packages/`. `bun run build:index` reads those
 entries and writes `dist/registry/v1/index.json`. A package with `showcase`
 metadata also produces `showcase-entry.json` and versioned poster/animation assets;
 the index build writes `dist/showcase/v1/index.json` with the same sequence and
-revision as the Registry.
+revision as the Registry. A package with `companions` additionally produces one
+standalone `convax-companion-*` Release asset per target; the Registry entry records
+its immutable URL, exact byte size, and SHA-256.
 
 ## Release
 
@@ -47,8 +93,9 @@ no Releases. See GitHub's
 [push event documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#push).
 
 The tag must match source metadata exactly. The workflow validates all packages,
-packs only the tagged package, attests its ZIP, creates a draft Release, uploads the
-ZIP plus `registry-entry.json` and any declared Showcase assets, and only then
+cross-compiles the reviewed target, packs only the tagged package, attests its ZIP
+and each companion, creates a draft Release, uploads the ZIP plus
+`registry-entry.json`, companions, and any declared Showcase assets, and only then
 publishes it. Published versions are
 immutable; never move or reuse a tag. Change bytes by publishing a higher SemVer. To
 disable a compromised version, add its `kind/id@version` identity to

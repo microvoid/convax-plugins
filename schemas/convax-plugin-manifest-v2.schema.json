@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microvoid.github.io/convax-plugins/schemas/convax-plugin-manifest-v2.schema.json",
+  "title": "Convax Plugin v2 manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "name", "description", "version", "contributes"],
+  "properties": {
+    "schema": { "const": "convax.plugin/2" },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "version": { "$ref": "#/$defs/semver" },
+    "entry": { "$ref": "#/$defs/path" },
+    "skill": { "$ref": "#/$defs/path" },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 7,
+      "items": {
+        "enum": [
+          "canvas.connectedImages.read",
+          "canvas.node.read",
+          "canvas.node.write",
+          "project.files.read",
+          "agent.prompt",
+          "generation.execute",
+          "ui.fullscreen"
+        ]
+      }
+    },
+    "contributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canvas": { "$ref": "#/$defs/canvas" },
+        "generation": { "$ref": "#/$defs/generation" },
+        "service": { "$ref": "#/$defs/service" }
+      }
+    },
+    "runtime": { "$ref": "#/$defs/runtime" }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["entry"] },
+      "then": { "properties": { "contributes": { "required": ["canvas"] } } }
+    },
+    {
+      "if": { "properties": { "contributes": { "required": ["canvas"] } }, "required": ["contributes"] },
+      "then": { "required": ["entry"] }
+    },
+    {
+      "if": { "required": ["runtime"] },
+      "then": {
+        "properties": {
+          "contributes": {
+            "anyOf": [
+              { "required": ["generation"] },
+              { "required": ["service"] }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "contributes": { "required": ["generation"] } }, "required": ["contributes"] },
+      "then": { "required": ["runtime"] }
+    },
+    {
+      "if": { "properties": { "contributes": { "required": ["service"] } }, "required": ["contributes"] },
+      "then": { "required": ["runtime"] }
+    },
+    {
+      "if": {
+        "properties": { "capabilities": { "contains": { "const": "generation.execute" } } },
+        "required": ["capabilities"]
+      },
+      "then": {
+        "required": ["entry"],
+        "properties": { "contributes": { "required": ["canvas"] } }
+      }
+    }
+  ],
+  "anyOf": [
+    { "required": ["runtime"] },
+    {
+      "properties": { "capabilities": { "contains": { "const": "generation.execute" } } },
+      "required": ["capabilities"]
+    }
+  ],
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)[^\\u0000-\\u001f\\u007f:]+$"
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["renderer"],
+      "properties": {
+        "renderer": { "$ref": "#/$defs/renderer" },
+        "toolbar": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/toolbarItem" }
+        }
+      }
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean" },
+        "extensions": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^\\.[a-z0-9][a-z0-9._+-]{0,31}$" } },
+        "mimeTypes": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$" } },
+        "nodeKinds": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$" } },
+        "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 8192 }
+      },
+      "anyOf": [
+        { "properties": { "create": { "const": true } }, "required": ["create"] },
+        { "properties": { "extensions": { "minItems": 1 } }, "required": ["extensions"] },
+        { "properties": { "mimeTypes": { "minItems": 1 } }, "required": ["mimeTypes"] },
+        { "properties": { "nodeKinds": { "minItems": 1 } }, "required": ["nodeKinds"] }
+      ]
+    },
+    "toolbarItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "command"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$", "maxLength": 80 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "command": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tools"],
+      "properties": {
+        "tools": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/generationTool" }
+        }
+      }
+    },
+    "generationTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "output", "acceptedInputs"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$", "maxLength": 80 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "output": { "enum": ["text", "image", "video", "audio"] },
+        "acceptedInputs": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 6,
+          "items": { "enum": ["reference_image", "reference_video", "first_frame", "last_frame", "audio", "text"] }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions"],
+      "properties": {
+        "actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 4,
+          "items": {
+            "enum": ["authorize", "reauthorize", "authorization.cancel", "sign_out"]
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": { "const": "mcp-stdio" },
+        "command": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "args": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        }
+      }
+    }
+  }
+}
