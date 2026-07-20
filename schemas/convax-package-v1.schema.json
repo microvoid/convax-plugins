@@ -16,17 +16,46 @@
         "version": { "$ref": "#/$defs/semver" },
         "license": { "type": "string", "minLength": 1, "maxLength": 120 },
         "compatibility": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["pluginSchema", "pluginHost"],
-          "properties": {
-            "pluginSchema": { "const": "convax.plugin/1" },
-            "pluginHost": { "const": "convax.plugin-host/1" }
-          }
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/1" },
+                "pluginHost": { "const": "convax.plugin-host/1" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/2" },
+                "pluginHost": { "const": "convax.plugin-host/2" }
+              }
+            }
+          ]
         },
         "yanked": { "type": "boolean" },
-        "showcase": { "$ref": "#/$defs/showcase" }
-      }
+        "showcase": { "$ref": "#/$defs/showcase" },
+        "companions": { "$ref": "#/$defs/sourceCompanions" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["companions"] },
+          "then": {
+            "properties": {
+              "compatibility": {
+                "properties": {
+                  "pluginSchema": { "const": "convax.plugin/2" },
+                  "pluginHost": { "const": "convax.plugin-host/2" }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "type": "object",
@@ -59,6 +88,46 @@
     "semver": {
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "sourceCompanions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/sourceCompanion" }
+    },
+    "sourceCompanion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "version", "source", "targets"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "maxLength": 128
+        },
+        "version": { "$ref": "#/$defs/semver" },
+        "source": {
+          "type": "string",
+          "pattern": "^tools/[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 96
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/sourceCompanionTarget" }
+        }
+      }
+    },
+    "sourceCompanionTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "arch", "path"],
+      "properties": {
+        "platform": { "enum": ["darwin", "linux", "win32"] },
+        "arch": { "enum": ["arm64", "x64"] },
+        "path": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
     },
     "showcase": {
       "type": "object",

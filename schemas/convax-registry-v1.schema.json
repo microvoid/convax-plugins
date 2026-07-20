@@ -44,17 +44,114 @@
         "description": { "$ref": "#/$defs/baseProperties/description" },
         "version": { "$ref": "#/$defs/baseProperties/version" },
         "compatibility": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["pluginSchema", "pluginHost"],
-          "properties": {
-            "pluginSchema": { "const": "convax.plugin/1" },
-            "pluginHost": { "const": "convax.plugin-host/1" }
-          }
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/1" },
+                "pluginHost": { "const": "convax.plugin-host/1" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/2" },
+                "pluginHost": { "const": "convax.plugin-host/2" }
+              }
+            }
+          ]
         },
         "artifact": { "$ref": "#/$defs/baseProperties/artifact" },
         "yanked": { "$ref": "#/$defs/baseProperties/yanked" },
-        "manifest": { "$ref": "./convax-plugin-manifest-v1.schema.json" }
+        "manifest": {
+          "oneOf": [
+            { "$ref": "./convax-plugin-manifest-v1.schema.json" },
+            { "$ref": "./convax-plugin-manifest-v2.schema.json" }
+          ]
+        },
+        "companions": { "$ref": "#/$defs/companions" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "compatibility": {
+                "properties": { "pluginSchema": { "const": "convax.plugin/1" } },
+                "required": ["pluginSchema"]
+              }
+            },
+            "required": ["compatibility"]
+          },
+          "then": { "properties": { "manifest": { "$ref": "./convax-plugin-manifest-v1.schema.json" } } },
+          "else": { "properties": { "manifest": { "$ref": "./convax-plugin-manifest-v2.schema.json" } } }
+        },
+        {
+          "if": { "required": ["companions"] },
+          "then": {
+            "properties": {
+              "compatibility": {
+                "properties": {
+                  "pluginSchema": { "const": "convax.plugin/2" },
+                  "pluginHost": { "const": "convax.plugin-host/2" }
+                }
+              },
+              "manifest": {
+                "allOf": [
+                  { "$ref": "./convax-plugin-manifest-v2.schema.json" },
+                  { "required": ["runtime"] }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "companions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/companion" }
+    },
+    "companion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "version", "targets"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "maxLength": 128
+        },
+        "version": { "$ref": "#/$defs/baseProperties/version" },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": { "$ref": "#/$defs/companionTarget" }
+        }
+      }
+    },
+    "companionTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "arch", "artifact"],
+      "properties": {
+        "platform": { "enum": ["darwin", "linux", "win32"] },
+        "arch": { "enum": ["arm64", "x64"] },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "size", "sha256"],
+          "properties": {
+            "url": { "type": "string", "pattern": "^https://github\\.com/microvoid/convax-plugins/releases/download/" },
+            "size": { "type": "integer", "minimum": 1, "maximum": 134217728 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        }
       }
     },
     "skill": {

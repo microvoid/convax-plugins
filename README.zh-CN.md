@@ -41,6 +41,14 @@ bun run pack -- --kind skill --id my-skill
 生成的插件 ZIP 在根目录包含 `manifest.json`，技能 ZIP 在根目录包含
 `SKILL.md`。校验和打包期间不会安装依赖，也不会执行投稿者提供的构建脚本。
 
+可执行工具插件使用 `convax.plugin/2`，也可以是无界面的。其 ZIP 仍然只包含惰性包文件：
+manifest 为生成能力和/或固定服务动作声明一个单独安装的裸 `mcp-stdio` 命令，但绝不
+内嵌可执行文件、依赖、厂商凭据或 provider 配置。参见
+[`docs/plugin-authoring.md`](docs/plugin-authoring.md#generation-tool-plugin)。
+对于经过审查的第一方工具，Registry 会在 ZIP 之外发布精确到平台和架构的 companion
+工件。Convax 按字节数和 SHA-256 校验后写入宿主管理目录，因此用户无需通过 `PATH`
+手工安装 sidecar，可执行文件也始终不会进入插件包。
+
 可以先阅读完整示例
 [`packages/plugins/hello-convax`](packages/plugins/hello-convax)，然后参考：
 
@@ -71,6 +79,8 @@ bun run pack -- --kind skill --id my-skill
 在兼容版本的 Convax 中打开“设置 → 技能与插件”。能力目录从上面的公开 Registry
 加载。点击安装插件或安装技能后，渲染进程只会把包标识传给主进程，由主进程下载并
 校验对应的不可变 Release ZIP。
+若 v2 插件声明了 Registry companion，同一次安装会只选择当前平台和架构的精确工件，
+并在静态 ZIP 之外独立校验其不可变 URL、字节数和 SHA-256。
 
 `microvoid/convax-plugins` 仓库、Registry 和 Release 资源都是公开的，不需要
 GitHub 账号或令牌。主应用仓库 `microvoid/convax` 可以继续保持私有，不会影响包安装。
@@ -85,6 +95,7 @@ packages/skills/<id>/
   convax-package.json      # Convax 发布元数据，不进入 ZIP
   package/                 # 可移植技能根目录，必须包含 SKILL.md
   showcase/                # 可选目录封面和动图，不进入 ZIP
+tools/<id>/                # 经审查的外部工具源码，单独分发
 templates/                 # 可直接复制的开发模板
 tooling/                   # 校验与确定性 ZIP 工具
 schemas/                   # 包、Registry 和插件的 JSON Schema
@@ -97,6 +108,7 @@ dist/                      # 生成目录，不提交到 Git
 bun run validate            # 校验全部源码包
 bun test                    # 运行校验器、ZIP、Registry 和协议测试
 bun run render:showcases -- --id ad-idea # 渲染单个封面和动图
+bun run build:companions    # 编译明确审查过的平台目标
 bun run pack                # 将全部包写入 dist/packages
 bun run build:index         # 生成版本一致的 Registry 和 Showcase 索引
 bun run check               # 执行完整本地 CI
@@ -126,10 +138,14 @@ Registry 条目、为 ZIP 创建来源证明并发布 GitHub Release。Pages 工
 
 ## 安全边界
 
-第三方插件只能包含静态 HTML、CSS 和 JavaScript，并由 Convax 放入仅带
-`sandbox="allow-scripts"` 的 iframe 中运行。插件不能包含原生可执行文件、
-Node/Electron 代码、网络权限或通用宿主桥接。每个宿主调用都绑定当前插件节点，并按
-manifest 中声明的最小权限校验。技能只是工作流说明，不会授予可执行权限。
+第三方插件 ZIP 只能包含惰性文件。Web 界面只能是静态 HTML、CSS 和 JavaScript，
+并由 Convax 放入仅带 `sandbox="allow-scripts"` 的 iframe 中运行；ZIP 不能包含原生
+可执行文件、Node/Electron 代码、网络权限或通用宿主桥接。v2 工具插件可以声明一个
+单独安装的外部命令。Convax 会在用户明确安装或更新插件时独立解析并校验指纹；这次
+操作即表示同意运行该精确绑定，后续调用不会再弹出本地命令确认。该命令不会进入 ZIP。
+Registry companion 是独立且不可变的 Release 工件，仅在目标、大小和摘要全部精确校验后
+才会被接纳。每个宿主调用都绑定当前插件节点，并按 manifest 中声明的最小权限校验。技能只是工作流
+说明，不会授予可执行权限。
 
 ## 许可证
 
