@@ -17,8 +17,9 @@ is reserved for generative-model Plugins.
 5. Put a portable basename with an extension matching the selected output tool in
    `outputName`. Optionally provide an `anchor` for the new Canvas node.
 6. Call the direct FFmpeg tool with only `references`, `arguments`, `outputName`,
-   and optional `anchor`. Convax derives the active Project, Canvas, revision,
-   actor, and unique operation identity at execution time.
+   optional `anchor`, and optional `relationNodeIds` for output-to-output Canvas
+   relationships. Convax derives the active Project, Canvas, revision, actor, and
+   unique operation identity at execution time.
 
 Example `ffmpeg_run_image` input for extracting a PNG at 12.5 seconds:
 
@@ -78,23 +79,71 @@ fallback instead of assuming the external `libx264` encoder is installed:
 }
 ```
 
-To separate the primary audio stream into a linked M4A card, call
-`ffmpeg_run_audio` with `arguments` set to:
+## Separate audio and video
+
+Always produce two new Canvas nodes for an audio/video separation request: one
+video with no audio stream and one independent audio file with no video stream.
+Do not treat audio extraction alone as a completed separation. Each direct tool
+admits one output, so call both tools against the same source node. Do not use
+`canvas_generate` or put two `{{output}}` tokens in one call.
+
+First call `ffmpeg_run_video` with `-an` to create the video-only node:
 
 ```json
-[
-  "-i",
-  "{{input:0}}",
-  "-map",
-  "0:a:0",
-  "-vn",
-  "-c:a",
-  "aac",
-  "-b:a",
-  "192k",
-  "{{output}}"
-]
+{
+  "references": [{ "nodeId": "<video-node-id>", "role": "reference_video" }],
+  "arguments": [
+    "-i",
+    "{{input:0}}",
+    "-map",
+    "0:v:0",
+    "-an",
+    "-c:v",
+    "h264_videotoolbox",
+    "-allow_sw",
+    "1",
+    "-b:v",
+    "8M",
+    "-profile:v",
+    "high",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "{{output}}"
+  ],
+  "outputName": "video-only.mp4"
+}
 ```
+
+Record the returned video node id. Then call `ffmpeg_run_audio` with `-vn`
+to create the independent audio node, and pass the video node through
+`relationNodeIds` so the paired outputs are connected without staging the new
+video as another FFmpeg input:
+
+```json
+{
+  "references": [{ "nodeId": "<video-node-id>", "role": "reference_video" }],
+  "relationNodeIds": ["<created-video-only-node-id>"],
+  "arguments": [
+    "-i",
+    "{{input:0}}",
+    "-map",
+    "0:a:0",
+    "-vn",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "{{output}}"
+  ],
+  "outputName": "audio-only.m4a"
+}
+```
+
+Require both created node ids before reporting complete separation. If one call
+succeeds and the other fails or is canceled, preserve the successful node, report
+the partial result, and ask before retrying the missing half.
 
 The companion accepts a broad FFmpeg argv surface, not an unrestricted process.
 Every input path must be an exact placeholder and the only output path must be
