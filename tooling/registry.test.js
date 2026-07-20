@@ -24,11 +24,13 @@ describe("source packages", () => {
   test("validates the complete Plugin and Skill catalog", async () => {
     const packages = await discoverPackages()
     expect(packages.map((pkg) => `${pkg.metadata.kind}/${pkg.metadata.id}`)).toEqual([
+      "plugin/ffmpeg-tools",
       "plugin/hello-convax",
       "skill/ad-idea",
       "skill/audiobook",
       "skill/clip-export",
       "skill/ecommerce-image",
+      "skill/ffmpeg-canvas",
       "skill/film-shot",
       "skill/hello-convax-guide",
       "skill/image-remix",
@@ -37,8 +39,44 @@ describe("source packages", () => {
       "skill/skill-reviewer",
       "skill/video-prompting",
     ])
-    expect(packages[0].manifest.schema).toBe("convax.plugin/1")
-    expect(packages[0].manifest.capabilities).toEqual([])
+    const ffmpeg = packages.find((pkg) => pkg.metadata.id === "ffmpeg-tools")
+    const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
+    const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
+    expect(hello.manifest.schema).toBe("convax.plugin/1")
+    expect(hello.manifest.capabilities).toEqual([])
+    expect(ffmpeg.manifest).toEqual(expect.objectContaining({
+      runtime: { command: "convax-ffmpeg-mcp", type: "mcp-stdio" },
+      schema: "convax.plugin/2",
+    }))
+    expect(ffmpeg.manifest.contributes.generation.tools.map((tool) => [tool.id, tool.output])).toEqual([
+      ["run.image", "image"],
+      ["run.video", "video"],
+      ["run.audio", "audio"],
+    ])
+    for (const tool of ffmpeg.manifest.contributes.generation.tools) {
+      expect(tool.acceptedInputs).toEqual([
+        "reference_image",
+        "reference_video",
+        "first_frame",
+        "last_frame",
+        "audio",
+      ])
+    }
+    expect(ffmpeg.manifest.skill).toBe("skills/ffmpeg-canvas/SKILL.md")
+    for (const source of ffmpegSkill.files) {
+      const embedded = ffmpeg.files.find((file) => file.relativePath === `skills/ffmpeg-canvas/${source.relativePath}`)
+      expect(embedded?.data).toEqual(source.data)
+    }
+    expect(ffmpeg.metadata.companions).toEqual([{
+      command: "convax-ffmpeg-mcp",
+      version: "0.1.0",
+      source: "tools/ffmpeg-mcp",
+      targets: [{
+        platform: "darwin",
+        arch: "arm64",
+        path: "dist/darwin-arm64/convax-ffmpeg-mcp",
+      }],
+    }])
   })
 
   test("creates byte-identical ZIPs with required root entries", async () => {
@@ -46,8 +84,30 @@ describe("source packages", () => {
     const first = await packPackages(packages, path.join(await temporaryDirectory(), "first"))
     const second = await packPackages(packages, path.join(await temporaryDirectory(), "second"))
     expect(first.map((item) => sha256(item.zip))).toEqual(second.map((item) => sha256(item.zip)))
-    expect(readStoredZip(first[0].zip).map((entry) => entry.relativePath)).toContain("manifest.json")
-    expect(readStoredZip(first[1].zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
+    const byId = (id) => first.find((item) => item.pkg.metadata.id === id)
+    const hello = byId("hello-convax")
+    const skill = byId("ad-idea")
+    const ffmpeg = byId("ffmpeg-tools")
+    expect(readStoredZip(hello.zip).map((entry) => entry.relativePath)).toContain("manifest.json")
+    expect(readStoredZip(skill.zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
+    expect(readStoredZip(ffmpeg.zip).map((entry) => entry.relativePath)).toEqual([
+      "FFMPEG-CREDITS",
+      "FFMPEG-LICENSE",
+      "FFMPEG-UPSTREAM-LICENSE.md",
+      "LICENSE",
+      "README.md",
+      "THIRD_PARTY_NOTICES.md",
+      "manifest.json",
+      "skills/ffmpeg-canvas/LICENSE",
+      "skills/ffmpeg-canvas/SKILL.md",
+      "skills/ffmpeg-canvas/agents/openai.yaml",
+      "skills/ffmpeg-canvas/references/convax.md",
+    ])
+    expect(ffmpeg.companionAssets.map((asset) => asset.assetName)).toEqual([
+      "convax-companion-convax-ffmpeg-mcp-0.1.0-darwin-arm64",
+    ])
+    const ffmpegLicense = readStoredZip(ffmpeg.zip).find((entry) => entry.relativePath === "FFMPEG-LICENSE")
+    expect(ffmpegLicense?.data).toEqual(await fs.readFile(path.join(root, "tools", "ffmpeg-mcp", "FFMPEG-LICENSE")))
   })
 
   test("builds the strict client Registry with only the latest stable version", async () => {
@@ -56,7 +116,8 @@ describe("source packages", () => {
     const packed = path.join(directory, "packages")
     const output = path.join(directory, "registry", "v1", "index.json")
     const packedResults = await packPackages(packages, packed)
-    const newer = structuredClone(packedResults[0].entry)
+    const hello = packedResults.find((item) => item.pkg.metadata.id === "hello-convax")
+    const newer = structuredClone(hello.entry)
     newer.version = "0.2.0"
     newer.manifest.version = "0.2.0"
     newer.artifact.url = newer.artifact.url.replaceAll("0.1.0", "0.2.0")
@@ -66,16 +127,23 @@ describe("source packages", () => {
     const registry = await buildIndex({ entriesDirectory: packed, outputFile: output, revision: "a".repeat(40), sequence: 7 })
     expect(parseRegistry(JSON.parse(await fs.readFile(output, "utf8")))).toEqual(registry)
     expect(Object.keys(registry)).toEqual(["schema", "sequence", "revision", "packages"])
-    expect(registry.packages[0].manifest.id).toBe("hello-convax")
-    expect(registry.packages[0].version).toBe("0.2.0")
-    expect(registry.packages[0].artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
-    expect(registry.packages[1]).not.toHaveProperty("manifest")
+    const helloEntry = registry.packages.find((item) => item.id === "hello-convax")
+    const ffmpegEntry = registry.packages.find((item) => item.id === "ffmpeg-tools")
+    const firstSkill = registry.packages.find((item) => item.kind === "skill")
+    expect(helloEntry.version).toBe("0.2.0")
+    expect(helloEntry.artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
+    expect(ffmpegEntry.manifest.schema).toBe("convax.plugin/2")
+    expect(ffmpegEntry.companions[0].targets[0].artifact.url).toContain(
+      "/convax-companion-convax-ffmpeg-mcp-0.1.0-darwin-arm64",
+    )
+    expect(firstSkill).not.toHaveProperty("manifest")
   })
 
   test("requires a Release ZIP whose size matches its Registry entry", async () => {
     const packages = await discoverPackages()
     const directory = await temporaryDirectory()
-    const [packed] = await packPackages([packages[0]], path.join(directory, "packed"))
+    const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
+    const [packed] = await packPackages([hello], path.join(directory, "packed"))
     const release = {
       assets: [
         { name: "registry-entry.json", url: "https://api.github.test/assets/entry" },
@@ -95,6 +163,56 @@ describe("source packages", () => {
 
     release.assets[1].size += 1
     await expect(fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).rejects.toThrow("size does not match")
+  })
+
+  test("downloads and verifies every declared companion executable", async () => {
+    const packages = await discoverPackages()
+    const directory = await temporaryDirectory()
+    const ffmpeg = packages.find((pkg) => pkg.metadata.id === "ffmpeg-tools")
+    const [packed] = await packPackages([ffmpeg], path.join(directory, "packed"))
+    const companion = packed.companionAssets[0]
+    const descriptor = packed.entry.companions[0].targets[0].artifact
+    const companionAsset = {
+      name: companion.assetName,
+      size: descriptor.size,
+      url: "https://api.github.test/assets/companion",
+      browser_download_url: descriptor.url,
+      digest: `sha256:${descriptor.sha256}`,
+    }
+    const release = {
+      assets: [
+        { name: "registry-entry.json", url: "https://api.github.test/assets/entry" },
+        { name: packed.assetName, size: packed.zip.length },
+        companionAsset,
+      ],
+      draft: false,
+      tag_name: packed.tag,
+    }
+    let companionBytes = companion.data
+    const fetchImpl = async (url) => {
+      if (String(url).includes("/releases?")) return new Response(JSON.stringify([release]))
+      if (url === "https://api.github.test/assets/entry") return new Response(JSON.stringify(packed.entry))
+      if (url === companionAsset.url) return new Response(companionBytes)
+      throw new Error(`Unexpected URL ${url}`)
+    }
+    const output = path.join(directory, "release-entries")
+    expect(await fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).toBe(1)
+
+    companionAsset.size += 1
+    await expect(fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).rejects.toThrow(
+      "size does not match Registry entry",
+    )
+    companionAsset.size = descriptor.size
+    companionAsset.digest = `sha256:${"0".repeat(64)}`
+    await expect(fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).rejects.toThrow(
+      "digest does not match Registry entry",
+    )
+    companionAsset.digest = `sha256:${descriptor.sha256}`
+    companionBytes = Buffer.from(companion.data)
+    companionBytes[0] ^= 0xff
+    await expect(fetchReleaseEntries({ outputDirectory: output, token: "test", fetchImpl })).rejects.toThrow(
+      "SHA-256 does not match Registry entry",
+    )
   })
 
   test("defers Registry deployment until every source version has a Release entry", async () => {

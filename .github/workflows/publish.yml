@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: macos-14
+    timeout-minutes: 60
     steps:
       - name: Check out tagged source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -27,16 +27,50 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
+      - name: Install companion development dependencies
+        run: bun --cwd=tools/ffmpeg-mcp install --frozen-lockfile
+      - name: Verify official FFmpeg source
+        if: startsWith(github.ref_name, 'plugin-ffmpeg-tools-v')
+        run: |
+          set -euo pipefail
+          if ! command -v gpg >/dev/null 2>&1; then
+            brew install gnupg
+          fi
+          source_path="$RUNNER_TEMP/ffmpeg-8.1.2.tar.xz"
+          signature_path="$source_path.asc"
+          key_path="$RUNNER_TEMP/ffmpeg-devel.asc"
+          curl --fail --location --silent --show-error https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz --output "$source_path"
+          curl --fail --location --silent --show-error https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz.asc --output "$signature_path"
+          curl --fail --location --silent --show-error https://ffmpeg.org/ffmpeg-devel.asc --output "$key_path"
+          test "$(stat -f '%z' "$source_path")" = "11710924"
+          test "$(shasum -a 256 "$source_path" | awk '{print $1}')" = "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c"
+          test "$(stat -f '%z' "$signature_path")" = "520"
+          test "$(shasum -a 256 "$signature_path" | awk '{print $1}')" = "0a0963fccd70597838073f3e31b20f4a4d8cc2b5e577472c9a5a1f22624246f8"
+          test "$(stat -f '%z' "$key_path")" = "1709"
+          test "$(shasum -a 256 "$key_path" | awk '{print $1}')" = "397b3becedcd5a98769967ff1ff8501ddc89f8368b8f766e4701377d7dbaabe5"
+          export GNUPGHOME="$RUNNER_TEMP/ffmpeg-gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --import "$key_path"
+          fingerprint="$(gpg --batch --with-colons --fingerprint | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = "FCF986EA15E6E293A5644F10B4322F04D67658D8"
+          gpg --batch --verify "$signature_path" "$source_path"
+          echo "CONVAX_FFMPEG_SOURCE_ARCHIVE=$source_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_SOURCE_SIGNATURE=$signature_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_SIGNING_KEY=$key_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_REQUIRE_PGP=1" >> "$GITHUB_ENV"
       - name: Validate repository and tag
         run: |
           bun run validate
+          bun --cwd=tools/ffmpeg-mcp run typecheck
+          bun --cwd=tools/ffmpeg-mcp test
+          bun tooling/build-companions.mjs
           bun test
           bun tooling/pack.mjs --tag "$GITHUB_REF_NAME"
 
   publish:
     needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: macos-14
+    timeout-minutes: 60
     permissions:
       attestations: write
       contents: write
@@ -50,9 +84,41 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
+      - name: Install companion development dependencies
+        run: bun --cwd=tools/ffmpeg-mcp install --frozen-lockfile
+      - name: Verify official FFmpeg source
+        if: startsWith(github.ref_name, 'plugin-ffmpeg-tools-v')
+        run: |
+          set -euo pipefail
+          if ! command -v gpg >/dev/null 2>&1; then
+            brew install gnupg
+          fi
+          source_path="$RUNNER_TEMP/ffmpeg-8.1.2.tar.xz"
+          signature_path="$source_path.asc"
+          key_path="$RUNNER_TEMP/ffmpeg-devel.asc"
+          curl --fail --location --silent --show-error https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz --output "$source_path"
+          curl --fail --location --silent --show-error https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz.asc --output "$signature_path"
+          curl --fail --location --silent --show-error https://ffmpeg.org/ffmpeg-devel.asc --output "$key_path"
+          test "$(stat -f '%z' "$source_path")" = "11710924"
+          test "$(shasum -a 256 "$source_path" | awk '{print $1}')" = "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c"
+          test "$(stat -f '%z' "$signature_path")" = "520"
+          test "$(shasum -a 256 "$signature_path" | awk '{print $1}')" = "0a0963fccd70597838073f3e31b20f4a4d8cc2b5e577472c9a5a1f22624246f8"
+          test "$(stat -f '%z' "$key_path")" = "1709"
+          test "$(shasum -a 256 "$key_path" | awk '{print $1}')" = "397b3becedcd5a98769967ff1ff8501ddc89f8368b8f766e4701377d7dbaabe5"
+          export GNUPGHOME="$RUNNER_TEMP/ffmpeg-gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --import "$key_path"
+          fingerprint="$(gpg --batch --with-colons --fingerprint | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "$fingerprint" = "FCF986EA15E6E293A5644F10B4322F04D67658D8"
+          gpg --batch --verify "$signature_path" "$source_path"
+          echo "CONVAX_FFMPEG_SOURCE_ARCHIVE=$source_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_SOURCE_SIGNATURE=$signature_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_SIGNING_KEY=$key_path" >> "$GITHUB_ENV"
+          echo "CONVAX_FFMPEG_REQUIRE_PGP=1" >> "$GITHUB_ENV"
       - name: Build immutable package assets
         id: package
         run: |
+          bun tooling/build-companions.mjs --tag "$GITHUB_REF_NAME"
           bun tooling/pack.mjs --tag "$GITHUB_REF_NAME"
           package_dir="dist/packages/$GITHUB_REF_NAME"
           zip_path="$(find "$package_dir" -maxdepth 1 -type f -name '*.zip' -print -quit)"
@@ -60,10 +126,47 @@ jobs:
           echo "zip=$zip_path" >> "$GITHUB_OUTPUT"
           echo "entry=$package_dir/registry-entry.json" >> "$GITHUB_OUTPUT"
           echo "directory=$package_dir" >> "$GITHUB_OUTPUT"
+          if compgen -G "$package_dir/convax-companion-*" >/dev/null; then
+            echo "has_companions=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_companions=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$GITHUB_REF_NAME" == plugin-ffmpeg-tools-v* ]]; then
+            companion_path="$(find "$package_dir" -maxdepth 1 -type f -name 'convax-companion-convax-ffmpeg-mcp-*' -print -quit)"
+            test -n "$companion_path"
+            cp "$CONVAX_FFMPEG_SOURCE_ARCHIVE" "$package_dir/convax-source-ffmpeg-8.1.2.tar.xz"
+            cp "$CONVAX_FFMPEG_SOURCE_SIGNATURE" "$package_dir/convax-source-ffmpeg-8.1.2.tar.xz.asc"
+            cp "$CONVAX_FFMPEG_SIGNING_KEY" "$package_dir/convax-source-ffmpeg-signing-key.asc"
+            cp tools/ffmpeg-mcp/FFMPEG-LICENSE "$package_dir/convax-ffmpeg-LGPL-2.1.txt"
+            cp tools/ffmpeg-mcp/THIRD_PARTY_NOTICES.md "$package_dir/convax-ffmpeg-THIRD-PARTY-NOTICES.md"
+            tar -xOf "$CONVAX_FFMPEG_SOURCE_ARCHIVE" ffmpeg-8.1.2/LICENSE.md > "$package_dir/convax-ffmpeg-LICENSE.md"
+            tar -xOf "$CONVAX_FFMPEG_SOURCE_ARCHIVE" ffmpeg-8.1.2/CREDITS > "$package_dir/convax-ffmpeg-CREDITS"
+            test -s "$package_dir/convax-ffmpeg-LICENSE.md"
+            test -s "$package_dir/convax-ffmpeg-CREDITS"
+            SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" bun tools/ffmpeg-mcp/scripts/build-sbom.ts \
+              --companion "$companion_path" \
+              --output "$package_dir/convax-ffmpeg-sbom.spdx.json" \
+              --revision "$GITHUB_SHA" \
+              --tag "$GITHUB_REF_NAME"
+            echo "sbom=$package_dir/convax-ffmpeg-sbom.spdx.json" >> "$GITHUB_OUTPUT"
+            echo "has_ffmpeg_source=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ffmpeg_source=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Attest package ZIP
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: ${{ steps.package.outputs.zip }}
+      - name: Attest companion executables
+        if: steps.package.outputs.has_companions == 'true'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: ${{ steps.package.outputs.directory }}/convax-companion-*
+      - name: Attest FFmpeg SBOM
+        if: steps.package.outputs.has_ffmpeg_source == 'true'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: ${{ steps.package.outputs.sbom }}
       - name: Create immutable GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,6 +185,20 @@ jobs:
             "${{ steps.package.outputs.zip }}"
             "${{ steps.package.outputs.entry }}"
           )
+          companion_assets=("${{ steps.package.outputs.directory }}"/convax-companion-*)
+          assets+=("${companion_assets[@]}")
+          if [[ "${{ steps.package.outputs.has_ffmpeg_source }}" == "true" ]]; then
+            assets+=(
+              "${{ steps.package.outputs.directory }}/convax-source-ffmpeg-8.1.2.tar.xz"
+              "${{ steps.package.outputs.directory }}/convax-source-ffmpeg-8.1.2.tar.xz.asc"
+              "${{ steps.package.outputs.directory }}/convax-source-ffmpeg-signing-key.asc"
+              "${{ steps.package.outputs.directory }}/convax-ffmpeg-LGPL-2.1.txt"
+              "${{ steps.package.outputs.directory }}/convax-ffmpeg-THIRD-PARTY-NOTICES.md"
+              "${{ steps.package.outputs.directory }}/convax-ffmpeg-LICENSE.md"
+              "${{ steps.package.outputs.directory }}/convax-ffmpeg-CREDITS"
+              "${{ steps.package.outputs.sbom }}"
+            )
+          fi
           showcase_entry="${{ steps.package.outputs.directory }}/showcase-entry.json"
           showcase_assets=("${{ steps.package.outputs.directory }}"/convax-showcase-*)
           if [[ -f "$showcase_entry" ]]; then
