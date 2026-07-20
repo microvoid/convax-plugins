@@ -1,34 +1,99 @@
 # Managed Convax execution
 
-Use this route only in an active Convax scope that advertises `canvas_generate`
-and the required installed `ffmpeg-tools` tool.
+Use this route only in an active Convax scope that advertises the required direct
+FFmpeg tool. Do not route an FFmpeg transform through `canvas_generate`; that tool
+is reserved for generative-model Plugins.
 
-1. Query the active Canvas and retain its current `canvasId`, revision, relevant
-   node ids, and a free anchor position. Never infer native Project paths.
-2. Choose the tool by output artifact: `ffmpeg-tools/run.image`,
-   `ffmpeg-tools/run.video`, or `ffmpeg-tools/run.audio`.
+1. Use the Canvas query capability when needed to identify the current managed
+   input node ids. Never infer native Project paths.
+2. Choose the direct tool by output artifact: `ffmpeg_run_image`,
+   `ffmpeg_run_video`, or `ffmpeg_run_audio`. A client may display the same names
+   with its MCP server prefix, such as `convax_ffmpeg_run_video`.
 3. Give every input node one accepted reference role and preserve reference order.
    `{{input:0}}` addresses the first reference, `{{input:1}}` the second, and so on.
-4. Encode FFmpeg argv as a JSON array of strings in
-   `toolInput.arguments_json`. Do not include `ffmpeg` or shell quoting. Use the
-   exact `{{output}}` token once, as the final argv element.
-5. Put a portable basename with an extension matching the output modality in
-   `toolInput.output_name`.
-6. Call `canvas_generate` with the latest `anchor`, `canvasId`, `commandId`,
-   `expectedRevision`, `prompt`, `references`, `toolId`, `output`, and `toolInput`.
+4. Pass FFmpeg argv as an array of literal strings in `arguments`. Do not include
+   `ffmpeg`, a shell command, or shell quoting. Use the exact `{{output}}` token
+   once, as the final argv element.
+5. Put a portable basename with an extension matching the selected output tool in
+   `outputName`. Optionally provide an `anchor` for the new Canvas node.
+6. Call the direct FFmpeg tool with only `references`, `arguments`, `outputName`,
+   and optional `anchor`. Convax derives the active Project, Canvas, revision,
+   actor, and unique operation identity at execution time.
 
-Example transform fields for extracting a PNG at 12.5 seconds:
+Example `ffmpeg_run_image` input for extracting a PNG at 12.5 seconds:
 
 ```json
 {
-  "toolId": "ffmpeg-tools/run.image",
-  "output": "image",
-  "references": [{"nodeId": "<video-node-id>", "role": "reference_video"}],
-  "toolInput": {
-    "arguments_json": "[\"-ss\",\"12.5\",\"-i\",\"{{input:0}}\",\"-frames:v\",\"1\",\"{{output}}\"]",
-    "output_name": "frame.png"
-  }
+  "references": [{ "nodeId": "<video-node-id>", "role": "reference_video" }],
+  "arguments": [
+    "-ss",
+    "12.5",
+    "-i",
+    "{{input:0}}",
+    "-frames:v",
+    "1",
+    "{{output}}"
+  ],
+  "outputName": "frame.png"
 }
+```
+
+For an exact 3-to-5-second MP4 trim on the current official Apple Silicon
+companion, use the guaranteed VideoToolbox H.264 encoder with its software
+fallback instead of assuming the external `libx264` encoder is installed:
+
+```json
+{
+  "references": [{ "nodeId": "<video-node-id>", "role": "reference_video" }],
+  "arguments": [
+    "-ss",
+    "3",
+    "-i",
+    "{{input:0}}",
+    "-t",
+    "2",
+    "-map",
+    "0:v:0",
+    "-map",
+    "0:a?",
+    "-c:v",
+    "h264_videotoolbox",
+    "-allow_sw",
+    "1",
+    "-b:v",
+    "8M",
+    "-profile:v",
+    "high",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-movflags",
+    "+faststart",
+    "{{output}}"
+  ],
+  "outputName": "trim-3s-5s.mp4"
+}
+```
+
+To separate the primary audio stream into a linked M4A card, call
+`ffmpeg_run_audio` with `arguments` set to:
+
+```json
+[
+  "-i",
+  "{{input:0}}",
+  "-map",
+  "0:a:0",
+  "-vn",
+  "-c:a",
+  "aac",
+  "-b:a",
+  "192k",
+  "{{output}}"
+]
 ```
 
 The companion accepts a broad FFmpeg argv surface, not an unrestricted process.
@@ -38,7 +103,9 @@ paths, playlist demuxers, multi-file muxers, local devices, path-opening flags,
 and external-file filters are rejected. One output smaller than 2 GiB is allowed.
 Do not weaken or work around that boundary.
 
-Success requires created node ids and a new Canvas revision. Keep source nodes
-unchanged. If the revision is stale, re-query once and rebuild the request against
-unchanged sources. On denial, cancellation, missing Plugin, or uncertain outcome,
-stop and report the last confirmed state. Never edit `.convax` metadata directly.
+Success requires created node ids and a new Canvas revision. Convax creates normal
+source-to-output relations for every reference, so an extracted audio card remains
+connected to its source video. Keep source nodes unchanged. On stale input,
+denial, cancellation, missing Plugin, or uncertain outcome, re-check the Canvas and
+report the last confirmed state; do not blindly retry. Never edit `.convax`
+metadata directly.

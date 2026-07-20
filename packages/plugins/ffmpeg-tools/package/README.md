@@ -1,13 +1,13 @@
 # FFmpeg Tools for Convax
 
 FFmpeg Tools adds local media transformations to Convax through a reviewed Tool
-Plugin companion. Agent workflows can compose FFmpeg argv directly, while Convax
-can expose common video-node actions such as Extract Frame, Trim, and Crop in the
-node toolbar.
+Plugin companion. Agent workflows call dedicated FFmpeg tools with tokenized argv,
+while Convax exposes common video-node actions such as Extract Frame, timeline
+Trim, Separate Audio, and Crop in the node toolbar.
 
 ## Tools
 
-The Plugin publishes three generation tool IDs:
+The Plugin publishes three host-executed tool IDs:
 
 - `ffmpeg-tools/run.image`
 - `ffmpeg-tools/run.video`
@@ -17,6 +17,12 @@ All three tools accept the five Convax media-reference roles (`reference_image`,
 `reference_video`, `first_frame`, `last_frame`, and `audio`) so one FFmpeg graph
 can combine heterogeneous staged media. Each reference still has to match the
 declared role and a supported media signature.
+
+Convax exposes them to its Agent as `ffmpeg_run_image`, `ffmpeg_run_video`, and
+`ffmpeg_run_audio` (shown with the `convax_` MCP server prefix in OpenCode). FFmpeg
+transforms do not use `canvas_generate`; that route is reserved for generative
+model Plugins. The direct tools still use the same host-owned staging, executable
+verification, output admission, Canvas commit, and source-edge flow.
 
 Each tool receives `arguments_json`, a JSON array containing individual FFmpeg
 argv tokens. Convax never invokes a shell. Use `{{input:N}}` as a complete token

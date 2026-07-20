@@ -1,6 +1,6 @@
 ---
 name: ffmpeg-canvas
-description: Transform image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, transcoding, remuxing, filtering, or combining media. Use for managed Convax Canvas nodes when canvas_generate and ffmpeg-tools are available, or for explicit local files when an authorized argv-based process tool and local ffmpeg installation are available.
+description: Transform image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, separating audio, transcoding, remuxing, filtering, or combining media. Use the direct FFmpeg tools for managed Convax Canvas nodes when available, or an authorized argv-based local process for explicit files in other compatible agents such as Codex.
 ---
 
 # FFmpeg Canvas
@@ -11,9 +11,10 @@ safest available route, and preserve every source file or node.
 ## Select the execution route
 
 1. Inspect the capabilities available in the current session.
-2. Prefer the managed Convax route when `canvas_generate` and the matching
-   `ffmpeg-tools/run.image`, `run.video`, or `run.audio` tool are available. Read
-   [references/convax.md](references/convax.md) before calling it.
+2. Prefer the managed Convax route when `ffmpeg_run_image`, `ffmpeg_run_video`,
+   or `ffmpeg_run_audio` is available. A client may display these with its server
+   prefix, such as `convax_ffmpeg_run_video`. Read
+   [references/convax.md](references/convax.md) before calling one.
 3. Otherwise, use the local route only when the client exposes a user-authorized
    argv-based process capability and `ffmpeg` plus `ffprobe` are installed.
 4. If neither route exists, return the proposed argv, output name, and verification
