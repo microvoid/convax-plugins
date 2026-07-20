@@ -1,0 +1,24 @@
+{
+  "name": "@microvoid/convax-ffmpeg-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "convax-ffmpeg-mcp": "dist/convax-ffmpeg-mcp"
+  },
+  "scripts": {
+    "build": "bun scripts/build-release.ts --host && bun scripts/smoke-ffmpeg.ts && bun scripts/smoke-companion.ts",
+    "build:release:darwin-arm64": "bun scripts/build-release.ts darwin arm64 && bun scripts/smoke-ffmpeg.ts && bun scripts/smoke-companion.ts dist/darwin-arm64/convax-ffmpeg-mcp",
+    "clean": "rm -rf dist vendor",
+    "dev": "bun run build && ./dist/convax-ffmpeg-mcp",
+    "smoke:ffmpeg": "bun scripts/smoke-ffmpeg.ts",
+    "smoke:companion": "bun scripts/smoke-companion.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
