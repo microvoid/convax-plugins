@@ -1,4 +1,4 @@
 interface:
   display_name: "FFmpeg Canvas"
-  short_description: "Transform media with scoped FFmpeg arguments"
-  default_prompt: "Use $ffmpeg-canvas to transform the media I provide, choosing managed Canvas execution when available or a user-authorized local FFmpeg route."
+  short_description: "Transform and split media with scoped FFmpeg"
+  default_prompt: "Use $ffmpeg-canvas to transform the media I provide; when separating audio and video, create both a silent video and an independent audio output."

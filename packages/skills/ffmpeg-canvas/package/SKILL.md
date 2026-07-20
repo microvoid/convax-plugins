@@ -1,6 +1,6 @@
 ---
 name: ffmpeg-canvas
-description: Transform image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, separating audio, transcoding, remuxing, filtering, or combining media. Use the direct FFmpeg tools for managed Convax Canvas nodes when available, or an authorized argv-based local process for explicit files in other compatible agents such as Codex.
+description: Transform or split image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, separating audio and video into paired outputs, transcoding, remuxing, filtering, or combining media. Use the direct FFmpeg tools for managed Convax Canvas nodes when available, or an authorized argv-based local process for explicit files in other compatible agents such as Codex.
 ---
 
 # FFmpeg Canvas
@@ -14,7 +14,8 @@ safest available route, and preserve every source file or node.
 2. Prefer the managed Convax route when `ffmpeg_run_image`, `ffmpeg_run_video`,
    or `ffmpeg_run_audio` is available. A client may display these with its server
    prefix, such as `convax_ffmpeg_run_video`. Read
-   [references/convax.md](references/convax.md) before calling one.
+   [references/convax.md](references/convax.md) before calling one. Never route a
+   managed FFmpeg transform through `canvas_generate`.
 3. Otherwise, use the local route only when the client exposes a user-authorized
    argv-based process capability and `ffmpeg` plus `ffprobe` are installed.
 4. If neither route exists, return the proposed argv, output name, and verification
@@ -30,6 +31,12 @@ only when requested or when the chosen operation should reasonably retain them.
 Build argv as an array of literal tokens. Never build a shell command, interpolate
 untrusted text into a command string, or use shell expansion. Produce a new output;
 do not replace, delete, or modify an input.
+
+Treat “separate audio and video” as a two-output request. Create one video-only
+output with `-an` and one independent audio-only output with `-vn`; never satisfy
+the request by extracting only audio. In Convax, call `ffmpeg_run_video` and
+`ffmpeg_run_audio` separately because each direct tool admits exactly one output.
+For an authorized local process, execute and validate two independent argv vectors.
 
 ## Use an authorized local process
 
@@ -53,5 +60,6 @@ before a costly batch or a transform that may substantially reduce quality.
 ## Finish safely
 
 Report the chosen route, essential transform settings, validated output, and any
-quality or compatibility warnings. On partial failure, report the last confirmed
-state and leave cleanup or retry to an explicit user decision.
+quality or compatibility warnings. For audio/video separation, report both output
+identities and state explicitly if only one succeeded. On partial failure, report
+the last confirmed state and leave cleanup or retry to an explicit user decision.

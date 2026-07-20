@@ -3,8 +3,8 @@
   "kind": "skill",
   "id": "ffmpeg-canvas",
   "name": "FFmpeg Canvas",
-  "description": "Compose safe, tokenized FFmpeg transforms for active Canvas media and save the verified result as a new managed node.",
-  "version": "0.1.1",
+  "description": "Compose safe, tokenized FFmpeg transforms for active Canvas media, including paired video-only and audio-only separation outputs.",
+  "version": "0.1.2",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
