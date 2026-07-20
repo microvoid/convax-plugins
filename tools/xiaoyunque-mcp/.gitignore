@@ -4,3 +4,6 @@ node_modules/
 *.log
 credentials.json
 operations.json
+web-session.json
+.operation-records/
+.operation-locks/
