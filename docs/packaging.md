@@ -3,10 +3,19 @@
 Repository tooling reads package files as inert bytes. It never runs a package's
 scripts, installs its dependencies, or follows symlinks.
 
+The repository is a Bun monorepo. Every Plugin, Skill, and Tool owns a workspace
+`package.json`, while one root `bun.lock` freezes the complete dependency graph.
+CI runs one `bun install --frozen-lockfile --ignore-scripts`; validation and packing
+remain separate inert-byte operations and never install dependencies themselves. A
+trusted `workspaces:build:packages` phase runs first for workspaces that declare
+`build`; each build must emit a complete self-contained `package/` tree. Released
+archives never contain `node_modules` and installation never runs a package manager.
+
 ## Source and ZIP roots
 
 ```text
 packages/<kind>/<id>/convax-package.json  # catalog metadata, not shipped
+packages/<kind>/<id>/package.json         # workspace dependencies/scripts, not shipped
 packages/<kind>/<id>/package/             # exact ZIP root
 packages/<kind>/<id>/showcase/            # optional catalog media, not shipped
 ```
@@ -17,11 +26,11 @@ STORE method. Thus identical source bytes produce identical SHA-256 digests acro
 machines. Uncompressed storage is intentional: packages are already size-bounded,
 and avoiding compressor-version drift makes releases reproducible.
 
-A headless `convax.plugin/2` or `convax.plugin/3` Tool Plugin may contain only `manifest.json` and a
+A headless `convax.plugin/2`, `convax.plugin/3`, or `convax.plugin/4` Tool Plugin may contain only `manifest.json` and a
 license notice. Its generation and/or service contribution uses one declared
 `mcp-stdio` executable that is a separate distributable and
 must never appear anywhere below `package/`; validation and packing do not install,
-build, or execute companion source under `tools/`.
+build, or execute companion source under `packages/tools/`.
 
 The matching source metadata declares the reviewed tool directory and build output
 for each target. For example:
@@ -30,7 +39,7 @@ for each target. For example:
 "companions": [{
   "command": "creative-tools-mcp",
   "version": "1.2.3",
-  "source": "tools/creative-tools-mcp",
+  "source": "packages/tools/creative-tools-mcp",
   "targets": [{
     "platform": "darwin",
     "arch": "arm64",
@@ -39,7 +48,7 @@ for each target. For example:
 }]
 ```
 
-`source` is exactly one directory below `tools/`; target `path` is relative to it.
+`source` is exactly one workspace below `packages/tools/`; target `path` is relative to it.
 Both are publishing inputs and never enter the Registry or Plugin ZIP. Packing
 rejects missing files, symlinks at any path component, non-files, oversized files,
 non-executable POSIX artifacts, duplicate targets, and files resolving outside the
@@ -52,9 +61,29 @@ only that fixed reviewed script name (never a command supplied by package metada
 then immediately applies the same path, symlink, executable-mode, size, and digest
 admission checks used by packing.
 
+## Plugin-owned Skill composition
+
+A `convax.plugin/4` manifest may declare `contributes.skills` entries such as
+`{"name":"ffmpeg-canvas","path":"skills/ffmpeg-canvas"}`. The named Skill remains
+an independent workspace and standard portable Skill package. Its source metadata
+declares `ownerPluginId`.
+
+The Plugin directory must not contain a copied Skill tree. Discovery verifies the
+two ownership declarations, reads the Skill workspace as inert bytes, and injects
+those bytes below the declared Plugin ZIP path. The resulting ZIP is deterministic,
+while the source of truth remains singular. npm workspace dependencies are build
+relationships only and never imply Convax lifecycle ownership.
+
+Changing an owned Skill changes both its portable Skill ZIP and the owner Plugin ZIP.
+Both versions must be bumped and released. Catalog deployment recomputes every
+deterministic source ZIP and requires its size and SHA-256 to match the immutable
+Release entry, preventing an old owner Plugin from being paired with a newer Skill
+presentation artifact.
+
 Paths must be portable POSIX relative paths. Symlinks, traversal, control characters,
-Windows device names, alternate data streams, case-insensitive collisions, files
-over 2 MiB, and packages over 10 MiB are rejected. Runtime CDN URLs, executable file
+Windows device names, alternate data streams, case/Unicode-normalization collisions,
+files over 2 MiB, combined packages over 10 MiB, Plugin inventories over 2,000
+entries, and Skill inventories over 512 entries are rejected. Runtime CDN URLs, executable file
 modes, native extensions, shebang scripts, and packaged Node/server entrypoints are
 rejected for Plugins.
 

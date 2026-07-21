@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
-import { discoverPackages, exactKeys, readJson, root } from "./lib.mjs"
+import { discoverPackages, exactKeys, parseArgs, readJson, root } from "./lib.mjs"
 
 function validateLocalMarkdownReferences(files, label) {
   const paths = new Set(files.map((file) => file.relativePath))
@@ -26,7 +26,7 @@ function validateLocalMarkdownReferences(files, label) {
   }
 }
 
-export async function validateRepository() {
+export async function validateRepository(options = {}) {
   const config = await readJson(path.join(root, "registry", "config.json"), "registry/config.json")
   exactKeys(config, ["sequence", "yanked"], ["sequence", "yanked"], "registry/config.json")
   if (!Number.isSafeInteger(config.sequence) || config.sequence < 1) {
@@ -44,13 +44,26 @@ export async function validateRepository() {
     "convax-plugin-manifest-v1.schema.json",
     "convax-plugin-manifest-v2.schema.json",
     "convax-plugin-manifest-v3.schema.json",
+    "convax-plugin-manifest-v4.schema.json",
     "convax-registry-v1.schema.json",
     "convax-showcase-entry-v1.schema.json",
     "convax-showcase-v1.schema.json",
   ]
   for (const name of schemaNames) await readJson(path.join(schemaDirectory, name), `schemas/${name}`)
-  const packages = await discoverPackages()
+  const packages = await discoverPackages(options)
   if (packages.length === 0) throw new Error("At least one source package is required")
+  for (const skill of packages.filter((pkg) => pkg.metadata.kind === "skill")) {
+    validateLocalMarkdownReferences(skill.files, `skill/${skill.metadata.id}`)
+  }
+  for (const plugin of packages.filter((pkg) => pkg.metadata.kind === "plugin" && pkg.manifest.schema === "convax.plugin/4")) {
+    for (const contribution of plugin.manifest.contributes.skills ?? []) {
+      const prefix = `${contribution.path}/`
+      const files = plugin.files
+        .filter((file) => file.relativePath.startsWith(prefix))
+        .map((file) => ({ ...file, relativePath: file.relativePath.slice(prefix.length) }))
+      validateLocalMarkdownReferences(files, `plugin/${plugin.metadata.id} owned skill/${contribution.name}`)
+    }
+  }
   for (const plugin of packages.filter((pkg) => pkg.metadata.kind === "plugin" && pkg.manifest.skill)) {
     const match = /^skills\/([a-z0-9]+(?:-[a-z0-9]+)*)\/SKILL\.md$/.exec(plugin.manifest.skill)
     if (!match) continue
@@ -76,13 +89,22 @@ export async function validateRepository() {
     }
   }
   for (const template of ["plugin-basic", "skill-basic"]) {
-    const metadata = await fs.readFile(path.join(root, "templates", template, "convax-package.json"), "utf8")
-    if (!metadata.includes("__")) throw new Error(`templates/${template}: expected replacement tokens`)
+    for (const name of ["convax-package.json", "package.json"]) {
+      const source = await fs.readFile(path.join(root, "templates", template, name), "utf8")
+      if (!source.includes("__")) throw new Error(`templates/${template}/${name}: expected replacement tokens`)
+    }
   }
   return { packages, sequence: config.sequence }
 }
 
 if (import.meta.main) {
-  const result = await validateRepository()
+  const args = parseArgs(process.argv.slice(2).filter((argument) => argument !== "--"))
+  const unknown = Object.keys(args).find((key) => key !== "kind" && key !== "id")
+  if (unknown) throw new Error(`arguments: unsupported --${unknown}`)
+  if ((args.kind && !args.id) || (args.id && !args.kind)) throw new Error("arguments: use --kind and --id together")
+  const result = await validateRepository(args.kind ? { kind: args.kind, id: args.id } : undefined)
+  if (args.kind && !result.packages.some((pkg) => pkg.metadata.kind === args.kind && pkg.metadata.id === args.id)) {
+    throw new Error(`No package matches ${args.kind}/${args.id}`)
+  }
   console.log(`Validated ${result.packages.length} packages at Registry sequence ${result.sequence}.`)
 }

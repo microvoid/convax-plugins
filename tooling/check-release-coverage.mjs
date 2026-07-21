@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
 import {
+  createDeterministicZip,
+  createRegistryEntry,
   createShowcaseEntry,
   discoverPackages,
   parseArgs,
@@ -41,6 +43,15 @@ export async function checkReleaseCoverage({ entriesDirectory, packages: supplie
     }
     if (entry.kind !== pkg.metadata.kind || entry.id !== pkg.metadata.id || entry.version !== pkg.metadata.version) {
       throw new Error(`${tag}: Release entry identity does not match source metadata`)
+    }
+    const expectedEntry = createRegistryEntry(pkg, createDeterministicZip(pkg.files))
+    for (const key of ["name", "description", "compatibility", "artifact", "yanked", "manifest"]) {
+      if (JSON.stringify(entry[key]) !== JSON.stringify(expectedEntry[key])) {
+        throw new Error(`${tag}: Release ${key} does not match the current source package`)
+      }
+    }
+    if (entry.kind === "skill" && entry.ownerPluginId !== pkg.metadata.ownerPluginId) {
+      throw new Error(`${tag}: Release ownerPluginId does not match source metadata`)
     }
     const expectedCompanions = companionDeclaration(pkg.metadata.companions)
     const publishedCompanions = companionDeclaration(entry.companions)

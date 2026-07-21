@@ -10,6 +10,8 @@ export const showcaseSchema = "convax.showcase/1"
 export const showcaseEntrySchema = "convax.showcase-entry/1"
 export const maxFileBytes = 2 * 1024 * 1024
 export const maxPackageBytes = 10 * 1024 * 1024
+export const maxPluginEntries = 2_000
+export const maxSkillEntries = 512
 export const maxPosterBytes = 5 * 1024 * 1024
 export const maxAnimationBytes = 20 * 1024 * 1024
 export const maxCompanionBytes = 128 * 1024 * 1024
@@ -140,8 +142,9 @@ function parseCompatibility(value, kind, label) {
     const v1 = value.pluginSchema === "convax.plugin/1" && value.pluginHost === "convax.plugin-host/1"
     const v2 = value.pluginSchema === "convax.plugin/2" && value.pluginHost === "convax.plugin-host/2"
     const v3 = value.pluginSchema === "convax.plugin/3" && value.pluginHost === "convax.plugin-host/3"
-    if (!v1 && !v2 && !v3) {
-      error(label, "must pair matching convax.plugin and convax.plugin-host major versions 1, 2, or 3")
+    const v4 = value.pluginSchema === "convax.plugin/4" && value.pluginHost === "convax.plugin-host/4"
+    if (!v1 && !v2 && !v3 && !v4) {
+      error(label, "must pair matching convax.plugin and convax.plugin-host major versions 1, 2, 3, or 4")
     }
     return { pluginSchema: value.pluginSchema, pluginHost: value.pluginHost }
   }
@@ -177,8 +180,8 @@ function parseSourceCompanions(value, label) {
     exactKeys(item, ["command", "source", "targets", "version"],
       ["command", "source", "targets", "version"], itemLabel)
     const source = parseRelativePath(item.source, `${itemLabel} source`)
-    if (!/^tools\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(source)) {
-      error(itemLabel, "source must name one reviewed directory directly below tools/")
+    if (!/^packages\/tools\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(source)) {
+      error(itemLabel, "source must name one reviewed workspace directly below packages/tools/")
     }
     if (!Array.isArray(item.targets) || item.targets.length < 1 || item.targets.length > 16) {
       error(itemLabel, "targets must be a non-empty array with at most 16 items")
@@ -208,7 +211,7 @@ function parseSourceCompanions(value, label) {
 
 export function parseSourceMetadata(value, label = "convax-package.json") {
   const required = ["schema", "kind", "id", "name", "description", "version", "license", "compatibility", "yanked"]
-  exactKeys(value, [...required, "companions", "showcase"], required, label)
+  exactKeys(value, [...required, "companions", "ownerPluginId", "showcase"], required, label)
   if (value.schema !== "convax.package/1") error(label, "unsupported schema")
   if (value.kind !== "plugin" && value.kind !== "skill") error(label, "kind must be plugin or skill")
   if (typeof value.yanked !== "boolean") error(label, "yanked must be a boolean")
@@ -216,10 +219,15 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
   const id = parseId(value.id, `${label} id`)
   if (kind === "skill" && id.length > 64) error(label, "Skill id must be at most 64 characters")
   if (kind === "skill" && value.companions !== undefined) error(label, "companions are available only to Plugins")
+  if (kind === "plugin" && value.ownerPluginId !== undefined) error(label, "ownerPluginId is available only to Skills")
+  const ownerPluginId = value.ownerPluginId === undefined
+    ? undefined
+    : parseId(value.ownerPluginId, `${label} ownerPluginId`)
   const compatibility = parseCompatibility(value.compatibility, kind, `${label} compatibility`)
   const companions = parseSourceCompanions(value.companions, `${label} companions`)
-  if (companions && compatibility.pluginSchema !== "convax.plugin/2" && compatibility.pluginSchema !== "convax.plugin/3") {
-    error(label, "companions require convax.plugin/2 or convax.plugin/3 compatibility")
+  if (companions && compatibility.pluginSchema !== "convax.plugin/2" &&
+      compatibility.pluginSchema !== "convax.plugin/3" && compatibility.pluginSchema !== "convax.plugin/4") {
+    error(label, "companions require convax.plugin/2, convax.plugin/3, or convax.plugin/4 compatibility")
   }
   return {
     schema: "convax.package/1",
@@ -232,6 +240,7 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
     compatibility,
     yanked: value.yanked,
     ...(companions === undefined ? {} : { companions }),
+    ...(ownerPluginId === undefined ? {} : { ownerPluginId }),
     ...(value.showcase === undefined ? {} : { showcase: parseShowcaseSource(value.showcase, `${label} showcase`) }),
   }
 }
@@ -576,14 +585,110 @@ function parsePluginManifestV3(value, label) {
   }
 }
 
+function parseOwnedSkillsV4(value, label) {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length < 1 || value.length > 32) {
+    error(label, "must be a non-empty array with at most 32 items")
+  }
+  const skills = value.map((item, index) => {
+    const itemLabel = `${label} item ${index}`
+    exactKeys(item, ["name", "path"], ["name", "path"], itemLabel)
+    const name = parseId(item.name, `${itemLabel} name`)
+    if (name.length > 64) error(itemLabel, "name must be at most 64 characters")
+    const skillPath = parseRelativePath(item.path, `${itemLabel} path`)
+    if (skillPath !== `skills/${name}`) error(itemLabel, `path must equal skills/${name}`)
+    return { name, path: skillPath }
+  })
+  if (new Set(skills.map((skill) => skill.name)).size !== skills.length) {
+    error(label, "contains duplicate names")
+  }
+  if (new Set(skills.map((skill) => skill.path)).size !== skills.length) {
+    error(label, "contains duplicate paths")
+  }
+  return skills
+}
+
+function parsePluginManifestV4(value, label) {
+  const required = ["contributes", "description", "id", "name", "schema", "version"]
+  exactKeys(value,
+    ["capabilities", "contributes", "description", "entry", "id", "name", "runtime", "schema", "version"],
+    required, label)
+  exactKeys(value.contributes, ["agent", "canvas", "generation", "service", "skills"], [], `${label} contributes`)
+
+  const capabilities = value.capabilities ?? []
+  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
+      capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
+      new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+
+  const hasRuntime = value.runtime !== undefined
+  const hasGeneration = value.contributes.generation !== undefined
+  const hasService = value.contributes.service !== undefined
+  if (hasRuntime !== (hasGeneration || hasService)) {
+    error(label, "runtime and executable contribution must appear together")
+  }
+
+  const generation = hasGeneration ? parseGenerationV3(value.contributes.generation, `${label} generation`) : undefined
+  if (value.contributes.agent !== undefined && generation === undefined) {
+    error(label, "agent tools require a generation contribution")
+  }
+  const agent = value.contributes.agent === undefined
+    ? undefined
+    : parseAgentV3(value.contributes.agent, generation, `${label} agent`)
+
+  const hasCanvas = value.contributes.canvas !== undefined
+  if (hasCanvas && value.contributes.canvas.selectionActions !== undefined && generation === undefined) {
+    error(label, "selectionActions require a generation contribution")
+  }
+  const canvas = hasCanvas
+    ? parseCanvasV3(value.contributes.canvas, generation, `${label} canvas`)
+    : undefined
+  const hasRenderer = canvas?.renderer !== undefined
+  if (!hasRuntime && !hasRenderer && !capabilities.includes("generation.execute")) {
+    error(label, "convax.plugin/4 must declare a Plugin capability beyond owned Skills")
+  }
+  const hasEntry = value.entry !== undefined
+  if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
+  if (capabilities.includes("generation.execute") && !hasRenderer) {
+    error(label, "generation.execute requires a sandboxed Canvas renderer")
+  }
+
+  let entry
+  if (hasEntry) {
+    entry = parseRelativePath(value.entry, `${label} entry`)
+    if (!entry.toLowerCase().endsWith(".html")) error(label, "entry must be an HTML file")
+  }
+
+  const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
+  const skills = parseOwnedSkillsV4(value.contributes.skills, `${label} skills`)
+  const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
+  return {
+    capabilities: [...capabilities],
+    contributes: {
+      ...(agent === undefined ? {} : { agent }),
+      ...(canvas === undefined ? {} : { canvas }),
+      ...(generation === undefined ? {} : { generation }),
+      ...(service === undefined ? {} : { service }),
+      ...(skills === undefined ? {} : { skills }),
+    },
+    description: cleanString(value.description, `${label} description`, 2000),
+    ...(entry === undefined ? {} : { entry }),
+    id: parseId(value.id, `${label} id`),
+    name: cleanString(value.name, `${label} name`, 120),
+    schema: "convax.plugin/4",
+    ...(runtime === undefined ? {} : { runtime }),
+    version: parseSemver(value.version, `${label} version`),
+  }
+}
+
 export function parsePluginManifest(value, label = "manifest.json") {
   if (!isObject(value) ||
-      (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2" && value.schema !== "convax.plugin/3")) {
+      (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2" &&
+       value.schema !== "convax.plugin/3" && value.schema !== "convax.plugin/4")) {
     error(label, "unsupported schema")
   }
-  return value.schema === "convax.plugin/3"
-    ? parsePluginManifestV3(value, label)
-    : parseLegacyPluginManifest(value, label)
+  if (value.schema === "convax.plugin/4") return parsePluginManifestV4(value, label)
+  if (value.schema === "convax.plugin/3") return parsePluginManifestV3(value, label)
+  return parseLegacyPluginManifest(value, label)
 }
 
 const serviceActions = new Set(["authorize", "reauthorize", "authorization.cancel", "sign_out"])
@@ -703,6 +808,26 @@ export async function collectFiles(directory, label = directory) {
   return files
 }
 
+function packageEntryCount(files) {
+  const entries = new Set()
+  for (const file of files) {
+    const segments = file.relativePath.split("/")
+    for (let index = 1; index <= segments.length; index += 1) {
+      entries.add(segments.slice(0, index).join("/").normalize("NFC").toLowerCase())
+    }
+  }
+  return entries.size
+}
+
+function assertPackageInventory(files, kind, label) {
+  const totalBytes = files.reduce((total, file) => total + file.data.byteLength, 0)
+  if (totalBytes > maxPackageBytes) error(label, "package exceeds 10 MiB")
+  const maximumEntries = kind === "plugin" ? maxPluginEntries : maxSkillEntries
+  if (packageEntryCount(files) > maximumEntries) {
+    error(label, `package exceeds the ${maximumEntries} entry limit`)
+  }
+}
+
 export function assertPluginStatic(files, label) {
   for (const file of files) {
     const extension = path.posix.extname(file.relativePath).toLowerCase()
@@ -724,14 +849,30 @@ export function assertPluginStatic(files, label) {
   }
 }
 
-async function listCollection(kind) {
-  const collection = path.join(root, "packages", `${kind}s`)
+async function listCollection(kind, workspaceRoot = root) {
+  const collection = path.join(workspaceRoot, "packages", `${kind}s`)
   let entries
   try { entries = await fs.readdir(collection, { withFileTypes: true }) } catch (cause) {
     if (cause?.code === "ENOENT") return []
     throw cause
   }
   return entries.filter((entry) => entry.isDirectory()).map((entry) => ({ kind, id: entry.name, directory: path.join(collection, entry.name) }))
+}
+
+async function validatePackageWorkspace(candidate, metadata) {
+  const label = `${candidate.kind}/${candidate.id} package.json`
+  const packageJson = await readJson(path.join(candidate.directory, "package.json"), label)
+  if (!isObject(packageJson)) error(label, "must be an object")
+  const expectedName = `@microvoid/convax-${candidate.kind}-${candidate.id}`
+  if (packageJson.name !== expectedName) error(label, `name must equal ${expectedName}`)
+  if (packageJson.version !== metadata.version) error(label, "version must equal convax-package.json")
+  if (packageJson.private !== true) error(label, "private must be true")
+  if (packageJson.type !== "module") error(label, "type must be module")
+  if (!isObject(packageJson.scripts) || typeof packageJson.scripts.validate !== "string" ||
+      typeof packageJson.scripts.pack !== "string") {
+    error(label, "scripts must declare validate and pack")
+  }
+  return packageJson
 }
 
 function pngDimensions(data, label) {
@@ -858,8 +999,8 @@ export async function loadShowcaseAssets(metadata, packageDirectory, label = `${
   return { poster, ...(animation ? { animation } : {}) }
 }
 
-async function validateCompanionSourceDirectory(companion, label) {
-  const sourceDirectory = path.join(root, ...companion.source.split("/"))
+async function validateCompanionSourceDirectory(companion, label, workspaceRoot = root) {
+  const sourceDirectory = path.join(workspaceRoot, ...companion.source.split("/"))
   let stat
   try { stat = await fs.lstat(sourceDirectory) } catch (cause) {
     if (cause?.code === "ENOENT") error(label, `missing reviewed source directory ${companion.source}`)
@@ -867,11 +1008,11 @@ async function validateCompanionSourceDirectory(companion, label) {
   }
   if (stat.isSymbolicLink()) error(label, `source directory must not be a symlink: ${companion.source}`)
   if (!stat.isDirectory()) error(label, `source must be a directory: ${companion.source}`)
-  const toolsRoot = await fs.realpath(path.join(root, "tools"))
+  const toolsRoot = await fs.realpath(path.join(workspaceRoot, "packages", "tools"))
   const realSource = await fs.realpath(sourceDirectory)
   const relative = path.relative(toolsRoot, realSource)
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative) || relative.includes(path.sep)) {
-    error(label, "source must resolve to one directory directly below tools/")
+    error(label, "source must resolve to one workspace directly below packages/tools/")
   }
   const packageFile = path.join(sourceDirectory, "package.json")
   const packageStat = await fs.lstat(packageFile).catch((cause) => {
@@ -891,18 +1032,35 @@ async function validateCompanionSourceDirectory(companion, label) {
       error(label, `source package must declare the ${script} script`)
     }
   }
+  return sourcePackage
 }
 
-export async function discoverPackages() {
-  const candidates = [...await listCollection("plugin"), ...await listCollection("skill")]
+export async function discoverPackages(options = {}) {
+  const workspaceRoot = options.workspaceRoot ?? root
+  const selection = options.kind === undefined && options.id === undefined
+    ? undefined
+    : { kind: options.kind, id: options.id }
+  if (selection &&
+      ((selection.kind !== "plugin" && selection.kind !== "skill") || typeof selection.id !== "string")) {
+    error("package selection", "kind and id must select one Plugin or Skill")
+  }
+  const candidates = [...await listCollection("plugin", workspaceRoot), ...await listCollection("skill", workspaceRoot)]
     .sort((left, right) => `${left.kind}/${left.id}`.localeCompare(`${right.kind}/${right.id}`, "en"))
-  const packages = []
-  for (const candidate of candidates) {
+  const candidatesByIdentity = new Map(candidates.map((candidate) => [`${candidate.kind}/${candidate.id}`, candidate]))
+  if (selection && !candidatesByIdentity.has(`${selection.kind}/${selection.id}`)) return []
+
+  const loaded = new Map()
+  async function loadCandidate(candidate) {
+    const identity = `${candidate.kind}/${candidate.id}`
+    const existing = loaded.get(identity)
+    if (existing) return existing
     parseId(candidate.id, `${candidate.kind} directory`)
     const metadata = parseSourceMetadata(await readJson(path.join(candidate.directory, "convax-package.json")), `${candidate.kind}/${candidate.id}`)
     if (metadata.kind !== candidate.kind || metadata.id !== candidate.id) error(`${candidate.kind}/${candidate.id}`, "directory and metadata identity differ")
+    const packageJson = await validatePackageWorkspace(candidate, metadata)
     const packageRoot = path.join(candidate.directory, "package")
     const files = await collectFiles(packageRoot, `${candidate.kind}/${candidate.id}`)
+    assertPackageInventory(files, candidate.kind, `${candidate.kind}/${candidate.id}`)
     const showcase = await loadShowcaseAssets(metadata, candidate.directory)
     let manifest
     if (candidate.kind === "plugin") {
@@ -928,7 +1086,14 @@ export async function discoverPackages() {
         error(`${candidate.kind}/${candidate.id}`, "companions require a declared external runtime")
       }
       for (const companion of companions) {
-        await validateCompanionSourceDirectory(companion, `${candidate.kind}/${candidate.id} companion ${companion.command}`)
+        const sourcePackage = await validateCompanionSourceDirectory(
+          companion,
+          `${candidate.kind}/${candidate.id} companion ${companion.command}`,
+          workspaceRoot,
+        )
+        if (packageJson.dependencies?.[sourcePackage.name] !== "workspace:*") {
+          error(`${candidate.kind}/${candidate.id}`, `package.json must depend on Tool workspace ${sourcePackage.name}`)
+        }
       }
       if (manifest.skill) {
         const skillFile = files.find((file) => file.relativePath === manifest.skill)
@@ -943,7 +1108,78 @@ export async function discoverPackages() {
         if (nativeExtensions.has(path.posix.extname(file.relativePath).toLowerCase())) error(`${candidate.kind}/${candidate.id}`, `native executable is forbidden: ${file.relativePath}`)
       }
     }
-    packages.push({ ...candidate, files, manifest, metadata, packageRoot, showcase })
+    const pkg = { ...candidate, files, manifest, metadata, packageJson, packageRoot, showcase }
+    loaded.set(identity, pkg)
+    return pkg
+  }
+
+  if (!selection) {
+    for (const candidate of candidates) await loadCandidate(candidate)
+  } else {
+    const pending = [`${selection.kind}/${selection.id}`]
+    const enqueued = new Set(pending)
+    while (pending.length > 0) {
+      const identity = pending.shift()
+      const candidate = candidatesByIdentity.get(identity)
+      if (!candidate) error(identity, "missing required package workspace")
+      const pkg = await loadCandidate(candidate)
+      const dependencies = []
+      if (pkg.metadata.kind === "plugin") {
+        for (const contribution of pkg.manifest.contributes.skills ?? []) {
+          dependencies.push(`skill/${contribution.name}`)
+        }
+        const legacySkill = /^skills\/([a-z0-9]+(?:-[a-z0-9]+)*)\/SKILL\.md$/.exec(pkg.manifest.skill ?? "")
+        if (legacySkill) dependencies.push(`skill/${legacySkill[1]}`)
+      } else if (pkg.metadata.ownerPluginId) {
+        dependencies.push(`plugin/${pkg.metadata.ownerPluginId}`)
+      }
+      for (const dependency of dependencies) {
+        if (enqueued.has(dependency)) continue
+        enqueued.add(dependency)
+        pending.push(dependency)
+      }
+    }
+  }
+
+  const packages = [...loaded.values()].sort((left, right) =>
+    `${left.kind}/${left.id}`.localeCompare(`${right.kind}/${right.id}`, "en"))
+  composeOwnedSkillPackages(packages)
+  return packages
+}
+
+export function composeOwnedSkillPackages(packages) {
+  const standaloneSkills = new Map(packages
+    .filter((pkg) => pkg.metadata.kind === "skill")
+    .map((pkg) => [pkg.metadata.id, pkg]))
+  for (const plugin of packages.filter((pkg) => pkg.metadata.kind === "plugin")) {
+    const ownedSkills = plugin.manifest.contributes.skills ?? []
+    const paths = new Set(plugin.files.map((file) => file.relativePath.normalize("NFC").toLowerCase()))
+    for (const contribution of ownedSkills) {
+      const skill = standaloneSkills.get(contribution.name)
+      if (!skill) error(`${plugin.kind}/${plugin.id}`, `missing owned Skill workspace ${contribution.name}`)
+      if (skill.metadata.ownerPluginId !== plugin.id) {
+        error(`${plugin.kind}/${plugin.id}`, `owned Skill ${contribution.name} must declare ownerPluginId ${plugin.id}`)
+      }
+      if (plugin.packageJson.dependencies?.[skill.packageJson.name] !== "workspace:*") {
+        error(`${plugin.kind}/${plugin.id}`, `package.json must depend on owned Skill workspace ${skill.packageJson.name}`)
+      }
+      for (const file of skill.files) {
+        const relativePath = `${contribution.path}/${file.relativePath}`
+        const folded = relativePath.normalize("NFC").toLowerCase()
+        if (paths.has(folded)) error(`${plugin.kind}/${plugin.id}`, `owned Skill path collides with ${relativePath}`)
+        paths.add(folded)
+        plugin.files.push({ ...file, relativePath })
+      }
+    }
+    plugin.files.sort((left, right) => Buffer.compare(Buffer.from(left.relativePath), Buffer.from(right.relativePath)))
+    assertPackageInventory(plugin.files, "plugin", `${plugin.kind}/${plugin.id}`)
+  }
+  for (const skill of packages.filter((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.ownerPluginId)) {
+    const owner = packages.find((pkg) => pkg.metadata.kind === "plugin" && pkg.metadata.id === skill.metadata.ownerPluginId)
+    const contribution = owner?.manifest.contributes.skills?.find((item) => item.name === skill.metadata.id)
+    if (!owner || !contribution) {
+      error(`${skill.kind}/${skill.id}`, `ownerPluginId ${skill.metadata.ownerPluginId} does not contribute this Skill`)
+    }
   }
   return packages
 }
@@ -1147,6 +1383,7 @@ export function createRegistryEntry(pkg, zip, companionArtifacts = []) {
       sha256: sha256(zip),
     },
     yanked: metadata.yanked,
+    ...(metadata.kind === "skill" && metadata.ownerPluginId ? { ownerPluginId: metadata.ownerPluginId } : {}),
     ...(metadata.kind === "plugin" ? {
       manifest: pkg.manifest,
       ...(companionArtifacts.length > 0 ? {
@@ -1290,8 +1527,9 @@ function parseCompanionArtifact(value, metadata, companion, target, label) {
 
 function parseRegistryCompanions(value, metadata, manifest, label) {
   if (value === undefined) return undefined
-  if ((manifest.schema !== "convax.plugin/2" && manifest.schema !== "convax.plugin/3") || !manifest.runtime) {
-    error(label, "companions require a convax.plugin/2 or convax.plugin/3 external runtime")
+  if ((manifest.schema !== "convax.plugin/2" && manifest.schema !== "convax.plugin/3" &&
+       manifest.schema !== "convax.plugin/4") || !manifest.runtime) {
+    error(label, "companions require a convax.plugin/2, convax.plugin/3, or convax.plugin/4 external runtime")
   }
   if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
     error(label, "must be a non-empty array with at most 16 items")
@@ -1332,11 +1570,12 @@ export function parseRegistryEntry(value, label = "Registry entry") {
   if (!isObject(value) || (value.kind !== "plugin" && value.kind !== "skill")) error(label, "invalid kind")
   const required = ["kind", "id", "name", "description", "version", "compatibility", "artifact", "yanked",
     ...(value.kind === "plugin" ? ["manifest"] : [])]
-  const allowed = [...required, ...(value.kind === "plugin" ? ["companions"] : [])]
+  const allowed = [...required, ...(value.kind === "plugin" ? ["companions"] : ["ownerPluginId"])]
   exactKeys(value, allowed, required, label)
   const metadata = parseSourceMetadata({ schema: "convax.package/1", kind: value.kind, id: value.id,
     name: value.name, description: value.description, version: value.version, license: "registry",
-    compatibility: value.compatibility, yanked: value.yanked }, label)
+    compatibility: value.compatibility, yanked: value.yanked,
+    ...(value.kind === "skill" && value.ownerPluginId !== undefined ? { ownerPluginId: value.ownerPluginId } : {}) }, label)
   const result = {
     kind: metadata.kind,
     id: metadata.id,
@@ -1346,6 +1585,7 @@ export function parseRegistryEntry(value, label = "Registry entry") {
     compatibility: metadata.compatibility,
     artifact: parseArtifact(value.artifact, metadata, `${label} artifact`),
     yanked: metadata.yanked,
+    ...(metadata.ownerPluginId === undefined ? {} : { ownerPluginId: metadata.ownerPluginId }),
   }
   if (metadata.kind === "plugin") {
     const manifest = parsePluginManifest(value.manifest, `${label} manifest`)
@@ -1371,6 +1611,30 @@ export function parseRegistry(value, label = "Registry") {
   const packages = value.packages.map((entry, index) => parseRegistryEntry(entry, `${label} package ${index}`))
   const identities = packages.map((entry) => `${entry.kind}/${entry.id}`)
   if (new Set(identities).size !== identities.length) error(label, "contains more than one version for a package")
+  const pluginsById = new Map(packages
+    .filter((entry) => entry.kind === "plugin")
+    .map((entry) => [entry.id, entry]))
+  const skillsById = new Map(packages
+    .filter((entry) => entry.kind === "skill")
+    .map((entry) => [entry.id, entry]))
+  for (const skill of packages.filter((entry) => entry.kind === "skill" && entry.ownerPluginId)) {
+    const owner = pluginsById.get(skill.ownerPluginId)
+    const contribution = owner?.manifest.schema === "convax.plugin/4"
+      ? owner.manifest.contributes.skills?.find((item) => item.name === skill.id)
+      : undefined
+    if (!owner || !contribution) {
+      error(label, `Skill ${skill.id} ownerPluginId ${skill.ownerPluginId} does not match a Plugin-owned Skill contribution`)
+    }
+  }
+  for (const plugin of packages.filter((entry) =>
+    entry.kind === "plugin" && entry.manifest.schema === "convax.plugin/4")) {
+    for (const contribution of plugin.manifest.contributes.skills ?? []) {
+      const skill = skillsById.get(contribution.name)
+      if (!skill || skill.ownerPluginId !== plugin.id) {
+        error(label, `Plugin ${plugin.id} owned Skill ${contribution.name} does not match a Skill ownerPluginId`)
+      }
+    }
+  }
   const artifactUrls = packages.flatMap((entry) => [
     entry.artifact.url,
     ...(entry.kind === "plugin" && entry.companions

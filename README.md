@@ -24,6 +24,14 @@ plays it in the catalog; the media never becomes part of the portable Skill.
 
 Requirements: [Bun](https://bun.sh/) 1.3.14 or newer.
 
+Install the complete workspace graph once. Every Plugin, Skill, and Tool owns its
+dependencies in its own `package.json`; the root lockfile keeps the monorepo
+reproducible without CI-specific package lists.
+
+```sh
+bun install --frozen-lockfile --ignore-scripts
+```
+
 ```sh
 cp -R templates/plugin-basic packages/plugins/my-plugin
 # Replace every __TOKEN__ and implement package/index.html.
@@ -46,9 +54,10 @@ The generated Plugin ZIP has `manifest.json` at its root. A Skill ZIP has
 `SKILL.md` at its root. No dependency install or contributor build script is run
 while validating or packing a package.
 
-New executable Tool Plugins use `convax.plugin/3` and may be headless. v3
-separates executable tools, model-picker entries, Agent tools, and Canvas selection
-actions so hosts can compose every Plugin without checking its id. Their ZIP still
+New executable Tool Plugins use `convax.plugin/3` and may be headless; use
+`convax.plugin/4` when the same Plugin also owns Skills. Both schemas separate
+executable tools, model-picker entries, Agent tools, and Canvas selection actions so
+hosts can compose every Plugin without checking its id. Their ZIP still
 contains only inert package files: it declares a separately installed bare
 `mcp-stdio` command for generation and/or fixed service actions, and never embeds
 that executable, its dependencies, vendor credentials, or provider configuration. See
@@ -57,6 +66,14 @@ For reviewed first-party tools, the Registry publishes exact
 platform/architecture companion artifacts beside the ZIP. Convax verifies their
 size and SHA-256 into host-owned storage, so users do not install a sidecar through
 `PATH` and executables still never enter a Plugin package.
+
+`convax.plugin/4` adds Plugin-owned Skills. A v4 Plugin declares
+`contributes.skills`, and the packer injects each referenced standard Skill
+workspace into the Plugin ZIP. Convax may show that Skill in its catalog, but its
+install, update, and removal lifecycle belongs to the Plugin. The standalone Skill
+ZIP remains portable to Codex and other Agent Skills clients. Because the same source
+changes both archives, an owned Skill release must also bump and publish its owner
+Plugin; release coverage verifies the deterministic bytes of both.
 
 See the working example in
 [`packages/plugins/hello-convax`](packages/plugins/hello-convax), then read:
@@ -93,9 +110,11 @@ Open **Settings → Skills and Plugins** in a compatible Convax build. The catal
 loaded from the public Registry above; selecting **Install Plugin** or **Install
 Skill** sends only the package id to Convax main, which downloads and validates the
 corresponding immutable Release ZIP.
-If a v2 or v3 Plugin declares Registry companions, the same install transaction selects
+If a v2, v3, or v4 Plugin declares Registry companions, the same install transaction selects
 only the exact local platform/architecture artifact and verifies its immutable URL,
 byte count, and SHA-256 separately from the static ZIP.
+For v4, Plugin-owned Skills are admitted and removed in that same Plugin transaction;
+they are never an independent Convax install action.
 
 The `microvoid/convax-plugins` repository, Registry, and Release assets are public
 and require no GitHub account or token. The main `microvoid/convax` application
@@ -105,13 +124,15 @@ repository may remain private without affecting package installation.
 
 ```text
 packages/plugins/<id>/
+  package.json             # workspace dependencies and contributor scripts
   convax-package.json      # Convax publishing metadata; excluded from the ZIP
   package/                 # ZIP root; manifest.json must be here
 packages/skills/<id>/
+  package.json             # workspace dependencies and contributor scripts
   convax-package.json      # Convax publishing metadata; excluded from the ZIP
   package/                 # portable Skill root; SKILL.md must be here
   showcase/                # optional catalog poster/animation; excluded from ZIP
-tools/<id>/                # reviewed external tool source; separately distributed
+packages/tools/<id>/       # reviewed Tool workspace; separately distributed
 templates/                 # copy-only author starters
 tooling/                   # validation and deterministic ZIP
 schemas/                   # package, Registry, and Plugin JSON Schemas
@@ -122,6 +143,9 @@ dist/                      # generated; never committed
 
 ```sh
 bun run validate            # validate all source packages
+bun run workspaces:build:packages # build self-contained Skill/Plugin package trees
+bun run workspaces:typecheck # type-check workspaces that declare the script
+bun run workspaces:test     # test workspaces that declare the script
 bun test                    # validator, ZIP, Registry, and protocol tests
 bun run render:showcases -- --id ad-idea # render one poster and animation
 bun run build:companions    # compile explicitly reviewed platform targets
@@ -161,7 +185,7 @@ entries only.
 Third-party Plugin ZIPs are inert. Web surfaces are static HTML/CSS/JavaScript
 rendered by Convax in an iframe with exactly `sandbox="allow-scripts"`; they cannot
 contain native executables, Node/Electron code, network permissions, or a generic
-host bridge. A v2 or v3 Tool Plugin may name a separately installed external command.
+host bridge. A v2, v3, or v4 Tool Plugin may name a separately installed external command.
 Convax resolves and fingerprints it during explicit Plugin install/update; that
 transaction is consent to the exact binding, so later calls do not show a separate
 command prompt. It never becomes part of the ZIP. A Registry companion is an independent immutable Release asset,

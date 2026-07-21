@@ -15,8 +15,14 @@ import {
   tagFor,
 } from "./lib.mjs"
 
-export async function packPackages(packages, outputDirectory) {
-  await fs.rm(outputDirectory, { recursive: true, force: true })
+export async function packPackages(packages, outputDirectory, options = {}) {
+  if (options.preserveOtherPackages) {
+    await fs.mkdir(outputDirectory, { recursive: true })
+    await Promise.all(packages.map((pkg) =>
+      fs.rm(path.join(outputDirectory, tagFor(pkg.metadata)), { recursive: true, force: true })))
+  } else {
+    await fs.rm(outputDirectory, { recursive: true, force: true })
+  }
   const results = []
   for (const pkg of packages) {
     const tag = tagFor(pkg.metadata)
@@ -71,7 +77,13 @@ export async function packPackages(packages, outputDirectory) {
   return results
 }
 
-export async function packFromArgs(argv) {
+function selectionForTag(tag) {
+  if (typeof tag !== "string") return undefined
+  const match = /^(plugin|skill)-([a-z0-9]+(?:-[a-z0-9]+)*)-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(tag)
+  return match ? { kind: match[1], id: match[2] } : undefined
+}
+
+export async function packFromArgs(argv, options = {}) {
   const args = parseArgs(argv.filter((argument) => argument !== "--"))
   const supported = new Set(["kind", "id", "tag"])
   const unknown = Object.keys(args).find((key) => !supported.has(key))
@@ -79,11 +91,17 @@ export async function packFromArgs(argv) {
   if ((args.kind && !args.id) || (args.id && !args.kind) || (args.tag && (args.kind || args.id))) {
     throw new Error("arguments: use --tag or the --kind/--id pair")
   }
-  let packages = await discoverPackages()
+  const workspaceRoot = options.workspaceRoot ?? root
+  const outputDirectory = options.outputDirectory ?? path.join(workspaceRoot, "dist", "packages")
+  const selection = args.kind ? { kind: args.kind, id: args.id } : selectionForTag(args.tag)
+  if (args.tag && !selection) throw new Error("arguments: tag must identify one versioned Plugin or Skill")
+  let packages = await discoverPackages({ ...selection, workspaceRoot })
   if (args.tag) packages = packages.filter((pkg) => tagFor(pkg.metadata) === args.tag)
   if (args.kind) packages = packages.filter((pkg) => pkg.metadata.kind === args.kind && pkg.metadata.id === args.id)
   if (packages.length === 0) throw new Error("No package matches the requested identity/tag")
-  const results = await packPackages(packages, path.join(root, "dist", "packages"))
+  const results = await packPackages(packages, outputDirectory, {
+    preserveOtherPackages: Boolean(args.kind || args.tag),
+  })
   return results
 }
 

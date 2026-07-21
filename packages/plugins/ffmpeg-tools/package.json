@@ -1,0 +1,14 @@
+{
+  "name": "@microvoid/convax-plugin-ffmpeg-tools",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@microvoid/convax-ffmpeg-mcp": "workspace:*",
+    "@microvoid/convax-skill-ffmpeg-canvas": "workspace:*"
+  },
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id ffmpeg-tools",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id ffmpeg-tools"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-skill-audiobook",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind skill --id audiobook",
+    "pack": "bun ../../../tooling/pack.mjs --kind skill --id audiobook"
+  }
+}

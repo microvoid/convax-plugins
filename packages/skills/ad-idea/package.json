@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-skill-ad-idea",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind skill --id ad-idea",
+    "pack": "bun ../../../tooling/pack.mjs --kind skill --id ad-idea"
+  }
+}
