@@ -20,7 +20,7 @@
     },
     "packages/plugins/xiaoyunque-generation": {
       "name": "@microvoid/convax-plugin-xiaoyunque-generation",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "@microvoid/convax-xiaoyunque-mcp": "workspace:*"
       }
@@ -83,7 +83,7 @@
     },
     "packages/tools/xiaoyunque-mcp": {
       "name": "@microvoid/convax-xiaoyunque-mcp",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "devDependencies": {
         "@types/bun": "1.3.14",
         "typescript": "5.9.3"

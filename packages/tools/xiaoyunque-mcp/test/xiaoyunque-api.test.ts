@@ -9,6 +9,7 @@ import {
   XiaoYunqueApi,
   XiaoYunqueAuthenticationError,
   XiaoYunqueQueryTimeoutError,
+  XiaoYunqueReferenceAssetRegistrationError,
   XiaoYunqueRequestRejectedError,
 } from "../src/xiaoyunque-api.ts"
 import {
@@ -144,7 +145,9 @@ describe("XiaoYunque first-party Web generation API", () => {
     const referencePath = path.join(directory, "reference.png")
     await writeFile(referencePath, Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]))
 
+    let requestCount = 0
     const api = apiFor(async (url, init) => {
+      requestCount += 1
       expect(url.pathname).toBe("/api/web/v1/common/upload_file")
       expect(init?.method).toBe("POST")
       expectWebHeaders(init?.headers)
@@ -179,6 +182,100 @@ describe("XiaoYunque first-party Web generation API", () => {
       path: referencePath,
       role: "reference_image",
     }, session, signal)).toEqual(imageAsset)
+    expect(requestCount).toBe(1)
+  })
+
+  test("registers an uploaded EverPhoto image when upload_file returns a blank Pippit asset id", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-web-register-upload-"))
+    directories.push(directory)
+    const referencePath = path.join(directory, "reference.png")
+    await writeFile(referencePath, Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]))
+
+    for (const directPippitAssetId of ["", " \t "]) {
+      const requests: string[] = []
+      const api = apiFor((url, init) => {
+        requests.push(url.pathname)
+        expectWebHeaders(init?.headers)
+        if (url.pathname === "/api/web/v1/common/upload_file") {
+          return Response.json({
+            ret: 0,
+            data: {
+              asset_id: "asset-image",
+              download_url: "https://cdn.example.test/reference.png",
+              format: "png",
+              height: "720",
+              md5: "0123456789abcdef",
+              mime: "image/png",
+              pippit_asset_id: directPippitAssetId,
+              size: "8",
+              width: "1280",
+            },
+          })
+        }
+        expect(url.pathname).toBe("/api/biz/v1/asset/create_v2")
+        expect(init?.method).toBe("POST")
+        expect(JSON.parse(String(init?.body))).toEqual({
+          asset_source_type: 3,
+          asset_source_id: "asset-image",
+          asset_type: 1,
+          Base: { Client: "web" },
+        })
+        return Response.json({
+          data: { PippitAssetID: "pippit-image" },
+        })
+      })
+
+      expect(await api.upload({
+        kind: "file",
+        mime_type: "image/png",
+        name: "reference.png",
+        node_id: "node-image",
+        path: referencePath,
+        role: "reference_image",
+      }, session, signal)).toEqual(imageAsset)
+      expect(requests).toEqual([
+        "/api/web/v1/common/upload_file",
+        "/api/biz/v1/asset/create_v2",
+      ])
+    }
+  })
+
+  test("classifies failed or incomplete reference image registration without leaking upstream details", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-web-register-failure-"))
+    directories.push(directory)
+    const referencePath = path.join(directory, "reference.png")
+    await writeFile(referencePath, Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    const reference = {
+      kind: "file",
+      mime_type: "image/png",
+      name: "reference.png",
+      node_id: "node-image",
+      path: referencePath,
+      role: "reference_image",
+    } as const
+    const uploadResponse = () => Response.json({
+      ret: 0,
+      data: {
+        asset_id: "asset-image",
+        download_url: "https://cdn.example.test/reference.png",
+      },
+    })
+    const rejected = apiFor((url) => url.pathname === "/api/web/v1/common/upload_file"
+      ? uploadResponse()
+      : Response.json({ ret: 4001, errmsg: "private upstream registration detail" }))
+    const incomplete = apiFor((url) => url.pathname === "/api/web/v1/common/upload_file"
+      ? uploadResponse()
+      : Response.json({ ret: 0, data: { PippitAssetID: "" } }))
+
+    for (const api of [rejected, incomplete]) {
+      const error = await api.upload(reference, session, signal).catch((reason: unknown) => reason)
+      expect(error).toBeInstanceOf(XiaoYunqueReferenceAssetRegistrationError)
+      expect(String(error)).toBe(
+        "XiaoYunqueReferenceAssetRegistrationError: XiaoYunque reference image asset registration failed",
+      )
+      expect(String(error)).not.toContain("private upstream registration detail")
+      expect(String(error)).not.toContain("asset-image")
+    }
   })
 
   test("maps video and audio references to the first-party upload asset types", async () => {

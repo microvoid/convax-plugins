@@ -85,7 +85,7 @@ describe("source packages", () => {
     }
     expect(xiaoyunque.metadata.companions).toEqual([{
       command: "convax-xiaoyunque-mcp",
-      version: "0.3.1",
+      version: "0.3.2",
       source: "packages/tools/xiaoyunque-mcp",
       targets: [{
         platform: "darwin",
@@ -170,9 +170,9 @@ describe("source packages", () => {
     expect(readStoredZip(hello.zip).map((entry) => entry.relativePath)).toContain("manifest.json")
     expect(readStoredZip(xiaoyunque.zip).map((entry) => entry.relativePath)).toEqual(["LICENSE", "manifest.json"])
     expect(xiaoyunque.companionAssets.map((asset) => asset.assetName)).toEqual([
-      "convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
+      "convax-companion-convax-xiaoyunque-mcp-0.3.2-darwin-arm64",
     ])
-    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.3")
+    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.4")
     expect(await fs.readFile(xiaoyunque.companionAssets[0].path)).toEqual(xiaoyunque.companionAssets[0].data)
     expect(readStoredZip(skill.zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
     expect(readStoredZip(ffmpeg.zip).map((entry) => entry.relativePath)).toEqual([
@@ -308,7 +308,7 @@ describe("source packages", () => {
     expect(helloEntry.artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
     expect(xiaoyunqueEntry.manifest.schema).toBe("convax.plugin/3")
     expect(xiaoyunqueEntry.companions[0].targets[0].artifact.url).toContain(
-      "/convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
+      "/convax-companion-convax-xiaoyunque-mcp-0.3.2-darwin-arm64",
     )
     expect(firstSkill).not.toHaveProperty("manifest")
     expect(ffmpegSkillEntry.ownerPluginId).toBe("ffmpeg-tools")

@@ -11,7 +11,11 @@ import {
 } from "../src/generator.ts"
 import { fingerprintGenerationCall, OperationStore } from "../src/operation-store.ts"
 import { webSessionSchema, type StoredWebSession } from "../src/web-session-store.ts"
-import { XiaoYunqueApi, XiaoYunqueRequestRejectedError } from "../src/xiaoyunque-api.ts"
+import {
+  XiaoYunqueApi,
+  XiaoYunqueReferenceAssetRegistrationError,
+  XiaoYunqueRequestRejectedError,
+} from "../src/xiaoyunque-api.ts"
 
 const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])
 const mp4 = Uint8Array.from([0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0])
@@ -287,6 +291,84 @@ describe("XiaoYunque generation engine", () => {
       }
     } finally {
       server.stop(true)
+    }
+  })
+
+  test("does not submit or persist an operation when reference image registration is rejected or incomplete", async () => {
+    const cases = [
+      {
+        name: "rejected",
+        response: { ret: 4001, errmsg: "private upstream registration detail" },
+      },
+      {
+        name: "missing-id",
+        response: { data: {} },
+      },
+    ]
+
+    for (const registrationCase of cases) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), `xiaoyunque-reference-${registrationCase.name}-`))
+      directories.push(directory)
+      const output = path.join(directory, "output")
+      const referencePath = path.join(directory, "reference.png")
+      await Promise.all([mkdir(output), writeFile(referencePath, png)])
+      const requestedPaths: string[] = []
+      let submitCount = 0
+      const server = Bun.serve({
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch: async (request): Promise<Response> => {
+          const url = new URL(request.url)
+          requestedPaths.push(url.pathname)
+          if (url.pathname === "/api/web/v1/common/upload_file") {
+            return Response.json({
+              ret: 0,
+              data: {
+                asset_id: "everphoto-reference",
+                download_url: `${url.origin}/uploaded-reference.png`,
+              },
+            })
+          }
+          if (url.pathname === "/api/biz/v1/asset/create_v2") {
+            return Response.json(registrationCase.response)
+          }
+          if (url.pathname === "/api/biz/v1/agent/submit_run") submitCount += 1
+          return new Response("unexpected", { status: 500 })
+        },
+      })
+      const operationId = `reference-registration-${registrationCase.name}`
+      const operationStore = new OperationStore(path.join(directory, "state", "operations.json"))
+      const engine = new GenerationEngine({
+        api: new XiaoYunqueApi(`http://127.0.0.1:${server.port}`),
+        authorizer: { session: async () => testSession },
+        operationStore,
+        pollIntervalMs: 1,
+      })
+      try {
+        const error = await engine.generate(call({
+          operation_id: operationId,
+          output: "image",
+          output_directory: output,
+          references: [{
+            kind: "file",
+            mime_type: "image/png",
+            name: "reference.png",
+            node_id: "reference-node",
+            path: referencePath,
+            role: "reference_image",
+          }],
+        }), imageModel, new AbortController().signal).catch((reason: unknown) => reason)
+
+        expect(error).toBeInstanceOf(XiaoYunqueReferenceAssetRegistrationError)
+        expect(requestedPaths).toEqual([
+          "/api/web/v1/common/upload_file",
+          "/api/biz/v1/asset/create_v2",
+        ])
+        expect(submitCount).toBe(0)
+        expect(await operationStore.find(operationId)).toBeNull()
+      } finally {
+        server.stop(true)
+      }
     }
   })
 
