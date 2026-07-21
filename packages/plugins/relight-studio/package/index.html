@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>重打光</title>
+    <script type="module" src="./assets/app.js"></script>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 36 36">
+              <path d="M11 8h14l4 7-4 7H11l-4-7 4-7Z"></path>
+              <circle cx="18" cy="15" r="5"></circle>
+              <path d="M18 22v8M14 30h8M9 11 5 8M27 11l4-3"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">重打光</div>
+            <div class="brand-subtitle">RELIGHT STUDIO · 灯光预览与 AI 生成</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="connection-pill" id="connectionPill">
+            <span class="connection-dot"></span>
+            <span id="connectionText">等待宿主</span>
+          </span>
+          <button class="icon-button" id="refreshButton" type="button" aria-label="刷新画布连接与生成模型" title="刷新画布连接与生成模型">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"></path>
+            </svg>
+          </button>
+          <button class="icon-button" id="fullscreenButton" type="button" aria-label="全屏预览" title="全屏预览">
+            <svg class="fullscreen-enter" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path>
+            </svg>
+            <svg class="fullscreen-exit" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="preview-panel">
+          <div class="preview" id="preview">
+            <canvas id="relightCanvas" aria-label="重打光灯光预览"></canvas>
+            <div class="preview-glow" aria-hidden="true"></div>
+            <section class="empty-state" id="emptyState">
+              <div class="empty-light" aria-hidden="true">
+                <span class="empty-beam"></span>
+                <svg viewBox="0 0 80 80">
+                  <path d="M22 18h36l10 16-10 16H22L12 34l10-16Z"></path>
+                  <circle cx="40" cy="34" r="12"></circle>
+                  <path d="M40 50v18M32 68h16"></path>
+                </svg>
+              </div>
+              <div class="empty-eyebrow">LIGHTING WORKBENCH</div>
+              <h1>连接一张 Canvas 图片</h1>
+              <p>将图片节点连接到此插件即可预览并生成。也可临时载入本地图片，只用于灯光预览。</p>
+              <div class="empty-actions">
+                <button class="primary-button" id="emptyChooseButton" type="button">本地预览</button>
+              </div>
+              <div class="feature-tags" aria-label="功能标签">
+                <span>光影</span><span>图片</span><span>日落</span><span>霓虹</span><span>电影感</span>
+              </div>
+            </section>
+
+            <div class="light-handle is-hidden" id="lightHandle" role="slider" tabindex="0" aria-label="主光位置">
+              <span class="light-handle-core"></span>
+              <span class="light-handle-ring"></span>
+            </div>
+            <div class="preview-toolbar is-hidden" id="previewToolbar">
+              <button class="compare-button" id="compareButton" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v18M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path>
+                </svg>
+                <span id="compareLabel">查看原图</span>
+              </button>
+              <span class="preview-badge">拖动光点改变主光位置 · 预览不等于最终生成</span>
+            </div>
+            <div class="loading-state is-hidden" id="loadingState" role="status">
+              <span class="spinner"></span><span id="loadingText">正在载入图片…</span>
+            </div>
+            <div class="drag-hint is-hidden" id="dragHint">松开以载入本地预览</div>
+          </div>
+
+          <footer class="source-bar">
+            <div class="source-copy">
+              <span class="source-label">输入图片</span>
+              <span class="source-status" id="sourceStatus">尚未载入</span>
+            </div>
+            <div class="source-actions">
+              <label class="select-shell is-hidden" id="sourceSelectShell">
+                <span class="sr-only">画布连接图片</span>
+                <select id="sourceSelect"></select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+              </label>
+              <button class="secondary-button" id="chooseButton" type="button">本地预览</button>
+            </div>
+          </footer>
+        </section>
+
+        <aside class="control-panel">
+          <section class="control-section preset-section">
+            <div class="section-heading">
+              <div>
+                <span class="section-kicker">LIGHTING STYLE</span>
+                <h2>灯光氛围</h2>
+              </div>
+              <button class="text-button" id="resetButton" type="button">重置</button>
+            </div>
+            <div class="preset-grid" id="presetGrid">
+              <button class="preset-card is-active" data-preset="cinematic" type="button">
+                <span class="preset-swatch swatch-cinematic"></span><span>电影冷暖</span>
+              </button>
+              <button class="preset-card" data-preset="studio" type="button">
+                <span class="preset-swatch swatch-studio"></span><span>柔光棚拍</span>
+              </button>
+              <button class="preset-card" data-preset="sunset" type="button">
+                <span class="preset-swatch swatch-sunset"></span><span>日落金光</span>
+              </button>
+              <button class="preset-card" data-preset="neon" type="button">
+                <span class="preset-swatch swatch-neon"></span><span>霓虹夜色</span>
+              </button>
+              <button class="preset-card" data-preset="moonlight" type="button">
+                <span class="preset-swatch swatch-moonlight"></span><span>蓝调月光</span>
+              </button>
+              <button class="preset-card" data-preset="natural" type="button">
+                <span class="preset-swatch swatch-natural"></span><span>自然提亮</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="control-section adjustments-section">
+            <div class="section-heading compact">
+              <div>
+                <span class="section-kicker">FINE TUNE</span>
+                <h2>精细调整</h2>
+              </div>
+            </div>
+            <div class="slider-list">
+              <label class="slider-row"><span>主光强度</span><input id="intensityRange" type="range" min="0" max="200" step="1" /><output id="intensityOutput"></output></label>
+              <label class="slider-row"><span>光源柔和</span><input id="softnessRange" type="range" min="10" max="100" step="1" /><output id="softnessOutput"></output></label>
+              <label class="slider-row"><span>曝光</span><input id="exposureRange" type="range" min="-100" max="100" step="1" /><output id="exposureOutput"></output></label>
+              <label class="slider-row"><span>色温</span><input id="temperatureRange" type="range" min="-100" max="100" step="1" /><output id="temperatureOutput"></output></label>
+              <label class="slider-row"><span>暗部抬升</span><input id="shadowsRange" type="range" min="0" max="100" step="1" /><output id="shadowsOutput"></output></label>
+              <label class="slider-row"><span>对比度</span><input id="contrastRange" type="range" min="50" max="150" step="1" /><output id="contrastOutput"></output></label>
+              <label class="slider-row"><span>饱和度</span><input id="saturationRange" type="range" min="0" max="160" step="1" /><output id="saturationOutput"></output></label>
+              <label class="slider-row"><span>暗角</span><input id="vignetteRange" type="range" min="0" max="100" step="1" /><output id="vignetteOutput"></output></label>
+            </div>
+          </section>
+
+          <section class="control-section generation-section">
+            <div class="section-heading compact">
+              <div>
+                <span class="section-kicker">AI GENERATION</span>
+                <h2>生成重打光图片</h2>
+              </div>
+              <span class="generation-status" id="generationStatus">正在读取模型…</span>
+            </div>
+            <label class="field-label" for="generationTool">生成模型</label>
+            <label class="generation-select-shell">
+              <select id="generationTool" disabled>
+                <option value="">暂无可用模型</option>
+              </select>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+            </label>
+            <label class="field-label" for="additionalPrompt">补充要求（可选）</label>
+            <textarea id="additionalPrompt" maxlength="1000" rows="3" placeholder="例如：保留窗外夜景，人物脸部更柔和。"></textarea>
+            <button class="generate-button" id="generateButton" type="button" disabled>
+              <span class="generate-button-label">生成到 Canvas</span>
+              <span class="generate-button-busy"><span class="spinner"></span>生成中，请勿关闭插件…</span>
+            </button>
+            <p class="generation-help" id="generationHelp">需要一张直接连接到当前插件节点的 Canvas 图片。真实结果会作为新图片节点添加到画布。</p>
+            <div class="generation-result is-hidden" id="generationResult" role="status"></div>
+          </section>
+
+          <section class="notice-card">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3 2.5 20h19L12 3Z"></path>
+              <path d="M12 9v5M12 17h.01"></path>
+            </svg>
+            <div>
+              <strong>预览与生成分离</strong>
+              <p>WebGL 仅帮助构思灯光；最终图片由已安装的统一 AI 生成工具处理。本地临时图片不会被用于 AI 生成。</p>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" aria-hidden="true" tabindex="-1" />
+      <div class="toast is-hidden" id="toast" role="status"></div>
+    </div>
+  </body>
+</html>
