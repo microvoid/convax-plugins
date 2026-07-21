@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-plugin-relight-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id relight-studio",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id relight-studio"
+  }
+}

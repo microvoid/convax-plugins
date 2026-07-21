@@ -18,6 +18,10 @@
       "name": "@microvoid/convax-plugin-hello-convax",
       "version": "0.1.0"
     },
+    "packages/plugins/relight-studio": {
+      "name": "@microvoid/convax-plugin-relight-studio",
+      "version": "0.1.0"
+    },
     "packages/plugins/xiaoyunque-generation": {
       "name": "@microvoid/convax-plugin-xiaoyunque-generation",
       "version": "0.3.5",
