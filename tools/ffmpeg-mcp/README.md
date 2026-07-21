@@ -1,13 +1,16 @@
 # Convax FFmpeg MCP companion
 
 This reviewed sidecar is distributed separately from the inert `ffmpeg-tools`
-Plugin ZIP. It exposes three newline-delimited MCP tools (`run.image`, `run.video`,
-and `run.audio`) and executes a pinned, source-built FFmpeg without a shell.
+Plugin ZIP. It exposes three broad argv MCP tools (`run.image`, `run.video`, and
+`run.audio`) plus five high-level operations (`frame.extract`, `video.trim`,
+`video.crop`, `video.without-audio`, and `audio.extract`). It executes a pinned,
+source-built FFmpeg without a shell.
 
-The caller supplies JSON argv tokens with exact staged-input and output
-placeholders. Native paths and URL operands are never part of the public tool
-input. The sidecar returns only relative artifact declarations; Convax validates
-and admits those files into managed Project assets.
+Raw-tool callers supply JSON argv tokens with exact staged-input and output
+placeholders. High-level callers supply only typed editor values; the sidecar
+constructs the reviewed argv internally. Native paths and URL operands are never
+part of either public tool input. The sidecar returns only relative artifact
+declarations; Convax validates and admits those files into managed Project assets.
 
 ## Development
 
@@ -35,8 +38,9 @@ Bun is used only for build orchestration and tests; the published companion has 
 Bun or JavaScript runtime dependency.
 
 The same build then starts the native companion, completes MCP initialization,
-and exercises image, audio, video trim, video crop, and frame-extraction tools
-through the real MCP-to-FFmpeg artifact flow. It also checks both embedded and
+and exercises raw image/audio/video plus high-level trim, crop, frame extraction,
+video-only, and audio-only tools through the real MCP-to-FFmpeg artifact flow. It
+also checks both embedded and
 outer deployment targets, Mach-O architecture, linked frameworks, compiled format
 deny-lists, output limits, and the absence of JavaScriptCore, WebKit, or Bun
 linkage. Development and Release builds use this same native-companion path.

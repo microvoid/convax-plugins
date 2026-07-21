@@ -5,8 +5,11 @@ import {
   type GenerationCall,
   type GenerationOutput,
   generationResultSchema,
+  highLevelToolSpecifications,
+  type HighLevelToolSpecification,
   type JsonRpcRequest,
   parseGenerationCall,
+  parseHighLevelGenerationCall,
   type ToolResult,
 } from "./contracts.ts"
 import { FfmpegExecutionError } from "./executor.ts"
@@ -20,42 +23,43 @@ interface GenerationExecutor {
 
 interface ToolDefinition {
   description: string
+  highLevel?: HighLevelToolSpecification
   inputSchema: Record<string, unknown>
   name: string
   output: GenerationOutput
 }
 
-const generationCallProperties = {
-  arguments_json: {
-    description:
-      "JSON array of FFmpeg argv strings. Use exact {{input:N}} and {{output}} path placeholders; do not include ffmpeg itself or shell quoting.",
-    maxLength: 4_096,
-    minLength: 2,
-    title: "FFmpeg arguments (JSON)",
-    type: "string",
-  },
+const generationEnvelopeProperties = {
   operation_id: { maxLength: 256, minLength: 1, type: "string" },
   output_directory: { maxLength: 4_096, minLength: 1, type: "string" },
-  output_name: {
-    description: "Portable output basename with an extension compatible with the selected tool.",
-    maxLength: 128,
-    minLength: 3,
-    title: "Output file name",
-    type: "string",
-  },
   prompt: { maxLength: 20_000, minLength: 1, type: "string" },
   references: { items: { type: "object" }, maxItems: 16, type: "array" },
   schema: { const: "convax.generation-call/1", type: "string" },
 } as const
 
-function tool(name: string, output: GenerationOutput, description: string): ToolDefinition {
+function rawTool(name: string, output: GenerationOutput, description: string): ToolDefinition {
   return {
     description,
     inputSchema: {
       additionalProperties: false,
       properties: {
-        ...generationCallProperties,
+        ...generationEnvelopeProperties,
+        arguments_json: {
+          description:
+            "JSON array of FFmpeg argv strings. Use exact {{input:N}} and {{output}} path placeholders; do not include ffmpeg itself or shell quoting.",
+          maxLength: 4_096,
+          minLength: 2,
+          title: "FFmpeg arguments (JSON)",
+          type: "string",
+        },
         output: { const: output, type: "string" },
+        output_name: {
+          description: "Portable output basename with an extension compatible with the selected tool.",
+          maxLength: 128,
+          minLength: 3,
+          title: "Output file name",
+          type: "string",
+        },
       },
       required: [
         "schema",
@@ -74,10 +78,43 @@ function tool(name: string, output: GenerationOutput, description: string): Tool
   }
 }
 
+function highLevelTool(specification: HighLevelToolSpecification): ToolDefinition {
+  return {
+    description: specification.description,
+    highLevel: specification,
+    inputSchema: {
+      additionalProperties: false,
+      properties: {
+        ...generationEnvelopeProperties,
+        output: { const: specification.output, type: "string" },
+        references: { items: { type: "object" }, minItems: 1, maxItems: 1, type: "array" },
+        ...Object.fromEntries(specification.parameters.map((parameter) => [parameter.name, {
+          maximum: parameter.maximum,
+          minimum: parameter.minimum,
+          type: parameter.integer === true ? "integer" : "number",
+        }])),
+      },
+      required: [
+        "schema",
+        "operation_id",
+        "prompt",
+        "output",
+        "output_directory",
+        "references",
+        ...specification.parameters.map((parameter) => parameter.name),
+      ],
+      type: "object",
+    },
+    name: specification.name,
+    output: specification.output,
+  }
+}
+
 export const tools = [
-  tool("run.image", "image", "Run scoped FFmpeg argv and return one image artifact."),
-  tool("run.video", "video", "Run scoped FFmpeg argv and return one video artifact."),
-  tool("run.audio", "audio", "Run scoped FFmpeg argv and return one audio artifact."),
+  rawTool("run.image", "image", "Run scoped FFmpeg argv and return one image artifact."),
+  rawTool("run.video", "video", "Run scoped FFmpeg argv and return one video artifact."),
+  rawTool("run.audio", "audio", "Run scoped FFmpeg argv and return one audio artifact."),
+  ...highLevelToolSpecifications.map(highLevelTool),
 ] as const
 
 const toolsByName: ReadonlyMap<string, ToolDefinition> = new Map(tools.map((item) => [item.name, item]))
@@ -212,12 +249,14 @@ export class McpServer {
       this.#sendResult(value.id, {
         capabilities: { tools: {} },
         protocolVersion,
-        serverInfo: { name: "convax-ffmpeg-mcp", version: "0.1.0" },
+        serverInfo: { name: "convax-ffmpeg-mcp", version: "0.2.0" },
       })
       return
     }
     if (value.method === "tools/list") {
-      this.#sendResult(value.id, { tools: tools.map(({ output: _output, ...definition }) => definition) })
+      this.#sendResult(value.id, {
+        tools: tools.map(({ highLevel: _highLevel, output: _output, ...definition }) => definition),
+      })
       return
     }
     if (value.method === "tools/call") {
@@ -237,7 +276,9 @@ export class McpServer {
         this.#sendError(request.id, -32602, "Unknown tool")
         return
       }
-      const call = parseGenerationCall(params.arguments, selected.output)
+      const call = selected.highLevel
+        ? parseHighLevelGenerationCall(params.arguments, selected.highLevel)
+        : parseGenerationCall(params.arguments, selected.output)
       const artifacts = await this.engine.generate(call, controller.signal)
       const result: ToolResult = {
         content: [{

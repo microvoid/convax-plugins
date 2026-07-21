@@ -5,7 +5,8 @@ served through a private protocol and mounted in an iframe with exactly
 `sandbox="allow-scripts"`. It has an opaque origin: it cannot inspect the parent
 DOM, use browser storage as shared application state, or access Node/Electron.
 
-`convax.plugin/2` may instead be a headless executable Tool Plugin. Its ZIP still
+`convax.plugin/2` and `convax.plugin/3` may instead be headless executable Tool
+Plugins. New executable Plugins should use v3. Their ZIP still
 contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
 bind that command to verified platform artifacts that Convax installs into
@@ -14,11 +15,13 @@ later tool calls do not add another local-command prompt.
 
 ## Manifest
 
-`package/manifest.json` uses either `convax.plugin/1` or `convax.plugin/2`. Only
+`package/manifest.json` uses `convax.plugin/1`, `convax.plugin/2`, or
+`convax.plugin/3`. Only
 documented fields are accepted. Source metadata must use the matching pair:
 
 - `convax.plugin/1` with `convax.plugin-host/1`;
-- `convax.plugin/2` with `convax.plugin-host/2`.
+- `convax.plugin/2` with `convax.plugin-host/2`;
+- `convax.plugin/3` with `convax.plugin-host/3`.
 
 The v1 schema is static-only:
 
@@ -45,21 +48,23 @@ Package paths are POSIX-relative and case-sensitive. The optional `skill` points
 a companion `SKILL.md` inside the same Plugin ZIP; installing it remains an explicit,
 independent user action.
 
-## Generation Tool Plugin
+## Declarative Tool Plugin
 
-A headless v2 package declares `runtime` together with `contributes.generation`,
+A headless v3 package declares `runtime` together with `contributes.generation`,
 `contributes.service`, or both. It does not need an `entry`, `capabilities`, fake
-HTML, Canvas renderer, provider field, model field, or credential field:
+HTML, Canvas renderer, provider field, or credential field. The execution catalog
+and model catalog are deliberately separate:
 
 ```json
 {
-  "schema": "convax.plugin/2",
+  "schema": "convax.plugin/3",
   "id": "creative-tools",
   "name": "Creative Tools",
   "description": "Generates Canvas media through an external MCP tool.",
   "version": "1.0.0",
   "contributes": {
     "generation": {
+      "models": [{ "tool": "image.generate", "name": "Imagine Pro" }],
       "tools": [{
         "id": "image.generate",
         "title": "Generate image",
@@ -76,11 +81,35 @@ HTML, Canvas renderer, provider field, model field, or credential field:
 }
 ```
 
+`generation.tools` is the complete executable MCP tool contract.
+`generation.models` is required in v3 and is the only source for the model picker;
+it contains `{tool,name}` references to generation tools and may be `[]` for an
+operation-only Plugin such as FFmpeg. Model names and referenced tools are unique.
+This positive declaration prevents utilities from appearing as generation models.
+
 Outputs are `text`, `image`, `video`, or `audio`. `acceptedInputs` may contain only
 `reference_image`, `reference_video`, `first_frame`, `last_frame`, `audio`, and
 `text`. It describes optional Canvas references; the prompt is always a separate
 argument, so a prompt-only tool declares `[]`. Tool ids are unique within the
-Plugin, and callers see `<plugin-id>/<tool-id>`.
+Plugin, and execution callers see `<plugin-id>/<tool-id>`.
+
+v3 may expose selected non-model tools to the Agent with
+`contributes.agent.tools`. Each item has a stable Agent id matching
+`^[a-z][a-z0-9_]{0,63}$` and a `tool` reference. At most 32 are allowed; ids and
+tool references are unique, and model tools cannot also be Agent tools. Hosts
+derive the public name generically from the Plugin and Agent ids, for example
+`plugin_ffmpeg_tools_run_video`. MCP clients may add their server namespace, such
+as `convax_plugin_ffmpeg_tools_run_video`. A Plugin id never creates a host special
+case.
+
+Video-node actions are declared under `contributes.canvas.selectionActions`.
+Each action supplies localized `title` and `description`, `target: "video"`, one
+of the fixed editors (`time-point`, `time-range`, `crop-region`, or
+`confirmation`), and up to 16 ordered `{tool}` steps. Interactive editors require
+exactly one step. Every step must reference a non-model tool whose
+`acceptedInputs` includes `reference_video`. A confirmation action may declare
+multiple steps, which supports paired outputs such as video-only plus audio-only.
+`canvas.renderer` is optional; toolbar contributions remain renderer-only.
 
 `runtime.command` is a portable bare executable name, never a path. Optional args
 are bounded static tokens without whitespace, shell syntax, native paths, or
@@ -97,7 +126,7 @@ closed and require reinstall. The Plugin manifest never contains build paths,
 vendor credentials, or a fallback download URL, and the user does not need to copy
 the executable into `PATH`.
 
-A v2 Web surface that calls installed generation tools requests
+A v2 or v3 Web surface that calls installed generation tools requests
 `generation.execute` and uses an ordinary `entry` plus Canvas contribution. It may
 omit `runtime` and `contributes.generation`. Declaring a runtime does not grant the
 Web surface caller authority, and granting `generation.execute` does not let the
@@ -105,14 +134,14 @@ iframe start processes or send arbitrary MCP requests.
 
 ## Plugin service contribution
 
-A v2 executable Plugin may expose bounded account/service state through the same
+A v2 or v3 executable Plugin may expose bounded account/service state through the same
 verified sidecar process used by generation. The manifest declares only which
 fixed host actions are meaningful; it cannot choose MCP method names or attach an
 action payload:
 
 ```json
 {
-  "schema": "convax.plugin/2",
+  "schema": "convax.plugin/3",
   "id": "account-tools",
   "name": "Account Tools",
   "description": "Shows bounded account status from an external tool.",
@@ -153,8 +182,8 @@ not protect against processes already running as the same OS account.
 ## Host connection
 
 Convax transfers one fresh `MessagePort` to each mounted Plugin node. Accept it only
-from `window.parent`, for the protocol matching the manifest (`/1` for v1 or `/2`
-for v2), the exact Plugin id, and only once:
+from `window.parent`, for the host protocol matching the manifest major (`/1`,
+`/2`, or `/3`), the exact Plugin id, and only once:
 
 ```js
 const PROTOCOL = "convax.plugin-host/1"
@@ -201,5 +230,5 @@ a failed optional view effect; do not report that as a reverted mutation.
 No remote scripts/assets, iframe network APIs, popups, downloads, eval-generated
 code, native/WASM executables, packaged Node servers, filesystem paths, secrets,
 telemetry, service workers, or generic method forwarding. Do not edit `.convax`
-files. A v2 external runtime is a separately installed and authorized tool, never a
+files. A v2 or v3 external runtime is a separately installed and authorized tool, never a
 Plugin ZIP asset. Use host capabilities only.

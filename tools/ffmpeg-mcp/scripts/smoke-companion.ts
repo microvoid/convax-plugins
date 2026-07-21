@@ -142,7 +142,7 @@ try {
   async function generate(options: {
     arguments: string[]
     id: number
-    input: { mimeType: string; path: string; role: "audio" | "reference_image" | "reference_video" }
+    inputs: Array<{ mimeType: string; path: string; role: "audio" | "reference_image" | "reference_video" }>
     name: string
     output: "audio" | "image" | "video"
     tool: "run.audio" | "run.image" | "run.video"
@@ -157,14 +157,14 @@ try {
         output_directory: operationOutputDirectory,
         output_name: options.name,
         prompt: "Exercise the compiled FFmpeg companion through its MCP artifact flow",
-        references: [{
+        references: options.inputs.map((input, index) => ({
           kind: "file",
-          mime_type: options.input.mimeType,
-          name: path.basename(options.input.path),
-          node_id: `smoke-input-${options.id}`,
-          path: options.input.path,
-          role: options.input.role,
-        }],
+          mime_type: input.mimeType,
+          name: path.basename(input.path),
+          node_id: `smoke-input-${options.id}-${index}`,
+          path: input.path,
+          role: input.role,
+        })),
         schema: "convax.generation-call/1",
       },
       name: options.tool,
@@ -184,6 +184,52 @@ try {
     return path.join(operationOutputDirectory, options.name)
   }
 
+  async function generateHighLevel(options: {
+    id: number
+    input: { mimeType: string; path: string }
+    name: string
+    output: "audio" | "image" | "video"
+    parameters?: Record<string, number>
+    tool: "audio.extract" | "frame.extract" | "video.crop" | "video.trim" | "video.without-audio"
+  }) {
+    const operationOutputDirectory = path.join(outputDirectory, `operation-${options.id}`)
+    await mkdir(operationOutputDirectory)
+    const generated = await request(options.id, "tools/call", {
+      arguments: {
+        operation_id: `native-companion-smoke-${options.id}`,
+        output: options.output,
+        output_directory: operationOutputDirectory,
+        prompt: `Exercise the compiled ${options.tool} operation`,
+        references: [{
+          kind: "file",
+          mime_type: options.input.mimeType,
+          name: path.basename(options.input.path),
+          node_id: `smoke-input-${options.id}`,
+          path: options.input.path,
+          role: "reference_video",
+        }],
+        schema: "convax.generation-call/1",
+        ...options.parameters,
+      },
+      name: options.tool,
+    })
+    const result = generated.result as {
+      isError?: boolean
+      structuredContent?: { artifacts?: Array<{ path?: string }>; schema?: string }
+    } | undefined
+    if (
+      result?.isError
+      || result?.structuredContent?.schema !== "convax.generation-result/1"
+      || result.structuredContent.artifacts?.length !== 1
+      || result.structuredContent.artifacts[0]?.path !== options.name
+    ) {
+      throw new Error(
+        `Compiled companion did not return the expected ${options.name} high-level result: ${JSON.stringify(result)}`,
+      )
+    }
+    return path.join(operationOutputDirectory, options.name)
+  }
+
   const initialized = await request(1, "initialize", { protocolVersion: "2025-03-26" })
   if ((initialized.result as { serverInfo?: { name?: string } } | undefined)?.serverInfo?.name !== "convax-ffmpeg-mcp") {
     throw new Error("Compiled companion did not complete MCP initialization")
@@ -192,7 +238,7 @@ try {
   const scaled = await generate({
     arguments: ["-i", "{{input:0}}", "-vf", "scale=2:2", "-frames:v", "1", "{{output}}"],
     id: 2,
-    input: { mimeType: "image/png", path: inputPath, role: "reference_image" },
+    inputs: [{ mimeType: "image/png", path: inputPath, role: "reference_image" }],
     name: "scaled.png",
     output: "image",
     tool: "run.image",
@@ -202,7 +248,7 @@ try {
   const processedAudio = await generate({
     arguments: ["-i", "{{input:0}}", "-af", "volume=0.5", "-c:a", "pcm_s16le", "{{output}}"],
     id: 3,
-    input: { mimeType: "audio/wav", path: audioInputPath, role: "audio" },
+    inputs: [{ mimeType: "audio/wav", path: audioInputPath, role: "audio" }],
     name: "processed.wav",
     output: "audio",
     tool: "run.audio",
@@ -211,53 +257,71 @@ try {
 
   const sourceVideo = await generate({
     arguments: [
-      "-loop", "1", "-i", "{{input:0}}", "-t", "2", "-vf", "scale=64:64,format=yuv420p",
-      "-c:v", "h264_videotoolbox", "-allow_sw", "1", "-an", "{{output}}",
+      "-loop", "1", "-i", "{{input:0}}", "-i", "{{input:1}}", "-t", "2",
+      "-map", "0:v:0", "-map", "1:a:0", "-vf", "scale=64:64,format=yuv420p",
+      "-c:v", "h264_videotoolbox", "-allow_sw", "1", "-c:a", "aac", "-shortest", "{{output}}",
     ],
     id: 4,
-    input: { mimeType: "image/png", path: scaled, role: "reference_image" },
+    inputs: [
+      { mimeType: "image/png", path: scaled, role: "reference_image" },
+      { mimeType: "audio/wav", path: audioInputPath, role: "audio" },
+    ],
     name: "source.mp4",
     output: "video",
     tool: "run.video",
   })
   await assertMp4(sourceVideo)
 
-  const trimmed = await generate({
-    arguments: [
-      "-ss", "0.25", "-i", "{{input:0}}", "-t", "0.5", "-c:v", "h264_videotoolbox",
-      "-allow_sw", "1", "-an",
-      "{{output}}",
-    ],
+  const trimmed = await generateHighLevel({
     id: 5,
-    input: { mimeType: "video/mp4", path: sourceVideo, role: "reference_video" },
+    input: { mimeType: "video/mp4", path: sourceVideo },
     name: "trimmed.mp4",
     output: "video",
-    tool: "run.video",
+    parameters: { start_seconds: 0.25, duration_seconds: 0.5 },
+    tool: "video.trim",
   })
   await assertMp4(trimmed)
 
-  const cropped = await generate({
-    arguments: [
-      "-i", "{{input:0}}", "-vf", "crop=32:32:0:0", "-c:v", "h264_videotoolbox",
-      "-allow_sw", "1", "-an", "{{output}}",
-    ],
+  const cropped = await generateHighLevel({
     id: 6,
-    input: { mimeType: "video/mp4", path: trimmed, role: "reference_video" },
+    input: { mimeType: "video/mp4", path: sourceVideo },
     name: "cropped.mp4",
     output: "video",
-    tool: "run.video",
+    parameters: { x: 0, y: 0, width: 32, height: 32 },
+    tool: "video.crop",
   })
   await assertMp4(cropped)
 
-  const extractedFrame = await generate({
-    arguments: ["-i", "{{input:0}}", "-frames:v", "1", "{{output}}"],
+  const extractedFrame = await generateHighLevel({
     id: 7,
-    input: { mimeType: "video/mp4", path: cropped, role: "reference_video" },
-    name: "cropped-frame.png",
+    input: { mimeType: "video/mp4", path: cropped },
+    name: "frame.png",
     output: "image",
-    tool: "run.image",
+    parameters: { time_seconds: 0 },
+    tool: "frame.extract",
   })
   await assertPng(extractedFrame, 32, 32)
+
+  const videoOnly = await generateHighLevel({
+    id: 8,
+    input: { mimeType: "video/mp4", path: sourceVideo },
+    name: "video-only.mp4",
+    output: "video",
+    tool: "video.without-audio",
+  })
+  await assertMp4(videoOnly)
+
+  const audioOnly = await generateHighLevel({
+    id: 9,
+    input: { mimeType: "video/mp4", path: sourceVideo },
+    name: "audio-only.m4a",
+    output: "audio",
+    tool: "audio.extract",
+  })
+  const audioOnlyBytes = await readFile(audioOnly)
+  if (audioOnlyBytes.length < 32 || audioOnlyBytes.subarray(4, 8).toString("ascii") !== "ftyp") {
+    throw new Error("Compiled companion did not create the expected M4A artifact")
+  }
 
   runningChild.stdin.end()
   const exitCode = await timeout(childExit, 5_000, "Compiled companion did not exit after stdin closed")
@@ -265,7 +329,7 @@ try {
     throw new Error(`Compiled companion exited with status ${exitCode}`)
   }
   lines.close()
-  console.log("Verified all compiled companion MCP tools with image, audio, trim, crop, and frame-extraction artifact flows.")
+  console.log("Verified raw and high-level companion tools, including paired video-only and audio-only artifact flows.")
 } finally {
   child?.kill("SIGKILL")
   await rm(directory, { force: true, recursive: true })

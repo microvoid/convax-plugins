@@ -1,0 +1,28 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "xiaoyunque-generation",
+  "name": "小云雀生成",
+  "description": "通过宿主管理的小云雀网页授权展示服务状态，并使用小云雀第一方网页能力生成图片和视频。",
+  "version": "0.3.0",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/3",
+    "pluginHost": "convax.plugin-host/3"
+  },
+  "companions": [
+    {
+      "command": "convax-xiaoyunque-mcp",
+      "version": "0.3.0",
+      "source": "tools/xiaoyunque-mcp",
+      "targets": [
+        {
+          "platform": "darwin",
+          "arch": "arm64",
+          "path": "dist/darwin-arm64/convax-xiaoyunque-mcp"
+        }
+      ]
+    }
+  ],
+  "yanked": false
+}

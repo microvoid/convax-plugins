@@ -41,10 +41,11 @@ bun run pack -- --kind skill --id my-skill
 生成的插件 ZIP 在根目录包含 `manifest.json`，技能 ZIP 在根目录包含
 `SKILL.md`。校验和打包期间不会安装依赖，也不会执行投稿者提供的构建脚本。
 
-可执行工具插件使用 `convax.plugin/2`，也可以是无界面的。其 ZIP 仍然只包含惰性包文件：
+新的可执行工具插件使用 `convax.plugin/3`，也可以是无界面的。v3 将可执行工具、模型列表、
+智能体工具和画布选中动作分开声明，使宿主无需识别插件标识即可完成组合。其 ZIP 仍然只包含惰性包文件：
 manifest 为生成能力和/或固定服务动作声明一个单独安装的裸 `mcp-stdio` 命令，但绝不
 内嵌可执行文件、依赖、厂商凭据或 provider 配置。参见
-[`docs/plugin-authoring.md`](docs/plugin-authoring.md#generation-tool-plugin)。
+[`docs/plugin-authoring.md`](docs/plugin-authoring.md#declarative-tool-plugin)。
 对于经过审查的第一方工具，Registry 会在 ZIP 之外发布精确到平台和架构的 companion
 工件。Convax 按字节数和 SHA-256 校验后写入宿主管理目录，因此用户无需通过 `PATH`
 手工安装 sidecar，可执行文件也始终不会进入插件包。
@@ -79,7 +80,7 @@ manifest 为生成能力和/或固定服务动作声明一个单独安装的裸 
 在兼容版本的 Convax 中打开“设置 → 技能与插件”。能力目录从上面的公开 Registry
 加载。点击安装插件或安装技能后，渲染进程只会把包标识传给主进程，由主进程下载并
 校验对应的不可变 Release ZIP。
-若 v2 插件声明了 Registry companion，同一次安装会只选择当前平台和架构的精确工件，
+若 v2 或 v3 插件声明了 Registry companion，同一次安装会只选择当前平台和架构的精确工件，
 并在静态 ZIP 之外独立校验其不可变 URL、字节数和 SHA-256。
 
 `microvoid/convax-plugins` 仓库、Registry 和 Release 资源都是公开的，不需要
@@ -140,7 +141,7 @@ Registry 条目、为 ZIP 创建来源证明并发布 GitHub Release。Pages 工
 
 第三方插件 ZIP 只能包含惰性文件。Web 界面只能是静态 HTML、CSS 和 JavaScript，
 并由 Convax 放入仅带 `sandbox="allow-scripts"` 的 iframe 中运行；ZIP 不能包含原生
-可执行文件、Node/Electron 代码、网络权限或通用宿主桥接。v2 工具插件可以声明一个
+可执行文件、Node/Electron 代码、网络权限或通用宿主桥接。v2 或 v3 工具插件可以声明一个
 单独安装的外部命令。Convax 会在用户明确安装或更新插件时独立解析并校验指纹；这次
 操作即表示同意运行该精确绑定，后续调用不会再弹出本地命令确认。该命令不会进入 ZIP。
 Registry companion 是独立且不可变的 Release 工件，仅在目标、大小和摘要全部精确校验后

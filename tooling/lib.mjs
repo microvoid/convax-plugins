@@ -139,8 +139,9 @@ function parseCompatibility(value, kind, label) {
     exactKeys(value, ["pluginSchema", "pluginHost"], ["pluginSchema", "pluginHost"], label)
     const v1 = value.pluginSchema === "convax.plugin/1" && value.pluginHost === "convax.plugin-host/1"
     const v2 = value.pluginSchema === "convax.plugin/2" && value.pluginHost === "convax.plugin-host/2"
-    if (!v1 && !v2) {
-      error(label, "must pair convax.plugin/1 with convax.plugin-host/1 or convax.plugin/2 with convax.plugin-host/2")
+    const v3 = value.pluginSchema === "convax.plugin/3" && value.pluginHost === "convax.plugin-host/3"
+    if (!v1 && !v2 && !v3) {
+      error(label, "must pair matching convax.plugin and convax.plugin-host major versions 1, 2, or 3")
     }
     return { pluginSchema: value.pluginSchema, pluginHost: value.pluginHost }
   }
@@ -217,8 +218,8 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
   if (kind === "skill" && value.companions !== undefined) error(label, "companions are available only to Plugins")
   const compatibility = parseCompatibility(value.compatibility, kind, `${label} compatibility`)
   const companions = parseSourceCompanions(value.companions, `${label} companions`)
-  if (companions && compatibility.pluginSchema !== "convax.plugin/2") {
-    error(label, "companions require convax.plugin/2 compatibility")
+  if (companions && compatibility.pluginSchema !== "convax.plugin/2" && compatibility.pluginSchema !== "convax.plugin/3") {
+    error(label, "companions require convax.plugin/2 or convax.plugin/3 compatibility")
   }
   return {
     schema: "convax.package/1",
@@ -295,7 +296,7 @@ function parseToolbar(value, label) {
   return result
 }
 
-export function parsePluginManifest(value, label = "manifest.json") {
+function parseLegacyPluginManifest(value, label) {
   if (!isObject(value) || (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2")) {
     error(label, "unsupported schema")
   }
@@ -365,6 +366,224 @@ export function parsePluginManifest(value, label = "manifest.json") {
     ...(runtime === undefined ? {} : { runtime }),
     version: parseSemver(value.version, `${label} version`),
   }
+}
+
+const selectionActionEditors = new Set(["time-point", "time-range", "crop-region", "confirmation"])
+
+function parsePluginReferenceId(value, label) {
+  const id = cleanString(value, label, 80)
+  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) error(label, "invalid id")
+  return id
+}
+
+function parseLocalizedText(value, label, maxLength) {
+  exactKeys(value, ["default", "zh-CN"], ["default"], label)
+  return {
+    default: cleanString(value.default, `${label} default`, maxLength),
+    ...(value["zh-CN"] === undefined
+      ? {}
+      : { "zh-CN": cleanString(value["zh-CN"], `${label} zh-CN`, maxLength) }),
+  }
+}
+
+function parseGenerationV3(value, label) {
+  exactKeys(value, ["models", "tools"], ["models", "tools"], label)
+  const { tools } = parseGeneration({ tools: value.tools }, label)
+  if (!Array.isArray(value.models) || value.models.length > 64) {
+    error(label, "models must be an array with at most 64 items")
+  }
+  const models = value.models.map((item, index) => {
+    const itemLabel = `${label} model ${index}`
+    exactKeys(item, ["name", "tool"], ["name", "tool"], itemLabel)
+    return {
+      name: cleanString(item.name, `${itemLabel} name`, 120),
+      tool: parsePluginReferenceId(item.tool, `${itemLabel} tool`),
+    }
+  })
+  if (new Set(models.map((model) => model.name)).size !== models.length) {
+    error(label, "models contain duplicate names")
+  }
+  if (new Set(models.map((model) => model.tool)).size !== models.length) {
+    error(label, "models contain duplicate tool references")
+  }
+  const toolIds = new Set(tools.map((tool) => tool.id))
+  const missing = models.find((model) => !toolIds.has(model.tool))
+  if (missing) error(label, `model ${missing.name} references unknown generation tool ${missing.tool}`)
+  return { models, tools }
+}
+
+function parseAgentV3(value, generation, label) {
+  exactKeys(value, ["tools"], ["tools"], label)
+  if (!Array.isArray(value.tools) || value.tools.length < 1 || value.tools.length > 32) {
+    error(label, "tools must be a non-empty array with at most 32 items")
+  }
+  const tools = value.tools.map((item, index) => {
+    const itemLabel = `${label} tool ${index}`
+    exactKeys(item, ["id", "tool"], ["id", "tool"], itemLabel)
+    return {
+      id: cleanString(item.id, `${itemLabel} id`, 64),
+      tool: parsePluginReferenceId(item.tool, `${itemLabel} tool`),
+    }
+  })
+  const invalidId = tools.find((tool) => !/^[a-z][a-z0-9_]{0,63}$/.test(tool.id))
+  if (invalidId) error(label, `agent tool id ${invalidId.id} must use lowercase letters, digits, and underscores`)
+  if (new Set(tools.map((tool) => tool.id)).size !== tools.length) error(label, "tools contain duplicate ids")
+  if (new Set(tools.map((tool) => tool.tool)).size !== tools.length) {
+    error(label, "tools contain duplicate generation tool references")
+  }
+  const generationToolIds = new Set(generation.tools.map((tool) => tool.id))
+  const modelToolIds = new Set(generation.models.map((model) => model.tool))
+  const missing = tools.find((tool) => !generationToolIds.has(tool.tool))
+  if (missing) error(label, `agent tool ${missing.id} references unknown generation tool ${missing.tool}`)
+  const model = tools.find((tool) => modelToolIds.has(tool.tool))
+  if (model) error(label, `agent tool ${model.id} must reference a non-model generation tool`)
+  return { tools }
+}
+
+function parseSelectionActionsV3(value, generation, label) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 32) {
+    error(label, "must be a non-empty array with at most 32 items")
+  }
+  const actions = value.map((item, index) => {
+    const itemLabel = `${label} item ${index}`
+    exactKeys(item, ["description", "editor", "id", "steps", "target", "title"],
+      ["description", "editor", "id", "steps", "target", "title"], itemLabel)
+    if (item.target !== "video") error(itemLabel, "target must be video")
+    if (!selectionActionEditors.has(item.editor)) error(itemLabel, "unsupported editor")
+    if (!Array.isArray(item.steps) || item.steps.length < 1 || item.steps.length > 16) {
+      error(itemLabel, "steps must be a non-empty array with at most 16 items")
+    }
+    if (item.editor !== "confirmation" && item.steps.length !== 1) {
+      error(itemLabel, "non-confirmation editors require exactly one step")
+    }
+    const steps = item.steps.map((step, stepIndex) => {
+      const stepLabel = `${itemLabel} step ${stepIndex}`
+      exactKeys(step, ["tool"], ["tool"], stepLabel)
+      return { tool: parsePluginReferenceId(step.tool, `${stepLabel} tool`) }
+    })
+    if (new Set(steps.map((step) => step.tool)).size !== steps.length) {
+      error(itemLabel, "steps contain duplicate tool references")
+    }
+    const generationTools = new Map(generation.tools.map((tool) => [tool.id, tool]))
+    const modelToolIds = new Set(generation.models.map((model) => model.tool))
+    const missing = steps.find((step) => !generationTools.has(step.tool))
+    if (missing) error(itemLabel, `references unknown generation tool ${missing.tool}`)
+    const model = steps.find((step) => modelToolIds.has(step.tool))
+    if (model) error(itemLabel, `must reference a non-model generation tool, not ${model.tool}`)
+    const incompatible = steps.find((step) => !generationTools.get(step.tool).acceptedInputs.includes("reference_video"))
+    if (incompatible) error(itemLabel, `tool ${incompatible.tool} must accept reference_video`)
+    return {
+      description: parseLocalizedText(item.description, `${itemLabel} description`, 2000),
+      editor: item.editor,
+      id: parsePluginReferenceId(item.id, `${itemLabel} id`),
+      steps,
+      target: "video",
+      title: parseLocalizedText(item.title, `${itemLabel} title`, 120),
+    }
+  })
+  if (new Set(actions.map((action) => action.id)).size !== actions.length) error(label, "contains duplicate ids")
+  return actions
+}
+
+function parseCanvasV3(value, generation, label) {
+  exactKeys(value, ["renderer", "selectionActions", "toolbar"], [], label)
+  if (value.toolbar !== undefined && value.renderer === undefined) {
+    error(label, "toolbar requires a renderer")
+  }
+  if (value.renderer === undefined && value.selectionActions === undefined) {
+    error(label, "must declare a renderer or selectionActions")
+  }
+  const renderer = value.renderer === undefined ? undefined : parseRenderer(value.renderer, `${label} renderer`)
+  const selectionActions = value.selectionActions === undefined
+    ? undefined
+    : parseSelectionActionsV3(value.selectionActions, generation, `${label} selectionActions`)
+  const toolbar = parseToolbar(value.toolbar, `${label} toolbar`)
+  return {
+    ...(renderer === undefined ? {} : { renderer }),
+    ...(selectionActions === undefined ? {} : { selectionActions }),
+    ...(toolbar === undefined ? {} : { toolbar }),
+  }
+}
+
+function parsePluginManifestV3(value, label) {
+  const required = ["contributes", "description", "id", "name", "schema", "version"]
+  exactKeys(value,
+    ["capabilities", "contributes", "description", "entry", "id", "name", "runtime", "schema", "skill", "version"],
+    required, label)
+  exactKeys(value.contributes, ["agent", "canvas", "generation", "service"], [], `${label} contributes`)
+
+  const capabilities = value.capabilities ?? []
+  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
+      capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
+      new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+
+  const hasRuntime = value.runtime !== undefined
+  const hasGeneration = value.contributes.generation !== undefined
+  const hasService = value.contributes.service !== undefined
+  if (hasRuntime !== (hasGeneration || hasService)) {
+    error(label, "runtime and executable contribution must appear together")
+  }
+  if (!hasRuntime && !capabilities.includes("generation.execute")) {
+    error(label, "convax.plugin/3 must declare an executable contribution or request generation.execute")
+  }
+
+  const generation = hasGeneration ? parseGenerationV3(value.contributes.generation, `${label} generation`) : undefined
+  if (value.contributes.agent !== undefined && generation === undefined) {
+    error(label, "agent tools require a generation contribution")
+  }
+  const agent = value.contributes.agent === undefined
+    ? undefined
+    : parseAgentV3(value.contributes.agent, generation, `${label} agent`)
+
+  const hasCanvas = value.contributes.canvas !== undefined
+  if (hasCanvas && value.contributes.canvas.selectionActions !== undefined && generation === undefined) {
+    error(label, "selectionActions require a generation contribution")
+  }
+  const canvas = hasCanvas
+    ? parseCanvasV3(value.contributes.canvas, generation, `${label} canvas`)
+    : undefined
+  const hasRenderer = canvas?.renderer !== undefined
+  const hasEntry = value.entry !== undefined
+  if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
+  if (capabilities.includes("generation.execute") && !hasRenderer) {
+    error(label, "generation.execute requires a sandboxed Canvas renderer")
+  }
+
+  let entry
+  if (hasEntry) {
+    entry = parseRelativePath(value.entry, `${label} entry`)
+    if (!entry.toLowerCase().endsWith(".html")) error(label, "entry must be an HTML file")
+  }
+
+  const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
+  const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
+  return {
+    capabilities: [...capabilities],
+    contributes: {
+      ...(agent === undefined ? {} : { agent }),
+      ...(canvas === undefined ? {} : { canvas }),
+      ...(generation === undefined ? {} : { generation }),
+      ...(service === undefined ? {} : { service }),
+    },
+    description: cleanString(value.description, `${label} description`, 2000),
+    ...(entry === undefined ? {} : { entry }),
+    id: parseId(value.id, `${label} id`),
+    name: cleanString(value.name, `${label} name`, 120),
+    schema: "convax.plugin/3",
+    ...(value.skill === undefined ? {} : { skill: parseRelativePath(value.skill, `${label} skill`) }),
+    ...(runtime === undefined ? {} : { runtime }),
+    version: parseSemver(value.version, `${label} version`),
+  }
+}
+
+export function parsePluginManifest(value, label = "manifest.json") {
+  if (!isObject(value) ||
+      (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2" && value.schema !== "convax.plugin/3")) {
+    error(label, "unsupported schema")
+  }
+  return value.schema === "convax.plugin/3"
+    ? parsePluginManifestV3(value, label)
+    : parseLegacyPluginManifest(value, label)
 }
 
 const serviceActions = new Set(["authorize", "reauthorize", "authorization.cancel", "sign_out"])
@@ -1071,8 +1290,8 @@ function parseCompanionArtifact(value, metadata, companion, target, label) {
 
 function parseRegistryCompanions(value, metadata, manifest, label) {
   if (value === undefined) return undefined
-  if (manifest.schema !== "convax.plugin/2" || !manifest.runtime) {
-    error(label, "companions require a convax.plugin/2 external runtime")
+  if ((manifest.schema !== "convax.plugin/2" && manifest.schema !== "convax.plugin/3") || !manifest.runtime) {
+    error(label, "companions require a convax.plugin/2 or convax.plugin/3 external runtime")
   }
   if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
     error(label, "must be a non-empty array with at most 16 items")

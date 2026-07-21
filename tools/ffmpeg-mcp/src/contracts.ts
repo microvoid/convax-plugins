@@ -29,6 +29,22 @@ export interface GenerationCall {
   schema: typeof generationCallSchema
 }
 
+export interface HighLevelParameter {
+  integer?: true
+  maximum: number
+  minimum: number
+  name: string
+}
+
+export interface HighLevelToolSpecification {
+  arguments(values: Readonly<Record<string, number>>): string[]
+  description: string
+  name: string
+  output: GenerationOutput
+  outputName: string
+  parameters: readonly HighLevelParameter[]
+}
+
 export interface GenerationArtifact {
   mimeType: string
   name: string
@@ -80,6 +96,91 @@ const outputExtensions: Readonly<Record<GenerationOutput, Readonly<Record<string
     wav: "audio/wav",
   },
 }
+
+const videoEncodingArguments = [
+  "-map", "0:v:0",
+  "-map", "0:a?",
+  "-c:v", "h264_videotoolbox",
+  "-allow_sw", "1",
+  "-b:v", "8M",
+  "-profile:v", "high",
+  "-pix_fmt", "yuv420p",
+  "-c:a", "aac",
+  "-b:a", "192k",
+  "-movflags", "+faststart",
+] as const
+
+const videoOnlyEncodingArguments = [
+  "-map", "0:v:0",
+  "-an",
+  "-c:v", "h264_videotoolbox",
+  "-allow_sw", "1",
+  "-b:v", "8M",
+  "-profile:v", "high",
+  "-pix_fmt", "yuv420p",
+  "-movflags", "+faststart",
+] as const
+
+export const highLevelToolSpecifications: readonly HighLevelToolSpecification[] = [
+  {
+    name: "frame.extract",
+    output: "image",
+    outputName: "frame.png",
+    description: "Extract one PNG frame at a selected time from one staged video.",
+    parameters: [{ name: "time_seconds", minimum: 0, maximum: 604_800 }],
+    arguments: ({ time_seconds }) => [
+      "-ss", String(time_seconds), "-i", "{{input:0}}", "-map", "0:v:0", "-frames:v", "1", "-an", "{{output}}",
+    ],
+  },
+  {
+    name: "video.trim",
+    output: "video",
+    outputName: "trimmed.mp4",
+    description: "Create one MP4 from a selected time range in one staged video.",
+    parameters: [
+      { name: "start_seconds", minimum: 0, maximum: 604_800 },
+      { name: "duration_seconds", minimum: Number.EPSILON, maximum: 604_800 },
+    ],
+    arguments: ({ start_seconds, duration_seconds }) => [
+      "-ss", String(start_seconds), "-i", "{{input:0}}", "-t", String(duration_seconds),
+      ...videoEncodingArguments, "{{output}}",
+    ],
+  },
+  {
+    name: "video.crop",
+    output: "video",
+    outputName: "cropped.mp4",
+    description: "Create one MP4 from a selected rectangular region in one staged video.",
+    parameters: [
+      { name: "x", integer: true, minimum: 0, maximum: 32_768 },
+      { name: "y", integer: true, minimum: 0, maximum: 32_768 },
+      { name: "width", integer: true, minimum: 1, maximum: 32_768 },
+      { name: "height", integer: true, minimum: 1, maximum: 32_768 },
+    ],
+    arguments: ({ x, y, width, height }) => [
+      "-i", "{{input:0}}", "-vf", `crop=${width}:${height}:${x}:${y}`,
+      ...videoEncodingArguments, "{{output}}",
+    ],
+  },
+  {
+    name: "video.without-audio",
+    output: "video",
+    outputName: "video-only.mp4",
+    description: "Create one video-only MP4 from one staged video.",
+    parameters: [],
+    arguments: () => ["-i", "{{input:0}}", ...videoOnlyEncodingArguments, "{{output}}"],
+  },
+  {
+    name: "audio.extract",
+    output: "audio",
+    outputName: "audio-only.m4a",
+    description: "Create one audio-only M4A from one staged video.",
+    parameters: [],
+    arguments: () => [
+      "-i", "{{input:0}}", "-map", "0:a:0", "-vn", "-c:a", "aac", "-b:a", "192k", "{{output}}",
+    ],
+  },
+] as const
 
 export class FfmpegInputError extends Error {
   constructor(readonly publicMessage: string) {
@@ -180,6 +281,50 @@ export function parseGenerationCall(value: unknown, expectedOutput: GenerationOu
     references,
     schema: generationCallSchema,
   }
+}
+
+export function parseHighLevelGenerationCall(
+  value: unknown,
+  specification: HighLevelToolSpecification,
+): GenerationCall {
+  const input = asRecord(value, "generation call")
+  const envelopeKeys = [
+    "operation_id",
+    "output",
+    "output_directory",
+    "prompt",
+    "references",
+    "schema",
+  ] as const
+  exactKeys(input, [...envelopeKeys, ...specification.parameters.map((parameter) => parameter.name)], "generation call")
+  const parameters: Record<string, number> = {}
+  for (const parameter of specification.parameters) {
+    const number = input[parameter.name]
+    if (
+      typeof number !== "number"
+      || !Number.isFinite(number)
+      || parameter.integer === true && !Number.isSafeInteger(number)
+      || number < parameter.minimum
+      || number > parameter.maximum
+    ) {
+      throw new FfmpegInputError(`${parameter.name} is outside the supported range.`)
+    }
+    parameters[parameter.name] = number
+  }
+  const call = parseGenerationCall({
+    arguments_json: JSON.stringify(specification.arguments(parameters)),
+    operation_id: input.operation_id,
+    output: input.output,
+    output_directory: input.output_directory,
+    output_name: specification.outputName,
+    prompt: input.prompt,
+    references: input.references,
+    schema: input.schema,
+  }, specification.output)
+  if (call.references.length !== 1 || call.references[0]?.role !== "reference_video") {
+    throw new FfmpegInputError(`${specification.name} requires exactly one reference_video file.`)
+  }
+  return call
 }
 
 export function mimeTypeForOutput(name: string, output: GenerationOutput) {

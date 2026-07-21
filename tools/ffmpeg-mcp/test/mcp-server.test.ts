@@ -21,9 +21,18 @@ async function until(predicate: () => boolean) {
 }
 
 describe("FFmpeg MCP server", () => {
-  test("advertises only the three generation tools and returns the result schema", async () => {
-    expect(tools.map((tool) => tool.name)).toEqual(["run.image", "run.video", "run.audio"])
-    for (const tool of tools) {
+  test("advertises raw and high-level tools and returns the result schema", async () => {
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "run.image",
+      "run.video",
+      "run.audio",
+      "frame.extract",
+      "video.trim",
+      "video.crop",
+      "video.without-audio",
+      "audio.extract",
+    ])
+    for (const tool of tools.slice(0, 3)) {
       const schema = tool.inputSchema as { properties: Record<string, unknown>; required: string[] }
       expect(schema.properties).toHaveProperty("arguments_json")
       expect(schema.properties).toHaveProperty("output_name")
@@ -72,7 +81,7 @@ describe("FFmpeg MCP server", () => {
     await until(() => lines.length === 2)
     await writer.close()
     await running
-    expect(lines[0]).toMatchObject({ result: { serverInfo: { name: "convax-ffmpeg-mcp", version: "0.1.0" } } })
+    expect(lines[0]).toMatchObject({ result: { serverInfo: { name: "convax-ffmpeg-mcp", version: "0.2.0" } } })
     expect(lines[1]).toMatchObject({
       result: {
         structuredContent: {
@@ -82,6 +91,48 @@ describe("FFmpeg MCP server", () => {
       },
     })
     expect(engine.calls).toHaveLength(1)
+  })
+
+  test("turns selection-editor fields into reviewed FFmpeg argv", async () => {
+    const engine = new FakeEngine()
+    const lines: Record<string, unknown>[] = []
+    const server = new McpServer(engine, (line) => lines.push(JSON.parse(line) as Record<string, unknown>))
+    const stream = new TransformStream<Uint8Array, Uint8Array>()
+    const running = server.run(stream.readable)
+    const writer = stream.writable.getWriter()
+    await writer.write(new TextEncoder().encode(`${JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: {
+        name: "video.trim",
+        arguments: {
+          operation_id: "trim-1",
+          output: "video",
+          output_directory: "/private/output",
+          prompt: "Trim the selected video",
+          references: [{
+            kind: "file",
+            mime_type: "video/mp4",
+            name: "source.mp4",
+            node_id: "video-1",
+            path: "/private/staged/source.mp4",
+            role: "reference_video",
+          }],
+          schema: "convax.generation-call/1",
+          start_seconds: 3,
+          duration_seconds: 2,
+        },
+      },
+    })}\n`))
+    await until(() => lines.length === 1)
+    await writer.close()
+    await running
+
+    expect(engine.calls[0]).toMatchObject({ output_name: "trimmed.mp4", output: "video" })
+    expect(JSON.parse(engine.calls[0]!.arguments_json)).toEqual(expect.arrayContaining([
+      "-ss", "3", "-t", "2", "{{output}}",
+    ]))
   })
 
   test("returns an error for malformed initialize params and keeps serving", async () => {

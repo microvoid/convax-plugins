@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test"
 
-import { mimeTypeForOutput, parseGenerationCall } from "../src/contracts.ts"
+import {
+  highLevelToolSpecifications,
+  mimeTypeForOutput,
+  parseGenerationCall,
+  parseHighLevelGenerationCall,
+} from "../src/contracts.ts"
 
 function call(overrides: Record<string, unknown> = {}) {
   return {
@@ -45,5 +50,46 @@ describe("generation call contract", () => {
     expect(() => parseGenerationCall(call({ output_name: "../escape.mp4" }), "video")).toThrow(
       "portable file basename",
     )
+  })
+
+  test("derives reviewed argv and fixed output names for high-level operations", () => {
+    const trim = highLevelToolSpecifications.find((tool) => tool.name === "video.trim")!
+    const parsed = parseHighLevelGenerationCall({
+      operation_id: "trim-1",
+      output: "video",
+      output_directory: "/private/host-output",
+      prompt: "Trim the selected video",
+      references: call().references,
+      schema: "convax.generation-call/1",
+      start_seconds: 3,
+      duration_seconds: 2,
+    }, trim)
+
+    expect(parsed.output_name).toBe("trimmed.mp4")
+    expect(JSON.parse(parsed.arguments_json)).toEqual(expect.arrayContaining([
+      "-ss", "3", "-t", "2", "h264_videotoolbox", "{{output}}",
+    ]))
+  })
+
+  test("requires one video reference and bounded editor values for high-level operations", () => {
+    const crop = highLevelToolSpecifications.find((tool) => tool.name === "video.crop")!
+    const input = {
+      operation_id: "crop-1",
+      output: "video",
+      output_directory: "/private/host-output",
+      prompt: "Crop the selected video",
+      references: call().references,
+      schema: "convax.generation-call/1",
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    }
+    expect(parseHighLevelGenerationCall(input, crop).output_name).toBe("cropped.mp4")
+    expect(() => parseHighLevelGenerationCall({ ...input, width: 0 }, crop)).toThrow("outside the supported range")
+    expect(() => parseHighLevelGenerationCall({
+      ...input,
+      references: [{ ...call().references[0], role: "reference_image" }],
+    }, crop)).toThrow("exactly one reference_video")
   })
 })

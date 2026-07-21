@@ -34,6 +34,15 @@
                 "pluginSchema": { "const": "convax.plugin/2" },
                 "pluginHost": { "const": "convax.plugin-host/2" }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/3" },
+                "pluginHost": { "const": "convax.plugin-host/3" }
+              }
             }
           ]
         },
@@ -47,10 +56,20 @@
           "then": {
             "properties": {
               "compatibility": {
-                "properties": {
-                  "pluginSchema": { "const": "convax.plugin/2" },
-                  "pluginHost": { "const": "convax.plugin-host/2" }
-                }
+                "oneOf": [
+                  {
+                    "properties": {
+                      "pluginSchema": { "const": "convax.plugin/2" },
+                      "pluginHost": { "const": "convax.plugin-host/2" }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "pluginSchema": { "const": "convax.plugin/3" },
+                      "pluginHost": { "const": "convax.plugin-host/3" }
+                    }
+                  }
+                ]
               }
             }
           }

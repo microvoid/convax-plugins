@@ -1,30 +1,43 @@
 # FFmpeg Tools for Convax
 
 FFmpeg Tools adds local media transformations to Convax through a reviewed Tool
-Plugin companion. Agent workflows call dedicated FFmpeg tools with tokenized argv,
-while Convax exposes common video-node actions such as Extract Frame, timeline
-Trim, Separate Audio, and Crop in the node toolbar.
+Plugin companion. Agent workflows can compose FFmpeg argv directly, while Convax
+renders common video-node actions such as Extract Frame, Trim, Crop, and Separate
+Audio and Video from the Plugin's declarative selection-action contribution.
 
 ## Tools
 
-The Plugin publishes three host-executed tool IDs:
+The Plugin publishes three broad argv execution tools:
 
 - `ffmpeg-tools/run.image`
 - `ffmpeg-tools/run.video`
 - `ffmpeg-tools/run.audio`
 
-All three tools accept the five Convax media-reference roles (`reference_image`,
+They are declared only as Agent tools, under the derived host names
+`plugin_ffmpeg_tools_run_image`, `plugin_ffmpeg_tools_run_video`, and
+`plugin_ffmpeg_tools_run_audio`. OpenCode normally displays these with the
+`convax_` MCP namespace prefix. The Plugin explicitly publishes an empty model
+catalog, so these local operations never appear in the model picker.
+
+The Plugin also publishes five high-level tools used by Canvas selection actions:
+
+- `frame.extract`
+- `video.trim`
+- `video.crop`
+- `video.without-audio`
+- `audio.extract`
+
+The time-point, time-range, and crop-region editors provide typed values to these
+tools. The sidecar—not Convax core—turns those values into reviewed FFmpeg argv.
+The separation action runs the final two tools and produces related video-only and
+audio-only cards.
+
+All three raw tools accept the five Convax media-reference roles (`reference_image`,
 `reference_video`, `first_frame`, `last_frame`, and `audio`) so one FFmpeg graph
 can combine heterogeneous staged media. Each reference still has to match the
 declared role and a supported media signature.
 
-Convax exposes them to its Agent as `ffmpeg_run_image`, `ffmpeg_run_video`, and
-`ffmpeg_run_audio` (shown with the `convax_` MCP server prefix in OpenCode). FFmpeg
-transforms do not use `canvas_generate`; that route is reserved for generative
-model Plugins. The direct tools still use the same host-owned staging, executable
-verification, output admission, Canvas commit, and source-edge flow.
-
-Each tool receives `arguments_json`, a JSON array containing individual FFmpeg
+Each raw tool receives `arguments_json`, a JSON array containing individual FFmpeg
 argv tokens. Convax never invokes a shell. Use `{{input:N}}` as a complete token
 for each staged Canvas input and use `{{output}}` exactly once as the final token.
 For example:
