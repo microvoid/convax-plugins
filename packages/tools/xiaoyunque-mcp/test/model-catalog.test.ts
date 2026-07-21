@@ -5,37 +5,23 @@ import { generationMcpTools, serviceMcpTools } from "../src/mcp-server.ts"
 import { generationTools } from "../src/models.ts"
 
 const expectedCatalog = [
-  { model: "seedream_5.0_pro", name: "image.seedream_5.0_pro", output: "image" },
   { model: "seedream_5.0", name: "image.seedream_5.0", output: "image" },
-  { model: "seedream_4.3", name: "image.seedream_4.3", output: "image" },
-  { model: "seedream_4.5", name: "image.seedream_4.5", output: "image" },
-  { model: "seedream_4.1", name: "image.seedream_4.1", output: "image" },
-  { model: "seedream_4", name: "image.seedream_4", output: "image" },
-  { model: "nano_banana_pro_1", name: "image.nano_banana_pro_1", output: "image" },
-  { model: "gpt_image_2", name: "image.gpt_image_2", output: "image" },
+  { model: "seedream_5.0_pro", name: "image.seedream_5.0_pro", output: "image" },
   { model: "Seedance_2.0_mini_lite", name: "video.seedance_2.0_mini_lite", output: "video" },
-  { model: "Seedance_2.0_mini", name: "video.seedance_2.0_mini", output: "video" },
-  { model: "seedance2.0_fast_vision", name: "video.seedance2.0_fast_vision", output: "video" },
-  { model: "seedance2.0_vision", name: "video.seedance2.0_vision", output: "video" },
-  { model: "seedance2.0_fast_direct", name: "video.seedance2.0_fast_direct", output: "video" },
   { model: "seedance2.0_direct", name: "video.seedance2.0_direct", output: "video" },
-  { model: "seedance1.5_direct", name: "video.seedance1.5_direct", output: "video" },
-  { model: "Seedance_1.0_fast", name: "video.seedance_1.0_fast", output: "video" },
+  { model: "seedance2.0_vision", name: "video.seedance2.0_vision", output: "video" },
+  { model: "Seedance_2.0_mini", name: "video.seedance_2.0_mini", output: "video" },
 ] as const
 
-describe("XiaoYunque first-party Web model catalog", () => {
-  test("uses the model values exposed by the current first-party Web client", () => {
+describe("XiaoYunque governed model catalog", () => {
+  test("exposes only the approved image and video models", () => {
     expect(generationTools.map(({ model, name, output }) => ({ model, name, output })))
       .toEqual([...expectedCatalog])
   })
 
-  test("excludes web_model_config v5 entries rejected by the raw image submit surface", () => {
-    // Live regression evidence: get_thread ended an accepted raw-image Nova 2
-    // run with the exact terminal reason `unsupported image_model_name: nova2`.
-    // A discovery catalog entry is not sufficient evidence that submit_run can
-    // execute it, so this id must remain absent until a valid raw id is verified.
-    expect(generationTools.map(({ model }) => model)).not.toContain("nova2")
-    expect(generationTools.map(({ name }) => name)).not.toContain("image.nova2")
+  test("puts the requested defaults first for each output", () => {
+    expect(generationTools.filter((tool) => tool.output === "image")[0]?.model).toBe("seedream_5.0")
+    expect(generationTools.filter((tool) => tool.output === "video")[0]?.model).toBe("Seedance_2.0_mini_lite")
   })
 
   test("keeps Plugin manifest tool ids identical to MCP tools/list names", async () => {
@@ -61,27 +47,24 @@ describe("XiaoYunque first-party Web model catalog", () => {
     expect(manifestIds).toEqual(expectedCatalog.map((tool) => tool.name))
     expect(manifest.contributes.generation.models.map((model) => model.tool)).toEqual(manifestIds)
     expect(manifest.contributes.generation.models.map((model) => model.name)).toEqual([
-      "Seedream 5.0 Pro",
       "Seedream 5.0",
-      "Seedream 4.3",
-      "Seedream 4.5",
-      "Seedream 4.1",
-      "Seedream 4",
-      "Nano Banana Pro 1",
-      "GPT Image 2",
+      "Seedream 5.0 Pro",
       "Seedance 2.0 Mini Lite",
-      "Seedance 2.0 Mini",
-      "Seedance 2.0 Fast Vision",
-      "Seedance 2.0 Vision",
-      "Seedance 2.0 Fast",
       "Seedance 2.0",
-      "Seedance 1.5",
-      "Seedance 1.0 Fast",
+      "Seedance 2.0 Vision",
+      "Seedance 2.0 Mini",
     ])
     const mcpNames: string[] = generationMcpTools.map((tool) => tool.name)
     expect(mcpNames).toEqual(manifestIds)
-    expect(manifest.contributes.generation.tools.find((tool) => tool.id === "video.seedance_1.0_fast")?.acceptedInputs)
-      .toEqual(["reference_image"])
+    for (const tool of manifest.contributes.generation.tools.filter((item) => item.id.startsWith("video."))) {
+      expect(tool.acceptedInputs).toEqual([
+        "reference_image",
+        "reference_video",
+        "first_frame",
+        "last_frame",
+        "audio",
+      ])
+    }
   })
 
   test("declares service tools separately from generation models", async () => {

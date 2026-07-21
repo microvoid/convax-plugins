@@ -42,12 +42,11 @@ the Plugin ZIP and must never be imported by Convax packages.
   contracts: images submit through `agent/submit_run` and poll `agent/get_thread`;
   video submits the current Canvas direct video-part tool through
   `agent/submit_run` and polls the same `agent/get_thread` entry-list surface.
-  Never fall back to the legacy dedicated video-result endpoint. Use an exact model-specific
-  parameter shape: both Seedance 2.0 Mini variants omit
-  `resolution`, every Canvas video request omits imitation-video input, and Seedance 1.0 Fast
-  accepts at most one reference image while omitting video/audio/frame inputs.
-  Keep the exposed video model catalog synchronized with the first-party
-  `web_model_config` response rather than marketing pages. Generation envelopes
+  Never fall back to the legacy dedicated video-result endpoint. Keep the public
+  catalog limited to the product-governed allowlist in `src/models.ts`; use
+  first-party `web_model_config` evidence for its raw identifiers rather than
+  marketing pages. Both Seedance 2.0 Mini variants omit `resolution`, and every
+  Canvas video request omits imitation-video input. Generation envelopes
   require an explicit integer `ret: 0` or canonical string `ret: "0"`; task ids
   must match the client-created ids, and only canonical run states 0 through 9
   are accepted.

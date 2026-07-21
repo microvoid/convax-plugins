@@ -15,7 +15,7 @@ import { XiaoYunqueApi, XiaoYunqueRequestRejectedError } from "../src/xiaoyunque
 
 const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])
 const mp4 = Uint8Array.from([0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0])
-const imageModel = "seedream_4.5" as const
+const imageModel = "seedream_5.0" as const
 const videoModel = "Seedance_2.0_mini_lite" as const
 const visionVideoModel = "seedance2.0_vision" as const
 const directories: string[] = []
@@ -233,7 +233,7 @@ describe("XiaoYunque generation engine", () => {
         args: {},
         image_count: 1,
         image_resolution: "2K",
-        model: "seedream_4.5",
+        model: "seedream_5.0",
         pippit_asset_ids: [],
         prompt: imageCall.prompt,
         ratio: "1:1",

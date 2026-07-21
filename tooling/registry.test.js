@@ -67,33 +67,25 @@ describe("source packages", () => {
     expect(xiaoyunque.manifest.contributes.generation.models.map((model) => model.tool)).toEqual(
       generationTools.map((tool) => tool.id),
     )
-    expect(xiaoyunque.manifest.contributes.generation.models[0].name).toBe("Seedream 5.0 Pro")
+    expect(xiaoyunque.manifest.contributes.generation.models[0].name).toBe("Seedream 5.0")
+    expect(xiaoyunque.manifest.contributes.generation.models.find((model) => model.tool.startsWith("video."))?.name)
+      .toBe("Seedance 2.0 Mini Lite")
     expect(generationTools.map((tool) => tool.id)).toEqual([
-      "image.seedream_5.0_pro",
       "image.seedream_5.0",
-      "image.seedream_4.3",
-      "image.seedream_4.5",
-      "image.seedream_4.1",
-      "image.seedream_4",
-      "image.nano_banana_pro_1",
-      "image.gpt_image_2",
+      "image.seedream_5.0_pro",
       "video.seedance_2.0_mini_lite",
-      "video.seedance_2.0_mini",
-      "video.seedance2.0_fast_vision",
-      "video.seedance2.0_vision",
-      "video.seedance2.0_fast_direct",
       "video.seedance2.0_direct",
-      "video.seedance1.5_direct",
-      "video.seedance_1.0_fast",
+      "video.seedance2.0_vision",
+      "video.seedance_2.0_mini",
     ])
     for (const tool of generationTools) {
-      expect(tool.acceptedInputs).toEqual(tool.output === "image" || tool.id === "video.seedance_1.0_fast"
+      expect(tool.acceptedInputs).toEqual(tool.output === "image"
         ? ["reference_image"]
         : ["reference_image", "reference_video", "first_frame", "last_frame", "audio"])
     }
     expect(xiaoyunque.metadata.companions).toEqual([{
       command: "convax-xiaoyunque-mcp",
-      version: "0.3.0",
+      version: "0.3.1",
       source: "packages/tools/xiaoyunque-mcp",
       targets: [{
         platform: "darwin",
@@ -178,9 +170,9 @@ describe("source packages", () => {
     expect(readStoredZip(hello.zip).map((entry) => entry.relativePath)).toContain("manifest.json")
     expect(readStoredZip(xiaoyunque.zip).map((entry) => entry.relativePath)).toEqual(["LICENSE", "manifest.json"])
     expect(xiaoyunque.companionAssets.map((asset) => asset.assetName)).toEqual([
-      "convax-companion-convax-xiaoyunque-mcp-0.3.0-darwin-arm64",
+      "convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
     ])
-    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.2")
+    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.3")
     expect(await fs.readFile(xiaoyunque.companionAssets[0].path)).toEqual(xiaoyunque.companionAssets[0].data)
     expect(readStoredZip(skill.zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
     expect(readStoredZip(ffmpeg.zip).map((entry) => entry.relativePath)).toEqual([
@@ -316,7 +308,7 @@ describe("source packages", () => {
     expect(helloEntry.artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
     expect(xiaoyunqueEntry.manifest.schema).toBe("convax.plugin/3")
     expect(xiaoyunqueEntry.companions[0].targets[0].artifact.url).toContain(
-      "/convax-companion-convax-xiaoyunque-mcp-0.3.0-darwin-arm64",
+      "/convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
     )
     expect(firstSkill).not.toHaveProperty("manifest")
     expect(ffmpegSkillEntry.ownerPluginId).toBe("ffmpeg-tools")

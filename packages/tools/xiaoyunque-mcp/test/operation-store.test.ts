@@ -6,7 +6,7 @@ import type { GenerationCall } from "../src/contracts.ts"
 import { fingerprintGenerationCall, OperationStore } from "../src/operation-store.ts"
 
 const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])
-const imageModel = "seedream_4.5" as const
+const imageModel = "seedream_5.0" as const
 const directories: string[] = []
 
 afterEach(async () => {

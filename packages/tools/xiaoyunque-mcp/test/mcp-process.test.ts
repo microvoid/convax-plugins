@@ -164,7 +164,7 @@ describe("MCP process", () => {
         protocolVersion: "2025-03-26",
       })
       const generated = await withTimeout(harness.request("tools/call", {
-        name: "image.seedream_4.5",
+        name: "image.seedream_5.0",
         arguments: {
           schema: "convax.generation-call/1",
           operation_id: "missing-authorization-operation",
@@ -253,7 +253,7 @@ describe("MCP process", () => {
       })
       expect(initialized).toMatchObject({
         result: {
-          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.0" },
+          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.1" },
         },
       })
       const authorization = await harness.request("tools/call", { name: "service.authorize", arguments: {} })
@@ -524,22 +524,12 @@ describe("MCP process", () => {
       const listed = await harness.request("tools/list", {})
       expect((listed.result as { tools: Array<{ name: string }> }).tools.map((tool) => tool.name))
         .toEqual([
-          "image.seedream_5.0_pro",
           "image.seedream_5.0",
-          "image.seedream_4.3",
-          "image.seedream_4.5",
-          "image.seedream_4.1",
-          "image.seedream_4",
-          "image.nano_banana_pro_1",
-          "image.gpt_image_2",
+          "image.seedream_5.0_pro",
           "video.seedance_2.0_mini_lite",
-          "video.seedance_2.0_mini",
-          "video.seedance2.0_fast_vision",
-          "video.seedance2.0_vision",
-          "video.seedance2.0_fast_direct",
           "video.seedance2.0_direct",
-          "video.seedance1.5_direct",
-          "video.seedance_1.0_fast",
+          "video.seedance2.0_vision",
+          "video.seedance_2.0_mini",
           "service.status",
           "service.authorize",
           "service.reauthorize",
@@ -548,7 +538,7 @@ describe("MCP process", () => {
           "service.sign_out",
         ])
       const generated = await harness.request("tools/call", {
-        name: "image.seedream_4.5",
+        name: "image.seedream_5.0",
         arguments: {
           schema: "convax.generation-call/1",
           operation_id: "black-box-operation",
@@ -761,7 +751,7 @@ describe("MCP process", () => {
         protocolVersion: "2025-03-26",
       })
       void harness.request("tools/call", {
-        name: "image.seedream_4.5",
+        name: "image.seedream_5.0",
         arguments: {
           schema: "convax.generation-call/1",
           operation_id: "stdin-eof-operation",
@@ -858,7 +848,7 @@ describe("MCP process", () => {
         protocolVersion: "2025-03-26",
       })
       void harness.request("tools/call", {
-        name: "image.seedream_4.5",
+        name: "image.seedream_5.0",
         arguments: {
           schema: "convax.generation-call/1",
           operation_id: "sigterm-operation",
