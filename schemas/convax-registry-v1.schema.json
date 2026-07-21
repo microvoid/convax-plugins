@@ -71,6 +71,15 @@
                 "pluginSchema": { "const": "convax.plugin/3" },
                 "pluginHost": { "const": "convax.plugin-host/3" }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/4" },
+                "pluginHost": { "const": "convax.plugin-host/4" }
+              }
             }
           ]
         },
@@ -80,7 +89,8 @@
           "oneOf": [
             { "$ref": "./convax-plugin-manifest-v1.schema.json" },
             { "$ref": "./convax-plugin-manifest-v2.schema.json" },
-            { "$ref": "./convax-plugin-manifest-v3.schema.json" }
+            { "$ref": "./convax-plugin-manifest-v3.schema.json" },
+            { "$ref": "./convax-plugin-manifest-v4.schema.json" }
           ]
         },
         "companions": { "$ref": "#/$defs/companions" }
@@ -123,6 +133,18 @@
           "then": { "properties": { "manifest": { "$ref": "./convax-plugin-manifest-v3.schema.json" } } }
         },
         {
+          "if": {
+            "properties": {
+              "compatibility": {
+                "properties": { "pluginSchema": { "const": "convax.plugin/4" } },
+                "required": ["pluginSchema"]
+              }
+            },
+            "required": ["compatibility"]
+          },
+          "then": { "properties": { "manifest": { "$ref": "./convax-plugin-manifest-v4.schema.json" } } }
+        },
+        {
           "if": { "required": ["companions"] },
           "then": {
             "properties": {
@@ -139,6 +161,12 @@
                       "pluginSchema": { "const": "convax.plugin/3" },
                       "pluginHost": { "const": "convax.plugin-host/3" }
                     }
+                  },
+                  {
+                    "properties": {
+                      "pluginSchema": { "const": "convax.plugin/4" },
+                      "pluginHost": { "const": "convax.plugin-host/4" }
+                    }
                   }
                 ]
               },
@@ -153,6 +181,12 @@
                   {
                     "allOf": [
                       { "$ref": "./convax-plugin-manifest-v3.schema.json" },
+                      { "required": ["runtime"] }
+                    ]
+                  },
+                  {
+                    "allOf": [
+                      { "$ref": "./convax-plugin-manifest-v4.schema.json" },
                       { "required": ["runtime"] }
                     ]
                   }
@@ -224,7 +258,8 @@
           "properties": { "skillSchema": { "const": "opencode.skill/1" } }
         },
         "artifact": { "$ref": "#/$defs/baseProperties/artifact" },
-        "yanked": { "$ref": "#/$defs/baseProperties/yanked" }
+        "yanked": { "$ref": "#/$defs/baseProperties/yanked" },
+        "ownerPluginId": { "$ref": "#/$defs/baseProperties/id" }
       }
     }
   }

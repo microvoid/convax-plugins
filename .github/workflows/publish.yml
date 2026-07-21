@@ -27,10 +27,8 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
-      - name: Install companion development dependencies
-        run: |
-          bun --cwd=tools/xiaoyunque-mcp install --frozen-lockfile
-          bun --cwd=tools/ffmpeg-mcp install --frozen-lockfile
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Verify official FFmpeg source
         if: startsWith(github.ref_name, 'plugin-ffmpeg-tools-v')
         run: |
@@ -62,13 +60,12 @@ jobs:
           echo "CONVAX_FFMPEG_REQUIRE_PGP=1" >> "$GITHUB_ENV"
       - name: Validate repository and tag
         run: |
+          bun run workspaces:build:packages
           bun run validate
-          bun --cwd=tools/xiaoyunque-mcp run typecheck
-          bun --cwd=tools/xiaoyunque-mcp test
-          bun --cwd=tools/ffmpeg-mcp run typecheck
-          bun --cwd=tools/ffmpeg-mcp test
+          bun run workspaces:typecheck
+          bun run workspaces:test
           bun tooling/build-companions.mjs --tag "$GITHUB_REF_NAME"
-          bun test
+          bun run test
           bun tooling/pack.mjs --tag "$GITHUB_REF_NAME"
 
   publish:
@@ -88,10 +85,8 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
-      - name: Install companion development dependencies
-        run: |
-          bun --cwd=tools/xiaoyunque-mcp install --frozen-lockfile
-          bun --cwd=tools/ffmpeg-mcp install --frozen-lockfile
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Verify official FFmpeg source
         if: startsWith(github.ref_name, 'plugin-ffmpeg-tools-v')
         run: |
@@ -124,6 +119,7 @@ jobs:
       - name: Build immutable package assets
         id: package
         run: |
+          bun run workspaces:build:packages
           bun tooling/build-companions.mjs --tag "$GITHUB_REF_NAME"
           bun tooling/pack.mjs --tag "$GITHUB_REF_NAME"
           package_dir="dist/packages/$GITHUB_REF_NAME"
@@ -143,13 +139,13 @@ jobs:
             cp "$CONVAX_FFMPEG_SOURCE_ARCHIVE" "$package_dir/convax-source-ffmpeg-8.1.2.tar.xz"
             cp "$CONVAX_FFMPEG_SOURCE_SIGNATURE" "$package_dir/convax-source-ffmpeg-8.1.2.tar.xz.asc"
             cp "$CONVAX_FFMPEG_SIGNING_KEY" "$package_dir/convax-source-ffmpeg-signing-key.asc"
-            cp tools/ffmpeg-mcp/FFMPEG-LICENSE "$package_dir/convax-ffmpeg-LGPL-2.1.txt"
-            cp tools/ffmpeg-mcp/THIRD_PARTY_NOTICES.md "$package_dir/convax-ffmpeg-THIRD-PARTY-NOTICES.md"
+            cp packages/tools/ffmpeg-mcp/FFMPEG-LICENSE "$package_dir/convax-ffmpeg-LGPL-2.1.txt"
+            cp packages/tools/ffmpeg-mcp/THIRD_PARTY_NOTICES.md "$package_dir/convax-ffmpeg-THIRD-PARTY-NOTICES.md"
             tar -xOf "$CONVAX_FFMPEG_SOURCE_ARCHIVE" ffmpeg-8.1.2/LICENSE.md > "$package_dir/convax-ffmpeg-LICENSE.md"
             tar -xOf "$CONVAX_FFMPEG_SOURCE_ARCHIVE" ffmpeg-8.1.2/CREDITS > "$package_dir/convax-ffmpeg-CREDITS"
             test -s "$package_dir/convax-ffmpeg-LICENSE.md"
             test -s "$package_dir/convax-ffmpeg-CREDITS"
-            SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" bun tools/ffmpeg-mcp/scripts/build-sbom.ts \
+            SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" bun packages/tools/ffmpeg-mcp/scripts/build-sbom.ts \
               --companion "$companion_path" \
               --output "$package_dir/convax-ffmpeg-sbom.spdx.json" \
               --revision "$GITHUB_SHA" \

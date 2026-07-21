@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-skill-short-drama-screenwriter",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind skill --id short-drama-screenwriter",
+    "pack": "bun ../../../tooling/pack.mjs --kind skill --id short-drama-screenwriter"
+  }
+}

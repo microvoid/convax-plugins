@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-skill-__SKILL_ID__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind skill --id __SKILL_ID__",
+    "pack": "bun ../../../tooling/pack.mjs --kind skill --id __SKILL_ID__"
+  }
+}

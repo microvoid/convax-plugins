@@ -6,15 +6,18 @@ These rules apply to people and AI agents in this repository.
 
 1. Read `README.md` and the relevant file in `docs/`.
 2. Name the package or external tool being changed. A package owns only files below
-   its own directory; a separately distributed tool owns only `tools/<id>`.
+   its own workspace; a separately distributed tool owns only `packages/tools/<id>`.
 3. Never copy private Convax implementation code. Use only the documented manifest
-   and version-matched `convax.plugin-host/1`, `convax.plugin-host/2`, or
-   `convax.plugin-host/3` protocol.
+   and version-matched `convax.plugin-host/1`, `convax.plugin-host/2`,
+   `convax.plugin-host/3`, or `convax.plugin-host/4` protocol.
 
 ## Package rules
 
 - Plugin and Skill sources live under `packages/plugins/<id>` and
   `packages/skills/<id>` respectively.
+- Every Plugin, Skill, and Tool directory is a Bun workspace with its own
+  `package.json`, dependency declarations, and scripts. The repository owns one
+  root `bun.lock`; do not add package-local lockfiles or hard-code workspace ids in CI.
 - The contents of `package/`, not the containing directory, become the ZIP root.
 - A `convax.plugin/1` Plugin is static Web content. A `convax.plugin/2` or
   `convax.plugin/3` package may
@@ -22,9 +25,13 @@ These rules apply to people and AI agents in this repository.
   generation tools. Never put that executable, a server, native binary, Electron,
   Node access, remote script, dependency tree, or install/build hook in the Plugin
   ZIP.
-- Reviewed companion tool source may live under `tools/<id>`, but it is a separate
+- Reviewed companion tool source may live under `packages/tools/<id>`, but it is a separate
   distributable with its own tests. Repository validation and Plugin packing never
   execute it or include it in `package/`.
+- A `convax.plugin/4` Plugin may contribute Plugin-owned Skills from independent
+  Skill workspaces. The packer injects them; do not commit a duplicate Skill below
+  the Plugin `package/`. Convax lifecycle ownership is declared by the manifest and
+  Registry metadata, never inferred from npm dependencies.
 - A published companion is declared in source metadata and emitted as a separate,
   target-specific Release asset. Its immutable Registry URL, byte size, and SHA-256
   are derived from the reviewed build output; never author them by hand.
@@ -41,10 +48,11 @@ These rules apply to people and AI agents in this repository.
 
 ## Required verification
 
-Run `bun run validate`, companion tool tests, `bun run build:companions`, `bun test`,
+Run `bun install --frozen-lockfile --ignore-scripts`, trusted Plugin/Skill workspace
+builds, `bun run validate`, workspace tests, `bun run build:companions`, `bun test`,
 `bun run pack`, and `bun run build:index` before requesting review. The explicit
-companion build is separate from validation and packing; do not execute
-contributor-provided scripts while reviewing, validating, or packing a package.
+package and companion build phases finish before validation and packing. Validation
+and packing themselves remain inert and never execute contributor-provided scripts.
 Tooling treats package contents as inert bytes.
 
 ## Git discipline

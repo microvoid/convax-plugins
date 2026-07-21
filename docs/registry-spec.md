@@ -11,9 +11,9 @@ It is source-controlled in `registry/config.json` and must increase before each
 catalog-changing release or yanking deployment. `revision` is the lowercase, full
 40-character Git commit SHA used to build the catalog.
 
-Every item contains exactly `kind`, `id`, `name`, `description`, `version`,
-`compatibility`, `artifact`, `yanked`, plus a complete `manifest` for Plugin items.
-A `convax.plugin/2` or `convax.plugin/3` item with a generation and/or service external runtime may additionally contain
+Every item contains `kind`, `id`, `name`, `description`, `version`,
+`compatibility`, `artifact`, and `yanked`, plus a complete `manifest` for Plugin items.
+A `convax.plugin/2`, `convax.plugin/3`, or `convax.plugin/4` item with a generation and/or service external runtime may additionally contain
 `companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
@@ -47,16 +47,42 @@ can render and filter without downloading ZIPs. Skill items have no `manifest`.
 The abbreviated manifest above is explanatory only; production entries contain the
 complete validated manifest. Plugin compatibility accepts exactly one
 version-matched pair: `convax.plugin/1` + `convax.plugin-host/1`,
-`convax.plugin/2` + `convax.plugin-host/2`, or
-`convax.plugin/3` + `convax.plugin-host/3`. The embedded manifest schema must match
+`convax.plugin/2` + `convax.plugin-host/2`,
+`convax.plugin/3` + `convax.plugin-host/3`, or
+`convax.plugin/4` + `convax.plugin-host/4`. The embedded manifest schema must match
 that pair. Crossed pairs and a v1 compatibility envelope around a v2 manifest are
 rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
 Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
 target `microvoid/convax-plugins` Release assets.
 
+## Plugin-owned Skills
+
+A Skill item may additionally contain `ownerPluginId`. This is lifecycle metadata
+for Convax, not an Agent Skills field. The id must resolve to a Plugin item whose
+`convax.plugin/4` manifest contains a matching `contributes.skills` item. The
+Registry is rejected if either side is missing.
+
+Convax may show an owned Skill as a normal Skill detail with a “Provided by”
+relationship, but install, update, and removal actions target the owner Plugin.
+The Skill artifact remains a standard root-`SKILL.md` ZIP, so clients such as Codex
+may still download and use it independently.
+
+An owned Skill source change also changes the owner Plugin ZIP. Both package versions
+must be bumped and released. Before Pages deployment, release coverage rebuilds every
+source ZIP deterministically and compares its exact size and SHA-256 with the immutable
+Release entry; a new Skill entry cannot be published beside stale owner Plugin bytes.
+
+```json
+{
+  "kind": "skill",
+  "id": "ffmpeg-canvas",
+  "ownerPluginId": "ffmpeg-tools"
+}
+```
+
 ## Verified companion executables
 
-An external v2 or v3 runtime is distributed beside, never inside, its static Plugin ZIP.
+An external v2, v3, or v4 runtime is distributed beside, never inside, its static Plugin ZIP.
 Its Plugin item has the following optional strict field:
 
 ```json

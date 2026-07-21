@@ -43,6 +43,15 @@
                 "pluginSchema": { "const": "convax.plugin/3" },
                 "pluginHost": { "const": "convax.plugin-host/3" }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/4" },
+                "pluginHost": { "const": "convax.plugin-host/4" }
+              }
             }
           ]
         },
@@ -67,6 +76,12 @@
                     "properties": {
                       "pluginSchema": { "const": "convax.plugin/3" },
                       "pluginHost": { "const": "convax.plugin-host/3" }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "pluginSchema": { "const": "convax.plugin/4" },
+                      "pluginHost": { "const": "convax.plugin-host/4" }
                     }
                   }
                 ]
@@ -95,6 +110,7 @@
           "properties": { "skillSchema": { "const": "opencode.skill/1" } }
         },
         "yanked": { "type": "boolean" },
+        "ownerPluginId": { "$ref": "#/$defs/id" },
         "showcase": { "$ref": "#/$defs/showcase" }
       }
     }
@@ -127,8 +143,8 @@
         "version": { "$ref": "#/$defs/semver" },
         "source": {
           "type": "string",
-          "pattern": "^tools/[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "maxLength": 96
+          "pattern": "^packages/tools/[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 112
         },
         "targets": {
           "type": "array",

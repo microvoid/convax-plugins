@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-plugin-hello-convax",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id hello-convax",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id hello-convax"
+  }
+}

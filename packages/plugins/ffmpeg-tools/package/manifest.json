@@ -1,9 +1,9 @@
 {
-  "schema": "convax.plugin/3",
+  "schema": "convax.plugin/4",
   "id": "ffmpeg-tools",
   "name": "FFmpeg Tools",
   "description": "Runs reviewed local FFmpeg transforms against host-staged Canvas media without exposing native paths or a shell.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "contributes": {
     "generation": {
       "models": [],
@@ -108,11 +108,16 @@
           "steps": [{ "tool": "video.crop" }]
         }
       ]
-    }
+    },
+    "skills": [
+      {
+        "name": "ffmpeg-canvas",
+        "path": "skills/ffmpeg-canvas"
+      }
+    ]
   },
   "runtime": {
     "type": "mcp-stdio",
     "command": "convax-ffmpeg-mcp"
-  },
-  "skill": "skills/ffmpeg-canvas/SKILL.md"
+  }
 }

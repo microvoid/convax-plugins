@@ -13,6 +13,7 @@ Keep Convax publishing metadata outside the portable bundle:
 
 ```text
 packages/skills/<id>/
+  package.json              # workspace dependencies/scripts; never included in the ZIP
   convax-package.json       # Registry/release metadata; never included in the ZIP
   package/                  # the exact ZIP root and portable Skill directory
     SKILL.md                # required Agent Skills entry point
@@ -123,9 +124,20 @@ revision/conflict handling, and never instruct an Agent to edit private `.convax
 JSON. Do not embed secrets, tokens, absolute paths, dependency trees, generated
 binaries, or instructions to disable safety checks.
 
-A Plugin companion Skill remains a separate install and lifecycle. Its presence
-does not grant the Plugin capabilities, and removing either one does not silently
-remove the other.
+A normal standalone Skill has its own install and removal lifecycle. When a
+`convax.plugin/4` Plugin owns the Skill, set `ownerPluginId` in the Skill's
+`convax-package.json` and add the matching `{name,path}` item to the Plugin's
+`contributes.skills`. Convax may display this standard Skill with its owner, but it
+must be installed, updated, and removed only with that Plugin. The portable Skill
+ZIP remains independently usable by Codex and other compatible clients.
+
+The Plugin packer reads the Skill workspace and injects it into the Plugin ZIP.
+Never maintain a copied Skill tree below the Plugin source. npm dependencies and
+workspace relationships are build concerns; they do not grant capabilities or
+establish Convax lifecycle ownership. A package `build` script must finish before
+validation and emit a self-contained portable `package/` tree; consumers never run
+the package manager. Changing an owned Skill requires a versioned Release for both
+the Skill and its owner Plugin because both deterministic ZIPs change.
 
 ## Validate
 
@@ -134,7 +146,8 @@ Before release:
 1. Run the Agent Skills reference validator, or the bundled `skill-creator`
    `quick_validate.py`, against `package/`.
 2. Regenerate and inspect `agents/openai.yaml` after changing `SKILL.md`.
-3. Run `bun run validate`, `bun test`, and `bun run pack` from this repository.
+3. Run `bun run workspaces:build:packages`, `bun run validate`, `bun test`, and
+   `bun run pack` from this repository.
 4. Test at least one representative request, one failure or missing-tool path, and
    one request that should not trigger the Skill.
 5. Inspect the ZIP and confirm `SKILL.md` is at its root and

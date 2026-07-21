@@ -6,7 +6,16 @@ import vm from "node:vm"
 import { buildIndex } from "./build-index.mjs"
 import { checkReleaseCoverage } from "./check-release-coverage.mjs"
 import { fetchReleaseEntries } from "./fetch-release-entries.mjs"
-import { discoverPackages, parseRegistry, readStoredZip, root, sha256 } from "./lib.mjs"
+import {
+  composeOwnedSkillPackages,
+  discoverPackages,
+  maxPackageBytes,
+  maxPluginEntries,
+  parseRegistry,
+  readStoredZip,
+  root,
+  sha256,
+} from "./lib.mjs"
 import { packPackages } from "./pack.mjs"
 
 const temporaryDirectories = []
@@ -85,7 +94,7 @@ describe("source packages", () => {
     expect(xiaoyunque.metadata.companions).toEqual([{
       command: "convax-xiaoyunque-mcp",
       version: "0.3.0",
-      source: "tools/xiaoyunque-mcp",
+      source: "packages/tools/xiaoyunque-mcp",
       targets: [{
         platform: "darwin",
         arch: "arm64",
@@ -95,7 +104,7 @@ describe("source packages", () => {
     expect(xiaoyunque.manifest).not.toHaveProperty("entry")
     expect(ffmpeg.manifest).toEqual(expect.objectContaining({
       runtime: { command: "convax-ffmpeg-mcp", type: "mcp-stdio" },
-      schema: "convax.plugin/3",
+      schema: "convax.plugin/4",
     }))
     expect(ffmpeg.manifest.contributes.generation.tools.map((tool) => [tool.id, tool.output])).toEqual([
       ["run.image", "image"],
@@ -135,15 +144,19 @@ describe("source packages", () => {
       ["separate-audio-video", "confirmation", ["video.without-audio", "audio.extract"]],
       ["crop", "crop-region", ["video.crop"]],
     ])
-    expect(ffmpeg.manifest.skill).toBe("skills/ffmpeg-canvas/SKILL.md")
+    expect(ffmpeg.manifest.contributes.skills).toEqual([
+      { name: "ffmpeg-canvas", path: "skills/ffmpeg-canvas" },
+    ])
+    expect(ffmpegSkill.metadata.ownerPluginId).toBe("ffmpeg-tools")
     for (const source of ffmpegSkill.files) {
       const embedded = ffmpeg.files.find((file) => file.relativePath === `skills/ffmpeg-canvas/${source.relativePath}`)
       expect(embedded?.data).toEqual(source.data)
+      expect(embedded?.absolutePath).toBe(source.absolutePath)
     }
     expect(ffmpeg.metadata.companions).toEqual([{
       command: "convax-ffmpeg-mcp",
       version: "0.2.0",
-      source: "tools/ffmpeg-mcp",
+      source: "packages/tools/ffmpeg-mcp",
       targets: [{
         platform: "darwin",
         arch: "arm64",
@@ -187,7 +200,95 @@ describe("source packages", () => {
       "convax-companion-convax-ffmpeg-mcp-0.2.0-darwin-arm64",
     ])
     const ffmpegLicense = readStoredZip(ffmpeg.zip).find((entry) => entry.relativePath === "FFMPEG-LICENSE")
-    expect(ffmpegLicense?.data).toEqual(await fs.readFile(path.join(root, "tools", "ffmpeg-mcp", "FFMPEG-LICENSE")))
+    expect(ffmpegLicense?.data).toEqual(await fs.readFile(path.join(root, "packages", "tools", "ffmpeg-mcp", "FFMPEG-LICENSE")))
+  })
+
+  test("rechecks combined owned-Skill size and canonical path collisions", async () => {
+    const packages = await discoverPackages()
+    const ffmpeg = packages.find((pkg) => pkg.metadata.id === "ffmpeg-tools")
+    const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
+    const ownerBytes = ffmpeg.files
+      .filter((file) => !file.relativePath.startsWith("skills/ffmpeg-canvas/"))
+      .reduce((total, file) => total + file.data.byteLength, 0)
+    const oversizedPackages = packages.map((pkg) =>
+      pkg === ffmpeg
+        ? { ...pkg, files: pkg.files.filter((file) => !file.relativePath.startsWith("skills/ffmpeg-canvas/")) }
+        : pkg === ffmpegSkill
+          ? {
+              ...pkg,
+              files: [
+                ...pkg.files,
+                {
+                  absolutePath: "/synthetic/large.bin",
+                  data: Buffer.alloc(maxPackageBytes - ownerBytes),
+                  mode: 0o644,
+                  relativePath: "references/large.bin",
+                },
+              ],
+            }
+          : pkg)
+    expect(() => composeOwnedSkillPackages(oversizedPackages)).toThrow("package exceeds 10 MiB")
+
+    const collisionPackages = packages.map((pkg) =>
+      pkg === ffmpeg
+        ? {
+            ...pkg,
+            files: [
+              ...pkg.files.filter((file) => !file.relativePath.startsWith("skills/ffmpeg-canvas/")),
+              {
+                absolutePath: "/synthetic/cafe-nfd.md",
+                data: Buffer.from("owner"),
+                mode: 0o644,
+                relativePath: "skills/ffmpeg-canvas/references/cafe\u0301.md",
+              },
+            ],
+          }
+        : pkg === ffmpegSkill
+          ? {
+              ...pkg,
+              files: [
+                ...pkg.files,
+                {
+                  absolutePath: "/synthetic/cafe-nfc.md",
+                  data: Buffer.from("skill"),
+                  mode: 0o644,
+                  relativePath: "references/caf\u00e9.md",
+                },
+              ],
+            }
+          : pkg)
+    expect(() => composeOwnedSkillPackages(collisionPackages)).toThrow("owned Skill path collides")
+
+    const entryBoundPackages = packages.map((pkg) =>
+      pkg === ffmpeg
+        ? {
+            ...pkg,
+            files: [
+              ...pkg.files.filter((file) => !file.relativePath.startsWith("skills/ffmpeg-canvas/")),
+              ...Array.from({ length: 1_500 }, (_, index) => ({
+                absolutePath: `/synthetic/plugin-${index}.txt`,
+                data: Buffer.from("p"),
+                mode: 0o644,
+                relativePath: `fixtures/plugin-${index}.txt`,
+              })),
+            ],
+          }
+        : pkg === ffmpegSkill
+          ? {
+              ...pkg,
+              files: [
+                ...pkg.files,
+                ...Array.from({ length: 500 }, (_, index) => ({
+                  absolutePath: `/synthetic/skill-${index}.txt`,
+                  data: Buffer.from("s"),
+                  mode: 0o644,
+                  relativePath: `references/skill-${index}.txt`,
+                })),
+              ],
+            }
+          : pkg)
+    expect(maxPluginEntries).toBe(2_000)
+    expect(() => composeOwnedSkillPackages(entryBoundPackages)).toThrow("package exceeds the 2000 entry limit")
   })
 
   test("builds the strict client Registry with only the latest stable version", async () => {
@@ -210,6 +311,7 @@ describe("source packages", () => {
     const helloEntry = registry.packages.find((item) => item.id === "hello-convax")
     const xiaoyunqueEntry = registry.packages.find((item) => item.id === "xiaoyunque-generation")
     const firstSkill = registry.packages.find((item) => item.kind === "skill")
+    const ffmpegSkillEntry = registry.packages.find((item) => item.kind === "skill" && item.id === "ffmpeg-canvas")
     expect(helloEntry.version).toBe("0.2.0")
     expect(helloEntry.artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
     expect(xiaoyunqueEntry.manifest.schema).toBe("convax.plugin/3")
@@ -217,6 +319,22 @@ describe("source packages", () => {
       "/convax-companion-convax-xiaoyunque-mcp-0.3.0-darwin-arm64",
     )
     expect(firstSkill).not.toHaveProperty("manifest")
+    expect(ffmpegSkillEntry.ownerPluginId).toBe("ffmpeg-tools")
+
+    const missingOwner = structuredClone(registry)
+    delete missingOwner.packages
+      .find((item) => item.kind === "skill" && item.id === "ffmpeg-canvas")
+      .ownerPluginId
+    expect(() => parseRegistry(missingOwner)).toThrow(
+      "Plugin ffmpeg-tools owned Skill ffmpeg-canvas does not match a Skill ownerPluginId",
+    )
+
+    const missingSkill = structuredClone(registry)
+    missingSkill.packages = missingSkill.packages
+      .filter((item) => item.kind !== "skill" || item.id !== "ffmpeg-canvas")
+    expect(() => parseRegistry(missingSkill)).toThrow(
+      "Plugin ffmpeg-tools owned Skill ffmpeg-canvas does not match a Skill ownerPluginId",
+    )
   })
 
   test("requires a Release ZIP whose size matches its Registry entry", async () => {
@@ -300,6 +418,18 @@ describe("source packages", () => {
     const directory = await temporaryDirectory()
     const results = await packPackages(packages, directory)
     expect(await checkReleaseCoverage({ entriesDirectory: directory })).toEqual({ missing: [], ready: true })
+
+    const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
+    const changedHello = {
+      ...hello,
+      files: hello.files.map((file) =>
+        file.relativePath === "manifest.json"
+          ? { ...file, data: Buffer.concat([file.data, Buffer.from("\n")]) }
+          : file),
+    }
+    await expect(
+      checkReleaseCoverage({ entriesDirectory: directory, packages: [changedHello] }),
+    ).rejects.toThrow("Release artifact does not match the current source package")
 
     await fs.rm(results.at(-1).entryPath)
     expect(await checkReleaseCoverage({ entriesDirectory: directory })).toEqual({

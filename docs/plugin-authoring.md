@@ -5,9 +5,9 @@ served through a private protocol and mounted in an iframe with exactly
 `sandbox="allow-scripts"`. It has an opaque origin: it cannot inspect the parent
 DOM, use browser storage as shared application state, or access Node/Electron.
 
-`convax.plugin/2` and `convax.plugin/3` may instead be headless executable Tool
-Plugins. New executable Plugins should use v3. Their ZIP still
-contains no executable code: the manifest names a separately distributed bare
+`convax.plugin/2`, `convax.plugin/3`, and `convax.plugin/4` may instead be headless
+executable Tool Plugins. New executable Plugins should use v3, or v4 when they own
+Skills. Their ZIP still contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
 bind that command to verified platform artifacts that Convax installs into
 host-owned storage. Explicit Plugin install/update authorizes that exact binding;
@@ -15,13 +15,14 @@ later tool calls do not add another local-command prompt.
 
 ## Manifest
 
-`package/manifest.json` uses `convax.plugin/1`, `convax.plugin/2`, or
-`convax.plugin/3`. Only
+`package/manifest.json` uses `convax.plugin/1`, `convax.plugin/2`,
+`convax.plugin/3`, or `convax.plugin/4`. Only
 documented fields are accepted. Source metadata must use the matching pair:
 
 - `convax.plugin/1` with `convax.plugin-host/1`;
 - `convax.plugin/2` with `convax.plugin-host/2`;
 - `convax.plugin/3` with `convax.plugin-host/3`.
+- `convax.plugin/4` with `convax.plugin-host/4`.
 
 The v1 schema is static-only:
 
@@ -46,11 +47,64 @@ The v1 schema is static-only:
 Renderer matching may use `create`, `extensions`, `mimeTypes`, or `nodeKinds`.
 Package paths are POSIX-relative and case-sensitive. The optional `skill` points to
 a companion `SKILL.md` inside the same Plugin ZIP; installing it remains an explicit,
-independent user action.
+independent user action. This legacy field is available only through v3. Do not use
+it for a Skill whose lifecycle belongs to its Plugin.
+
+## Plugin-owned Skills
+
+`convax.plugin/4` replaces the ambiguous singular `skill` field with explicit
+Plugin-owned Skill contributions. The owner must still provide a real Plugin
+capability—such as a sandboxed Canvas renderer, an executable generation/service
+runtime, or a renderer-mediated generation action—beyond merely wrapping a Skill:
+
+```json
+{
+  "schema": "convax.plugin/4",
+  "id": "creative-tools",
+  "name": "Creative Tools",
+  "description": "Provides local creative operations and their Agent workflow.",
+  "version": "1.0.0",
+  "contributes": {
+    "generation": {
+      "models": [],
+      "tools": [
+        {
+          "id": "media.inspect",
+          "title": "Inspect media",
+          "description": "Inspect one staged media input.",
+          "output": "text",
+          "acceptedInputs": ["reference_video"]
+        }
+      ]
+    },
+    "skills": [
+      {
+        "name": "creative-tools-workflow",
+        "path": "skills/creative-tools-workflow"
+      }
+    ]
+  },
+  "runtime": { "type": "mcp-stdio", "command": "creative-tools-mcp" }
+}
+```
+
+Each `name` is a portable Skill id and each path is exactly `skills/<name>`.
+The Skill is authored once under `packages/skills/<name>/package/`; do not copy it
+into the Plugin source. The Skill source metadata declares `ownerPluginId`, and the
+packer injects its files into the Plugin ZIP after validating both declarations.
+Any owned Skill byte change also changes the Plugin ZIP, so publish a new owner
+Plugin version together with the new Skill version; release coverage rejects stale
+same-version owner bytes.
+
+Convax may list the Skill with a “Provided by” relationship, but users install,
+update, and remove it only through the owning Plugin. Its standard standalone ZIP
+remains usable by Codex and other Agent Skills clients. A normal standalone Skill
+that merely benefits from an optional Plugin must omit `ownerPluginId` and provide
+an honest missing-tool fallback instead.
 
 ## Declarative Tool Plugin
 
-A headless v3 package declares `runtime` together with `contributes.generation`,
+A headless v3 or v4 package declares `runtime` together with `contributes.generation`,
 `contributes.service`, or both. It does not need an `entry`, `capabilities`, fake
 HTML, Canvas renderer, provider field, or credential field. The execution catalog
 and model catalog are deliberately separate:
@@ -65,13 +119,15 @@ and model catalog are deliberately separate:
   "contributes": {
     "generation": {
       "models": [{ "tool": "image.generate", "name": "Imagine Pro" }],
-      "tools": [{
-        "id": "image.generate",
-        "title": "Generate image",
-        "description": "Generate an image from a prompt and optional visual references.",
-        "output": "image",
-        "acceptedInputs": ["reference_image"]
-      }]
+      "tools": [
+        {
+          "id": "image.generate",
+          "title": "Generate image",
+          "description": "Generate an image from a prompt and optional visual references.",
+          "output": "image",
+          "acceptedInputs": ["reference_image"]
+        }
+      ]
     }
   },
   "runtime": {
@@ -113,7 +169,7 @@ multiple steps, which supports paired outputs such as video-only plus audio-only
 
 `runtime.command` is a portable bare executable name, never a path. Optional args
 are bounded static tokens without whitespace, shell syntax, native paths, or
-traversal. Keep reviewed sidecar source under `tools/<id>` when it belongs in this
+traversal. Keep reviewed sidecar source under `packages/tools/<id>` when it belongs in this
 repository, distribute it separately, and keep the executable and dependency tree
 out of `package/`. A first-party package declares its reviewed `source`, companion
 version, and platform targets in the adjacent `convax-package.json`; publishing
@@ -126,7 +182,7 @@ closed and require reinstall. The Plugin manifest never contains build paths,
 vendor credentials, or a fallback download URL, and the user does not need to copy
 the executable into `PATH`.
 
-A v2 or v3 Web surface that calls installed generation tools requests
+A v2, v3, or v4 Web surface that calls installed generation tools requests
 `generation.execute` and uses an ordinary `entry` plus Canvas contribution. It may
 omit `runtime` and `contributes.generation`. Declaring a runtime does not grant the
 Web surface caller authority, and granting `generation.execute` does not let the
@@ -134,7 +190,7 @@ iframe start processes or send arbitrary MCP requests.
 
 ## Plugin service contribution
 
-A v2 or v3 executable Plugin may expose bounded account/service state through the same
+A v2, v3, or v4 executable Plugin may expose bounded account/service state through the same
 verified sidecar process used by generation. The manifest declares only which
 fixed host actions are meaningful; it cannot choose MCP method names or attach an
 action payload:
@@ -183,25 +239,35 @@ not protect against processes already running as the same OS account.
 
 Convax transfers one fresh `MessagePort` to each mounted Plugin node. Accept it only
 from `window.parent`, for the host protocol matching the manifest major (`/1`,
-`/2`, or `/3`), the exact Plugin id, and only once:
+`/2`, `/3`, or `/4`), the exact Plugin id, and only once:
 
 ```js
-const PROTOCOL = "convax.plugin-host/1"
+const PROTOCOL = "convax.plugin-host/1";
 window.addEventListener("message", function connect(event) {
-  const message = event.data
-  if (event.source !== window.parent || message?.protocol !== PROTOCOL ||
-      message?.type !== "connect" || message?.pluginId !== "my-plugin" ||
-      event.ports.length !== 1) return
-  window.removeEventListener("message", connect)
-  const port = event.ports[0]
-  port.start()
-})
+  const message = event.data;
+  if (
+    event.source !== window.parent ||
+    message?.protocol !== PROTOCOL ||
+    message?.type !== "connect" ||
+    message?.pluginId !== "my-plugin" ||
+    event.ports.length !== 1
+  )
+    return;
+  window.removeEventListener("message", connect);
+  const port = event.ports[0];
+  port.start();
+});
 ```
 
 Requests and responses use the transferred port, never global `postMessage`:
 
 ```json
-{"protocol":"convax.plugin-host/1","type":"request","id":"1","method":"host.context.get"}
+{
+  "protocol": "convax.plugin-host/1",
+  "type": "request",
+  "id": "1",
+  "method": "host.context.get"
+}
 ```
 
 Responses repeat `protocol`, `type: "response"`, and `id`, with either
@@ -210,15 +276,15 @@ arrive as `{"protocol":"convax.plugin-host/1","type":"command","command":"refres
 
 ## Capabilities
 
-| Method | Manifest capability | Scope |
-| --- | --- | --- |
-| `host.context.get` | none | current Project, Canvas, and owning node |
-| `canvas.node.get` | `canvas.node.read` | owning node only |
-| `canvas.node.updateState` | `canvas.node.write` | Plugin-namespaced node state |
-| `project.file.readText` | `project.files.read` | current Project-relative text file |
-| `agent.prompt` | `agent.prompt` | current Project and owning node resource |
-| `generation.tools.list` | `generation.execute` | installed generation contracts in the current scope |
-| `generation.canvas.execute` | `generation.execute` | shared scoped Canvas generation operation |
+| Method                      | Manifest capability  | Scope                                               |
+| --------------------------- | -------------------- | --------------------------------------------------- |
+| `host.context.get`          | none                 | current Project, Canvas, and owning node            |
+| `canvas.node.get`           | `canvas.node.read`   | owning node only                                    |
+| `canvas.node.updateState`   | `canvas.node.write`  | Plugin-namespaced node state                        |
+| `project.file.readText`     | `project.files.read` | current Project-relative text file                  |
+| `agent.prompt`              | `agent.prompt`       | current Project and owning node resource            |
+| `generation.tools.list`     | `generation.execute` | installed generation contracts in the current scope |
+| `generation.canvas.execute` | `generation.execute` | shared scoped Canvas generation operation           |
 
 Request the smallest set. Arguments cannot select another Project, Canvas, or node.
 Treat results as untrusted structured data, bound message sizes, handle errors, and
@@ -230,5 +296,5 @@ a failed optional view effect; do not report that as a reverted mutation.
 No remote scripts/assets, iframe network APIs, popups, downloads, eval-generated
 code, native/WASM executables, packaged Node servers, filesystem paths, secrets,
 telemetry, service workers, or generic method forwarding. Do not edit `.convax`
-files. A v2 or v3 external runtime is a separately installed and authorized tool, never a
+files. A v2, v3, or v4 external runtime is a separately installed and authorized tool, never a
 Plugin ZIP asset. Use host capabilities only.
