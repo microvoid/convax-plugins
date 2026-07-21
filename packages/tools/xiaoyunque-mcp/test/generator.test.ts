@@ -372,13 +372,14 @@ describe("XiaoYunque generation engine", () => {
     }
   })
 
-  test("uses one first frame as a normal image-to-video reference", async () => {
+  test("registers and submits one Canvas reference image for video generation", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-first-frame-video-"))
     directories.push(directory)
     const output = path.join(directory, "output")
     const firstFrame = path.join(directory, "first.png")
     await Promise.all([mkdir(output), writeFile(firstFrame, png)])
     let uploadCount = 0
+    let registrationCount = 0
     let submittedBody: Record<string, unknown> | undefined
     let submittedTask: ReturnType<typeof taskFromSubmitBody> | undefined
     const server = Bun.serve({
@@ -396,9 +397,18 @@ describe("XiaoYunque generation engine", () => {
             data: {
               asset_id: "first-frame-asset",
               download_url: `${url.origin}/uploaded-first.png`,
-              pippit_asset_id: "pippit-first-frame",
             },
           })
+        }
+        if (url.pathname === "/api/biz/v1/asset/create_v2") {
+          registrationCount += 1
+          expect(await request.json()).toEqual({
+            asset_source_type: 3,
+            asset_source_id: "first-frame-asset",
+            asset_type: 1,
+            Base: { Client: "web" },
+          })
+          return Response.json({ data: { PippitAssetID: "pippit-first-frame" } })
         }
         const accountPreflight = await accountPreflightResponse(request)
         if (accountPreflight) return accountPreflight
@@ -450,12 +460,13 @@ describe("XiaoYunque generation engine", () => {
           name: "first.png",
           node_id: "ordinary-canvas-image-node",
           path: firstFrame,
-          role: "first_frame",
+          role: "reference_image",
         }],
       }), videoModel, new AbortController().signal)
 
       expect(artifacts[0]?.mimeType).toBe("video/mp4")
       expect(uploadCount).toBe(1)
+      expect(registrationCount).toBe(1)
       expect(submittedBody).toMatchObject({
         agent_name: "pippit_novel_video_part_agent",
       })

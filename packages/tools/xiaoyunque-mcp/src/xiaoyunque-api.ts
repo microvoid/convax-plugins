@@ -31,7 +31,7 @@ export class XiaoYunqueQueryTimeoutError extends Error {
 
 /**
  * The first-party upload succeeded, but its EverPhoto asset could not be
- * registered as the Pippit asset identity required by image generation.
+ * registered as the Pippit asset identity required by image and video generation.
  * Never attach upstream response details to this error because it crosses the
  * MCP diagnostic boundary.
  */
@@ -633,7 +633,7 @@ export class XiaoYunqueApi {
   ) {
     try {
       // `upload_file.asset_id` is an EverPhoto source id. The first-party Web
-      // product converts it into the identity consumed by image generation via
+      // product converts it into the identity consumed by image and video generation via
       // AssetCreateV2; the two ids are deliberately never treated as aliases.
       const response = await this.#jsonRequest(assetCreateV2Path, {
         asset_source_type: 3,
