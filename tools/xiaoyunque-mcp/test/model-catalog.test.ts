@@ -51,10 +51,34 @@ describe("XiaoYunque first-party Web model catalog", () => {
       "manifest.json",
     )
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-      contributes: { generation: { tools: Array<{ acceptedInputs: string[]; id: string }> } }
+      contributes: {
+        generation: {
+          models: Array<{ name: string; tool: string }>
+          tools: Array<{ acceptedInputs: string[]; id: string }>
+        }
+      }
     }
     const manifestIds = manifest.contributes.generation.tools.map((tool) => tool.id)
     expect(manifestIds).toEqual(expectedCatalog.map((tool) => tool.name))
+    expect(manifest.contributes.generation.models.map((model) => model.tool)).toEqual(manifestIds)
+    expect(manifest.contributes.generation.models.map((model) => model.name)).toEqual([
+      "Seedream 5.0 Pro",
+      "Seedream 5.0",
+      "Seedream 4.3",
+      "Seedream 4.5",
+      "Seedream 4.1",
+      "Seedream 4",
+      "Nano Banana Pro 1",
+      "GPT Image 2",
+      "Seedance 2.0 Mini Lite",
+      "Seedance 2.0 Mini",
+      "Seedance 2.0 Fast Vision",
+      "Seedance 2.0 Vision",
+      "Seedance 2.0 Fast",
+      "Seedance 2.0",
+      "Seedance 1.5",
+      "Seedance 1.0 Fast",
+    ])
     const mcpNames: string[] = generationMcpTools.map((tool) => tool.name)
     expect(mcpNames).toEqual(manifestIds)
     expect(manifest.contributes.generation.tools.find((tool) => tool.id === "video.seedance_1.0_fast")?.acceptedInputs)

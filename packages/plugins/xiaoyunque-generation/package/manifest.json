@@ -1,11 +1,29 @@
 {
-  "schema": "convax.plugin/2",
+  "schema": "convax.plugin/3",
   "id": "xiaoyunque-generation",
   "name": "小云雀生成",
   "description": "通过宿主管理的小云雀网页授权展示服务状态，并使用小云雀第一方网页能力生成图片和视频。",
-  "version": "0.2.12",
+  "version": "0.3.0",
   "contributes": {
     "generation": {
+      "models": [
+        { "tool": "image.seedream_5.0_pro", "name": "Seedream 5.0 Pro" },
+        { "tool": "image.seedream_5.0", "name": "Seedream 5.0" },
+        { "tool": "image.seedream_4.3", "name": "Seedream 4.3" },
+        { "tool": "image.seedream_4.5", "name": "Seedream 4.5" },
+        { "tool": "image.seedream_4.1", "name": "Seedream 4.1" },
+        { "tool": "image.seedream_4", "name": "Seedream 4" },
+        { "tool": "image.nano_banana_pro_1", "name": "Nano Banana Pro 1" },
+        { "tool": "image.gpt_image_2", "name": "GPT Image 2" },
+        { "tool": "video.seedance_2.0_mini_lite", "name": "Seedance 2.0 Mini Lite" },
+        { "tool": "video.seedance_2.0_mini", "name": "Seedance 2.0 Mini" },
+        { "tool": "video.seedance2.0_fast_vision", "name": "Seedance 2.0 Fast Vision" },
+        { "tool": "video.seedance2.0_vision", "name": "Seedance 2.0 Vision" },
+        { "tool": "video.seedance2.0_fast_direct", "name": "Seedance 2.0 Fast" },
+        { "tool": "video.seedance2.0_direct", "name": "Seedance 2.0" },
+        { "tool": "video.seedance1.5_direct", "name": "Seedance 1.5" },
+        { "tool": "video.seedance_1.0_fast", "name": "Seedance 1.0 Fast" }
+      ],
       "tools": [
         {
           "id": "image.seedream_5.0_pro",

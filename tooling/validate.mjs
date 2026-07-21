@@ -43,6 +43,7 @@ export async function validateRepository() {
     "convax-package-v1.schema.json",
     "convax-plugin-manifest-v1.schema.json",
     "convax-plugin-manifest-v2.schema.json",
+    "convax-plugin-manifest-v3.schema.json",
     "convax-registry-v1.schema.json",
     "convax-showcase-entry-v1.schema.json",
     "convax-showcase-v1.schema.json",

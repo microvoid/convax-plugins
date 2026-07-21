@@ -2,23 +2,42 @@
 
 FFmpeg Tools adds local media transformations to Convax through a reviewed Tool
 Plugin companion. Agent workflows can compose FFmpeg argv directly, while Convax
-can expose common video-node actions such as Extract Frame, Trim, and Crop in the
-node toolbar.
+renders common video-node actions such as Extract Frame, Trim, Crop, and Separate
+Audio and Video from the Plugin's declarative selection-action contribution.
 
 ## Tools
 
-The Plugin publishes three generation tool IDs:
+The Plugin publishes three broad argv execution tools:
 
 - `ffmpeg-tools/run.image`
 - `ffmpeg-tools/run.video`
 - `ffmpeg-tools/run.audio`
 
-All three tools accept the five Convax media-reference roles (`reference_image`,
+They are declared only as Agent tools, under the derived host names
+`plugin_ffmpeg_tools_run_image`, `plugin_ffmpeg_tools_run_video`, and
+`plugin_ffmpeg_tools_run_audio`. OpenCode normally displays these with the
+`convax_` MCP namespace prefix. The Plugin explicitly publishes an empty model
+catalog, so these local operations never appear in the model picker.
+
+The Plugin also publishes five high-level tools used by Canvas selection actions:
+
+- `frame.extract`
+- `video.trim`
+- `video.crop`
+- `video.without-audio`
+- `audio.extract`
+
+The time-point, time-range, and crop-region editors provide typed values to these
+tools. The sidecar—not Convax core—turns those values into reviewed FFmpeg argv.
+The separation action runs the final two tools and produces related video-only and
+audio-only cards.
+
+All three raw tools accept the five Convax media-reference roles (`reference_image`,
 `reference_video`, `first_frame`, `last_frame`, and `audio`) so one FFmpeg graph
 can combine heterogeneous staged media. Each reference still has to match the
 declared role and a supported media signature.
 
-Each tool receives `arguments_json`, a JSON array containing individual FFmpeg
+Each raw tool receives `arguments_json`, a JSON array containing individual FFmpeg
 argv tokens. Convax never invokes a shell. Use `{{input:N}}` as a complete token
 for each staged Canvas input and use `{{output}}` exactly once as the final token.
 For example:

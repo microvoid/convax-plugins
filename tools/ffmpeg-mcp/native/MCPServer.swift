@@ -133,7 +133,7 @@ final class MCPServer {
       sendResult(id: id, result: [
         "capabilities": ["tools": [:]],
         "protocolVersion": protocolVersion,
-        "serverInfo": ["name": "convax-ffmpeg-mcp", "version": "0.1.0"],
+        "serverInfo": ["name": "convax-ffmpeg-mcp", "version": "0.2.0"],
       ])
     } catch {
       sendError(id: id, code: -32602, message: "Invalid initialize params")
@@ -175,7 +175,7 @@ final class MCPServer {
         handlers.leave()
       }
       do {
-        let call = try parseGenerationCall(object["arguments"], expectedOutput: selected.output)
+        let call = try parseToolCall(object["arguments"], tool: selected)
         let artifacts = try engine.generate(call, control: control)
         sendResult(id: id, result: [
           "content": [[

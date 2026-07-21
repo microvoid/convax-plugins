@@ -253,7 +253,7 @@ describe("MCP process", () => {
       })
       expect(initialized).toMatchObject({
         result: {
-          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.2.12" },
+          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.0" },
         },
       })
       const authorization = await harness.request("tools/call", { name: "service.authorize", arguments: {} })

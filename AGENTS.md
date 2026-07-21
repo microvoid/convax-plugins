@@ -8,14 +8,16 @@ These rules apply to people and AI agents in this repository.
 2. Name the package or external tool being changed. A package owns only files below
    its own directory; a separately distributed tool owns only `tools/<id>`.
 3. Never copy private Convax implementation code. Use only the documented manifest
-   and version-matched `convax.plugin-host/1` or `convax.plugin-host/2` protocol.
+   and version-matched `convax.plugin-host/1`, `convax.plugin-host/2`, or
+   `convax.plugin-host/3` protocol.
 
 ## Package rules
 
 - Plugin and Skill sources live under `packages/plugins/<id>` and
   `packages/skills/<id>` respectively.
 - The contents of `package/`, not the containing directory, become the ZIP root.
-- A `convax.plugin/1` Plugin is static Web content. A `convax.plugin/2` package may
+- A `convax.plugin/1` Plugin is static Web content. A `convax.plugin/2` or
+  `convax.plugin/3` package may
   additionally declare a separately installed bare `mcp-stdio` command and
   generation tools. Never put that executable, a server, native binary, Electron,
   Node access, remote script, dependency tree, or install/build hook in the Plugin

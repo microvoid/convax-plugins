@@ -46,7 +46,9 @@ The generated Plugin ZIP has `manifest.json` at its root. A Skill ZIP has
 `SKILL.md` at its root. No dependency install or contributor build script is run
 while validating or packing a package.
 
-Executable Tool Plugins use `convax.plugin/2` and may be headless. Their ZIP still
+New executable Tool Plugins use `convax.plugin/3` and may be headless. v3
+separates executable tools, model-picker entries, Agent tools, and Canvas selection
+actions so hosts can compose every Plugin without checking its id. Their ZIP still
 contains only inert package files: it declares a separately installed bare
 `mcp-stdio` command for generation and/or fixed service actions, and never embeds
 that executable, its dependencies, vendor credentials, or provider configuration. See
@@ -91,7 +93,7 @@ Open **Settings → Skills and Plugins** in a compatible Convax build. The catal
 loaded from the public Registry above; selecting **Install Plugin** or **Install
 Skill** sends only the package id to Convax main, which downloads and validates the
 corresponding immutable Release ZIP.
-If a v2 Plugin declares Registry companions, the same install transaction selects
+If a v2 or v3 Plugin declares Registry companions, the same install transaction selects
 only the exact local platform/architecture artifact and verifies its immutable URL,
 byte count, and SHA-256 separately from the static ZIP.
 
@@ -159,7 +161,7 @@ entries only.
 Third-party Plugin ZIPs are inert. Web surfaces are static HTML/CSS/JavaScript
 rendered by Convax in an iframe with exactly `sandbox="allow-scripts"`; they cannot
 contain native executables, Node/Electron code, network permissions, or a generic
-host bridge. A v2 Tool Plugin may name a separately installed external command.
+host bridge. A v2 or v3 Tool Plugin may name a separately installed external command.
 Convax resolves and fingerprints it during explicit Plugin install/update; that
 transaction is consent to the exact binding, so later calls do not show a separate
 command prompt. It never becomes part of the ZIP. A Registry companion is an independent immutable Release asset,

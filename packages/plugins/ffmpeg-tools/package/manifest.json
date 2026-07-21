@@ -1,32 +1,111 @@
 {
-  "schema": "convax.plugin/2",
+  "schema": "convax.plugin/3",
   "id": "ffmpeg-tools",
   "name": "FFmpeg Tools",
   "description": "Runs reviewed local FFmpeg transforms against host-staged Canvas media without exposing native paths or a shell.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "contributes": {
     "generation": {
+      "models": [],
       "tools": [
         {
           "id": "run.image",
-          "title": "FFmpeg · Image output",
-          "description": "Run FFmpeg arguments that create one image from staged Canvas media.",
+          "title": "FFmpeg image output",
+          "description": "Run explicit FFmpeg arguments that create one image from staged Canvas media.",
           "output": "image",
           "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
         },
         {
           "id": "run.video",
-          "title": "FFmpeg · Video output",
-          "description": "Run FFmpeg arguments that create one video from staged Canvas media.",
+          "title": "FFmpeg video output",
+          "description": "Run explicit FFmpeg arguments that create one video from staged Canvas media.",
           "output": "video",
           "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
         },
         {
           "id": "run.audio",
-          "title": "FFmpeg · Audio output",
-          "description": "Run FFmpeg arguments that create one audio file from staged Canvas media.",
+          "title": "FFmpeg audio output",
+          "description": "Run explicit FFmpeg arguments that create one audio file from staged Canvas media.",
           "output": "audio",
           "acceptedInputs": ["reference_image", "reference_video", "first_frame", "last_frame", "audio"]
+        },
+        {
+          "id": "frame.extract",
+          "title": "Extract frame",
+          "description": "Extract one PNG frame at a selected time from a video.",
+          "output": "image",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "video.trim",
+          "title": "Trim video",
+          "description": "Create one MP4 from a selected time range in a video.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "video.crop",
+          "title": "Crop video",
+          "description": "Create one MP4 from a selected rectangular region in a video.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "video.without-audio",
+          "title": "Create video-only output",
+          "description": "Create one MP4 containing the video stream without audio.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "audio.extract",
+          "title": "Create audio-only output",
+          "description": "Create one M4A containing the audio stream without video.",
+          "output": "audio",
+          "acceptedInputs": ["reference_video"]
+        }
+      ]
+    },
+    "agent": {
+      "tools": [
+        { "id": "run_image", "tool": "run.image" },
+        { "id": "run_video", "tool": "run.video" },
+        { "id": "run_audio", "tool": "run.audio" }
+      ]
+    },
+    "canvas": {
+      "selectionActions": [
+        {
+          "id": "extract-frame",
+          "title": { "default": "Extract frame", "zh-CN": "抽帧" },
+          "description": { "default": "Choose a time point and create a new PNG frame.", "zh-CN": "选择时间点并创建新的 PNG 帧。" },
+          "target": "video",
+          "editor": "time-point",
+          "steps": [{ "tool": "frame.extract" }]
+        },
+        {
+          "id": "trim",
+          "title": { "default": "Trim", "zh-CN": "截取" },
+          "description": { "default": "Drag the timeline handles to select a range and create a new video.", "zh-CN": "拖动时间轴手柄选择区间并创建新视频。" },
+          "target": "video",
+          "editor": "time-range",
+          "steps": [{ "tool": "video.trim" }]
+        },
+        {
+          "id": "separate-audio-video",
+          "title": { "default": "Separate audio and video", "zh-CN": "音视频分离" },
+          "description": { "default": "Create related video-only and audio-only cards.", "zh-CN": "创建相互关联的纯视频卡片和纯音频卡片。" },
+          "target": "video",
+          "editor": "confirmation",
+          "steps": [{ "tool": "video.without-audio" }, { "tool": "audio.extract" }]
+        },
+        {
+          "id": "crop",
+          "title": { "default": "Crop", "zh-CN": "裁剪" },
+          "description": { "default": "Drag a rectangle over the video preview and create a new video.", "zh-CN": "在视频预览上拖动裁剪框并创建新视频。" },
+          "target": "video",
+          "editor": "crop-region",
+          "steps": [{ "tool": "video.crop" }]
         }
       ]
     }

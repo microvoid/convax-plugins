@@ -1,6 +1,6 @@
 ---
 name: ffmpeg-canvas
-description: Transform image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, transcoding, remuxing, filtering, or combining media. Use for managed Convax Canvas nodes when canvas_generate and ffmpeg-tools are available, or for explicit local files when an authorized argv-based process tool and local ffmpeg installation are available.
+description: Transform or split image, video, or audio with FFmpeg for operations such as extracting frames, trimming, cropping, separating audio and video into paired outputs, transcoding, remuxing, filtering, or combining media. Use the declared FFmpeg Plugin Agent tools for managed Convax Canvas nodes when available, or an authorized argv-based local process for explicit files in other compatible agents such as Codex.
 ---
 
 # FFmpeg Canvas
@@ -11,9 +11,15 @@ safest available route, and preserve every source file or node.
 ## Select the execution route
 
 1. Inspect the capabilities available in the current session.
-2. Prefer the managed Convax route when `canvas_generate` and the matching
-   `ffmpeg-tools/run.image`, `run.video`, or `run.audio` tool are available. Read
-   [references/convax.md](references/convax.md) before calling it.
+2. Prefer the managed Convax route when `convax_plugin_ffmpeg_tools_run_image`,
+   `convax_plugin_ffmpeg_tools_run_video`, or
+   `convax_plugin_ffmpeg_tools_run_audio` is available. OpenCode adds the
+   `convax_` MCP namespace to the host-derived names
+   `plugin_ffmpeg_tools_run_image`, `plugin_ffmpeg_tools_run_video`, and
+   `plugin_ffmpeg_tools_run_audio`; accept either form when inspecting a client's
+   capability list. No built-in FFmpeg tool is assumed. Read
+   [references/convax.md](references/convax.md) before calling one. Never route a
+   managed FFmpeg transform through a generative-model tool.
 3. Otherwise, use the local route only when the client exposes a user-authorized
    argv-based process capability and `ffmpeg` plus `ffprobe` are installed.
 4. If neither route exists, return the proposed argv, output name, and verification
@@ -29,6 +35,12 @@ only when requested or when the chosen operation should reasonably retain them.
 Build argv as an array of literal tokens. Never build a shell command, interpolate
 untrusted text into a command string, or use shell expansion. Produce a new output;
 do not replace, delete, or modify an input.
+
+Treat “separate audio and video” as a two-output request. Create one video-only
+output with `-an` and one independent audio-only output with `-vn`; never satisfy
+the request by extracting only audio. In Convax, call the declared video and audio
+Agent tools separately because each tool admits exactly one output. For an
+authorized local process, execute and validate two independent argv vectors.
 
 ## Use an authorized local process
 
@@ -52,5 +64,6 @@ before a costly batch or a transform that may substantially reduce quality.
 ## Finish safely
 
 Report the chosen route, essential transform settings, validated output, and any
-quality or compatibility warnings. On partial failure, report the last confirmed
-state and leave cleanup or retry to an explicit user decision.
+quality or compatibility warnings. For audio/video separation, report both output
+identities and state explicitly if only one succeeded. On partial failure, report
+the last confirmed state and leave cleanup or retry to an explicit user decision.
