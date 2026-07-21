@@ -60,12 +60,7 @@ jobs:
           echo "CONVAX_FFMPEG_REQUIRE_PGP=1" >> "$GITHUB_ENV"
       - name: Validate repository and tag
         run: |
-          bun run workspaces:build:packages
-          bun run validate
-          bun run workspaces:typecheck
-          bun run workspaces:test
-          bun tooling/build-companions.mjs --tag "$GITHUB_REF_NAME"
-          bun run test
+          bun run check
           bun tooling/pack.mjs --tag "$GITHUB_REF_NAME"
 
   publish:

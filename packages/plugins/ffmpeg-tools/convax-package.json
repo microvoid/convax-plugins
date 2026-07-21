@@ -4,7 +4,7 @@
   "id": "ffmpeg-tools",
   "name": "FFmpeg Tools",
   "description": "Runs reviewed local FFmpeg transforms against host-staged Canvas media without exposing native paths or a shell.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "compatibility": {
     "pluginSchema": "convax.plugin/4",
