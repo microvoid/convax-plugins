@@ -1,0 +1,28 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "subtitle-studio",
+  "name": "Subtitle Studio",
+  "description": "Local-first subtitle creation, multilingual adaptation, soft-subtitle handling, and AI hard-subtitle removal for directly connected Canvas video.",
+  "version": "0.4.0",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/3",
+    "pluginHost": "convax.plugin-host/3"
+  },
+  "companions": [
+    {
+      "command": "convax-subtitle-studio-mcp",
+      "version": "0.4.0",
+      "source": "tools/subtitle-studio-mcp",
+      "targets": [
+        {
+          "platform": "darwin",
+          "arch": "arm64",
+          "path": "dist/darwin-arm64/convax-subtitle-studio-mcp"
+        }
+      ]
+    }
+  ],
+  "yanked": false
+}

@@ -132,6 +132,21 @@ omit `runtime` and `contributes.generation`. Declaring a runtime does not grant 
 Web surface caller authority, and granting `generation.execute` does not let the
 iframe start processes or send arbitrary MCP requests.
 
+A v3 Web surface may choose between two generic execution modes. `generation.canvas.execute`
+commits admitted output directly to Canvas. `generation.workspace.execute` keeps admitted
+output detached so the Plugin can preview it before the user explicitly publishes or
+exports it. Detached text is returned inline; detached media is represented by a short-lived
+opaque artifact id and playback URL. It never exposes a Project or native path. The owning
+frame may publish, export, release, or cancel only its own artifacts in the current
+Project/Canvas/node scope. Closing the frame, changing scope, expiry, or publishing releases
+the temporary authorization and cleans unclaimed managed assets.
+
+Workspace calls still select only a declared generation tool, use schema-validated scalar
+`toolInput`, and derive media references from direct incoming Canvas edges. They are not an
+arbitrary MCP or filesystem bridge. `generation.workspace.publish` may attach bounded SRT or
+VTT text tracks; the host validates and stores them as portable managed VTT sidecars so the
+Canvas player and downstream Project restore keep the same soft subtitles.
+
 ## Plugin service contribution
 
 A v2 or v3 executable Plugin may expose bounded account/service state through the same
@@ -215,10 +230,20 @@ arrive as `{"protocol":"convax.plugin-host/1","type":"command","command":"refres
 | `host.context.get` | none | current Project, Canvas, and owning node |
 | `canvas.node.get` | `canvas.node.read` | owning node only |
 | `canvas.node.updateState` | `canvas.node.write` | Plugin-namespaced node state |
+| `canvas.connectedMedia.list` | `canvas.connectedMedia.read` | direct incoming managed audio/video nodes |
+| `canvas.connectedMedia.playback.open` / `.close` | `canvas.connectedMedia.read` | opaque, expiring playback lease for one listed node |
 | `project.file.readText` | `project.files.read` | current Project-relative text file |
 | `agent.prompt` | `agent.prompt` | current Project and owning node resource |
 | `generation.tools.list` | `generation.execute` | installed generation contracts in the current scope |
 | `generation.canvas.execute` | `generation.execute` | shared scoped Canvas generation operation |
+| `generation.workspace.execute` / `.cancel` | `generation.execute` | detached scoped operation using direct incoming references |
+| `generation.workspace.publish` / `.export` / `.release` | `generation.execute` | owning frame's opaque detached artifact or direct source |
+| `host.file.exportText` | `host.files.save` | Main save dialog for bounded UTF-8 text; no caller path |
+
+Each `canvas.connectedMedia.list` item includes an opaque `sourceVersion`. Persist it
+with any media-derived document, clear or explicitly migrate that document when the
+version changes, and avoid reopening a playback lease when both node id and version
+are unchanged. The token is an identity signal, not a Project path or content URL.
 
 Request the smallest set. Arguments cannot select another Project, Canvas, or node.
 Treat results as untrusted structured data, bound message sizes, handle errors, and
@@ -227,8 +252,10 @@ a failed optional view effect; do not report that as a reverted mutation.
 
 ## Forbidden behavior
 
-No remote scripts/assets, iframe network APIs, popups, downloads, eval-generated
+No remote scripts/assets, iframe network APIs, popups, browser-initiated downloads, eval-generated
 code, native/WASM executables, packaged Node servers, filesystem paths, secrets,
 telemetry, service workers, or generic method forwarding. Do not edit `.convax`
 files. A v2 or v3 external runtime is a separately installed and authorized tool, never a
-Plugin ZIP asset. Use host capabilities only.
+Plugin ZIP asset. A declared `host.files.save` request may invoke only the host-owned
+bounded text save dialog; it does not grant browser download or path access. Use host
+capabilities only.

@@ -213,7 +213,7 @@ describe("convax.plugin/3 declarative contributions", () => {
     expect(() => parsePluginManifest(toolbarOnly)).toThrow("toolbar requires a renderer")
   })
 
-  test("pairs entry only with a renderer and keeps generation.execute renderer-scoped", () => {
+  test("pairs entry only with a renderer and keeps renderer host capabilities scoped", () => {
     const renderer = manifest()
     renderer.entry = "index.html"
     renderer.contributes.canvas.renderer = { mimeTypes: ["video/mp4"] }
@@ -222,8 +222,20 @@ describe("convax.plugin/3 declarative contributions", () => {
     const entryWithoutRenderer = manifest({ entry: "index.html" })
     expect(() => parsePluginManifest(entryWithoutRenderer)).toThrow("entry and Canvas renderer")
 
-    const capabilityWithoutRenderer = manifest({ capabilities: ["generation.execute"] })
-    expect(() => parsePluginManifest(capabilityWithoutRenderer)).toThrow("sandboxed Canvas renderer")
+    for (const capability of ["generation.execute", "canvas.connectedMedia.read", "host.files.save"]) {
+      const capabilityWithoutRenderer = manifest({ capabilities: [capability] })
+      expect(() => parsePluginManifest(capabilityWithoutRenderer)).toThrow("sandboxed Canvas renderer")
+    }
+
+    for (const capability of ["canvas.connectedMedia.read", "host.files.save"]) {
+      const rendererOnly = manifest({
+        capabilities: [capability],
+        contributes: { canvas: { renderer: { create: true, height: 480, width: 640 } } },
+        entry: "index.html",
+        runtime: undefined,
+      })
+      expect(parsePluginManifest(rendererOnly).capabilities).toEqual([capability])
+    }
   })
 
   test("does not backport v3 fields into the v2 protocol", () => {

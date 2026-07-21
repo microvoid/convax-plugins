@@ -1,0 +1,21 @@
+{
+  "name": "@microvoid/convax-subtitle-studio-mcp",
+  "version": "0.4.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "convax-subtitle-studio-mcp": "dist/convax-subtitle-studio-mcp"
+  },
+  "scripts": {
+    "build": "bun build --compile --minify --outfile dist/convax-subtitle-studio-mcp src/main.ts",
+    "build:release:darwin-arm64": "bun build --compile --minify --target=bun-darwin-arm64 --outfile dist/darwin-arm64/convax-subtitle-studio-mcp src/main.ts",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
