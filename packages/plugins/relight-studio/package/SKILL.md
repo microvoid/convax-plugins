@@ -15,9 +15,10 @@ direction, color temperature, contrast, or cinematic atmosphere.
 3. Start generation from the Plugin. It discovers compatible installed image tools
    through `generation.tools.list` and submits the relighting prompt plus the direct
    incoming image through `generation.canvas.execute`.
-4. Treat generation as successful only when the host reports created Canvas node
-   ids. The host admits the generated image into managed Project assets and creates
-   the output node beside the Plugin surface.
+4. The host creates a pending image node beside the Plugin surface immediately,
+   then admits the generated image into managed Project assets and replaces that
+   pending node. Treat generation as successful only when the host reports the
+   created Canvas node id.
 5. If no compatible image tool is installed or authorized, explain that generation
    is unavailable and ask the user to install or authorize one; do not claim that a
    preview is a generated result.

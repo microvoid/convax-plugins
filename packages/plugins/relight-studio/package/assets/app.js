@@ -1,4 +1,5 @@
 import { RelightRenderer } from "./relight-renderer.js"
+import { buildRelightGenerationRequest, normalizeGenerationTools } from "./generation.js"
 
 const HOST_PROTOCOL = "convax.plugin-host/3"
 const PLUGIN_ID = "relight-studio"
@@ -236,6 +237,7 @@ let saveRevision = 0
 let savedRevision = 0
 let saveInFlight = null
 let saveAttempts = 0
+let lastSaveError = null
 let renderFrame = 0
 let toastTimer = 0
 let dragDepth = 0
@@ -438,16 +440,22 @@ function queueStateSave() {
   if (!hostReady) return
   saveRevision += 1
   saveAttempts = 0
+  lastSaveError = null
   window.clearTimeout(saveTimer)
+  if (generationInFlight) return
   saveTimer = window.setTimeout(function () {
     void flushStateSave()
   }, STATE_SAVE_DELAY)
 }
 
-async function flushStateSave() {
+async function flushStateSave(options) {
+  const allowDuringGeneration = isRecord(options) && options.allowDuringGeneration === true
   window.clearTimeout(saveTimer)
-  if (!hostReady || savedRevision >= saveRevision) return
-  if (saveInFlight) return saveInFlight
+  if (!hostReady || (!allowDuringGeneration && generationInFlight) || savedRevision >= saveRevision) return
+  if (saveInFlight) {
+    await saveInFlight
+    return
+  }
   if (saveAttempts >= STATE_SAVE_MAX_ATTEMPTS) return
   const targetRevision = saveRevision
   saveAttempts += 1
@@ -455,15 +463,17 @@ async function flushStateSave() {
     .then(function () {
       savedRevision = Math.max(savedRevision, targetRevision)
       saveAttempts = 0
+      lastSaveError = null
     })
     .catch(function (error) {
+      lastSaveError = error
       if (saveAttempts >= STATE_SAVE_MAX_ATTEMPTS) {
         showToast(errorMessage(error, "光效参数保存失败"), "error")
       }
     })
     .finally(function () {
       saveInFlight = null
-      if (savedRevision < saveRevision && saveAttempts < STATE_SAVE_MAX_ATTEMPTS) {
+      if (!generationInFlight && savedRevision < saveRevision && saveAttempts < STATE_SAVE_MAX_ATTEMPTS) {
         saveTimer = window.setTimeout(
           function () {
             void flushStateSave()
@@ -472,11 +482,21 @@ async function flushStateSave() {
         )
       }
     })
-  return saveInFlight
+  await saveInFlight
+}
+
+async function drainStateSave() {
+  while (hostReady && savedRevision < saveRevision) {
+    await flushStateSave({ allowDuringGeneration: true })
+    if (savedRevision >= saveRevision) return
+    if (saveAttempts >= STATE_SAVE_MAX_ATTEMPTS) {
+      throw lastSaveError instanceof Error ? lastSaveError : new Error("光效参数保存失败")
+    }
+  }
 }
 
 function postStateSnapshotBestEffort() {
-  if (!hostPort || !hostReady || savedRevision >= saveRevision) return
+  if (!hostPort || !hostReady || generationInFlight || savedRevision >= saveRevision) return
   try {
     hostPort.postMessage({
       id: PLUGIN_ID + ":close:" + String(++requestSequence),
@@ -528,30 +548,6 @@ function normalizeConnectedImages(result) {
     .map(function (image) {
       return { id: image.id, name: image.name, readable: image.readable, mimeType: image.mimeType }
     })
-}
-
-function normalizeGenerationTools(result) {
-  if (!isRecord(result) || !Array.isArray(result.tools)) return []
-  const seen = new Set()
-  return result.tools.filter(function (tool) {
-    if (
-      !isRecord(tool) ||
-      typeof tool.id !== "string" ||
-      typeof tool.title !== "string" ||
-      tool.output !== "image" ||
-      !Array.isArray(tool.acceptedInputs) ||
-      !tool.acceptedInputs.includes("reference_image") ||
-      seen.has(tool.id)
-    ) return false
-    seen.add(tool.id)
-    return true
-  }).map(function (tool) {
-    return {
-      id: tool.id,
-      title: tool.title,
-      description: typeof tool.description === "string" ? tool.description : "",
-    }
-  })
 }
 
 function updateSourceSelect() {
@@ -921,16 +917,15 @@ async function generateRelight() {
   elements.generationStatus.textContent = "生成中"
   updateGenerationAvailability()
   queueStateSave()
-  void flushStateSave()
   try {
+    await drainStateSave()
     const result = await hostRequest(
       "generation.canvas.execute",
-      {
-        output: "image",
+      buildRelightGenerationRequest({
         prompt: buildRelightPrompt(),
-        references: [{ nodeId: image.id, role: "reference_image" }],
+        referenceNodeId: image.id,
         toolId: tool.id,
-      },
+      }),
       null,
     )
     if (!validGenerationResult(result)) throw new Error("宿主返回了无效生成结果")
@@ -949,6 +944,7 @@ async function generateRelight() {
     generationInFlight = false
     elements.generationStatus.textContent = generationTools.length ? String(generationTools.length) + " 个可用" : "未找到模型"
     updateGenerationAvailability()
+    void flushStateSave()
   }
 }
 

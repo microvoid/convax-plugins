@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test"
+import { promises as fs } from "node:fs"
 import path from "node:path"
 
+import {
+  buildRelightGenerationRequest,
+  normalizeGenerationTools,
+} from "../packages/plugins/relight-studio/package/assets/generation.js"
 import {
   assertPluginStatic,
   collectFiles,
@@ -30,7 +35,7 @@ describe("relight-studio package", () => {
       id: "relight-studio",
       name: "重打光",
       description: manifest.description,
-      version: "0.1.0",
+      version: "0.1.1",
       license: "MIT",
       compatibility: {
         pluginSchema: "convax.plugin/3",
@@ -61,6 +66,89 @@ describe("relight-studio package", () => {
     expect(manifest).not.toHaveProperty("runtime")
     expect(manifest.contributes).not.toHaveProperty("generation")
     expect(metadata).not.toHaveProperty("companions")
+  })
+
+  test("selects only generic reference-image generation tools", () => {
+    expect(normalizeGenerationTools({
+      tools: [
+        {
+          id: "example-vendor/image-a",
+          title: "Image A",
+          description: "Accepts image references.",
+          kind: "model",
+          output: "image",
+          acceptedInputs: ["reference_image"],
+        },
+        {
+          id: "example-vendor/image-without-reference",
+          title: "Prompt-only image",
+          kind: "model",
+          output: "image",
+          acceptedInputs: [],
+        },
+        {
+          id: "example-vendor/video-a",
+          title: "Video A",
+          kind: "model",
+          output: "video",
+          acceptedInputs: ["reference_image"],
+        },
+        {
+          id: "example-vendor/image-operation",
+          title: "Image operation",
+          kind: "operation",
+          output: "image",
+          acceptedInputs: ["reference_image"],
+        },
+        {
+          id: "example-vendor/image-a",
+          title: "Duplicate Image A",
+          kind: "model",
+          output: "image",
+          acceptedInputs: ["reference_image"],
+        },
+      ],
+    })).toEqual([{
+      id: "example-vendor/image-a",
+      title: "Image A",
+      description: "Accepts image references.",
+    }])
+  })
+
+  test("drains Plugin state before requesting a pending Canvas generation node", async () => {
+    const request = buildRelightGenerationRequest({
+      prompt: "Relight this image.",
+      referenceNodeId: "source-image",
+      toolId: "example-vendor/image-a",
+    })
+    expect(request).toEqual({
+      output: "image",
+      prompt: "Relight this image.",
+      references: [{ nodeId: "source-image", role: "reference_image" }],
+      resultMode: "create-pending-node",
+      toolId: "example-vendor/image-a",
+    })
+    expect(request).not.toHaveProperty("nodeId")
+
+    const app = await fs.readFile(path.join(packageRoot, "assets", "app.js"), "utf8")
+    const generateStart = app.indexOf("async function generateRelight()")
+    const generateEnd = app.indexOf("\nfunction bindControls()", generateStart)
+    expect(generateStart).toBeGreaterThanOrEqual(0)
+    expect(generateEnd).toBeGreaterThan(generateStart)
+    const generate = app.slice(generateStart, generateEnd)
+    const drainIndex = generate.indexOf("await drainStateSave()")
+    const executeIndex = generate.indexOf('hostRequest(\n      "generation.canvas.execute"')
+    expect(drainIndex).toBeGreaterThanOrEqual(0)
+    expect(executeIndex).toBeGreaterThan(drainIndex)
+    expect(generate.slice(0, executeIndex)).not.toContain("void flushStateSave()")
+    expect(generate.slice(executeIndex)).toContain("void flushStateSave()")
+
+    const queueStart = app.indexOf("function queueStateSave()")
+    const queueEnd = app.indexOf("\nasync function flushStateSave", queueStart)
+    expect(app.slice(queueStart, queueEnd)).toContain("if (generationInFlight) return")
+    const flushStart = queueEnd
+    const flushEnd = app.indexOf("\nasync function drainStateSave", flushStart)
+    expect(app.slice(flushStart, flushEnd)).toContain("(!allowDuringGeneration && generationInFlight)")
   })
 
   test("keeps the install package inert and documents real host generation", async () => {

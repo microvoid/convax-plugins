@@ -20,7 +20,7 @@
     },
     "packages/plugins/relight-studio": {
       "name": "@microvoid/convax-plugin-relight-studio",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     "packages/plugins/xiaoyunque-generation": {
       "name": "@microvoid/convax-plugin-xiaoyunque-generation",
