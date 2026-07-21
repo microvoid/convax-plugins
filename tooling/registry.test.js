@@ -180,7 +180,7 @@ describe("source packages", () => {
     expect(xiaoyunque.companionAssets.map((asset) => asset.assetName)).toEqual([
       "convax-companion-convax-xiaoyunque-mcp-0.3.0-darwin-arm64",
     ])
-    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.1")
+    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.2")
     expect(await fs.readFile(xiaoyunque.companionAssets[0].path)).toEqual(xiaoyunque.companionAssets[0].data)
     expect(readStoredZip(skill.zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
     expect(readStoredZip(ffmpeg.zip).map((entry) => entry.relativePath)).toEqual([

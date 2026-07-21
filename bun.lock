@@ -8,7 +8,7 @@
     },
     "packages/plugins/ffmpeg-tools": {
       "name": "@microvoid/convax-plugin-ffmpeg-tools",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "dependencies": {
         "@microvoid/convax-ffmpeg-mcp": "workspace:*",
         "@microvoid/convax-skill-ffmpeg-canvas": "workspace:*"
@@ -20,7 +20,7 @@
     },
     "packages/plugins/xiaoyunque-generation": {
       "name": "@microvoid/convax-plugin-xiaoyunque-generation",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@microvoid/convax-xiaoyunque-mcp": "workspace:*"
       }
@@ -43,7 +43,7 @@
     },
     "packages/skills/ffmpeg-canvas": {
       "name": "@microvoid/convax-skill-ffmpeg-canvas",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     "packages/skills/film-shot": {
       "name": "@microvoid/convax-skill-film-shot",

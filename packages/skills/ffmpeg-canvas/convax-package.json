@@ -4,7 +4,7 @@
   "id": "ffmpeg-canvas",
   "name": "FFmpeg Canvas",
   "description": "Compose safe FFmpeg transforms for Canvas media, including paired video-only and audio-only separation outputs.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "compatibility": {
     "skillSchema": "opencode.skill/1"
