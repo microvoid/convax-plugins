@@ -581,34 +581,104 @@ textarea:disabled {
   max-width: 190px;
 }
 
-.select-shell select,
-.generation-select-shell select {
+.radix-select-host {
+  display: block;
+  min-width: 0;
   width: 100%;
-  appearance: none;
+}
+
+.radix-select-trigger {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 9px;
   overflow: hidden;
   color: #c2c1c6;
   background: #19191e;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.select-shell select {
+.select-shell .radix-select-trigger {
   min-height: 31px;
-  padding: 0 28px 0 10px;
+  padding: 0 9px 0 10px;
   font-size: 10px;
 }
 
-.select-shell svg,
-.generation-select-shell svg {
-  position: absolute;
-  right: 8px;
+.radix-select-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.radix-select-icon svg {
   width: 13px;
   fill: none;
   stroke: #8b8a91;
   stroke-width: 1.8;
   pointer-events: none;
+}
+
+.radix-select-trigger:hover,
+.radix-select-trigger[data-state="open"] {
+  border-color: var(--line-strong);
+  background: #202026;
+}
+
+.radix-select-trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.radix-select-content {
+  z-index: 120;
+  min-width: var(--radix-select-trigger-width);
+  max-height: min(280px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: #d8d7db;
+  background: rgba(27, 27, 32, 0.98);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(18px);
+}
+
+.radix-select-viewport {
+  padding: 4px;
+}
+
+.radix-select-item {
+  position: relative;
+  display: flex;
+  min-height: 31px;
+  cursor: pointer;
+  align-items: center;
+  border-radius: 7px;
+  padding: 0 30px 0 9px;
+  outline: none;
+  font-size: 10px;
+  user-select: none;
+}
+
+.radix-select-item[data-highlighted] {
+  color: #fff4df;
+  background: rgba(255, 185, 74, 0.13);
+}
+
+.radix-select-item[data-disabled] {
+  pointer-events: none;
+  opacity: 0.42;
+}
+
+.radix-select-indicator {
+  position: absolute;
+  right: 9px;
+  color: var(--accent-strong);
 }
 
 .control-panel {
@@ -760,6 +830,76 @@ input[type="range"]:hover::-webkit-slider-thumb {
   transform: scale(1.08);
 }
 
+.radix-native-control {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+}
+
+.radix-slider-host {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+.radix-slider-root {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 18px;
+  cursor: pointer;
+  touch-action: none;
+  align-items: center;
+  user-select: none;
+}
+
+.radix-slider-root[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.radix-slider-track {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #36363d;
+}
+
+.radix-slider-range {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.radix-slider-thumb {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #1a1815;
+  border-radius: 50%;
+  outline: none;
+  background: #ffd37f;
+  box-shadow: 0 0 0 1px rgba(255, 207, 120, 0.36);
+  transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.radix-slider-thumb:hover,
+.radix-slider-thumb:focus-visible {
+  background: #ffe1a7;
+  box-shadow: 0 0 0 3px rgba(255, 185, 74, 0.2);
+  transform: scale(1.08);
+}
+
 .generation-section {
   background: linear-gradient(160deg, rgba(255, 182, 68, 0.04), transparent 58%);
 }
@@ -784,9 +924,9 @@ input[type="range"]:hover::-webkit-slider-thumb {
   letter-spacing: 0.04em;
 }
 
-.generation-select-shell select {
+.generation-select-shell .radix-select-trigger {
   min-height: 36px;
-  padding: 0 30px 0 11px;
+  padding: 0 10px 0 11px;
   font-size: 10px;
 }
 

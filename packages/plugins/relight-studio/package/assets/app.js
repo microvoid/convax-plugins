@@ -1,5 +1,6 @@
 import { RelightRenderer } from "./relight-renderer.js"
 import { buildRelightGenerationRequest, normalizeGenerationTools } from "./generation.js"
+import { mountRadixControls } from "./radix-controls.js"
 
 const HOST_PROTOCOL = "convax.plugin-host/3"
 const PLUGIN_ID = "relight-studio"
@@ -242,6 +243,7 @@ let renderFrame = 0
 let toastTimer = 0
 let dragDepth = 0
 let lightPointerId = null
+let radixControls = null
 const pendingRequests = new Map()
 
 function copyPreset(preset) {
@@ -269,6 +271,10 @@ function isRecord(value) {
 
 function setHidden(element, hidden) {
   element.classList.toggle("is-hidden", hidden)
+}
+
+function syncRadixControls() {
+  if (radixControls) radixControls.sync()
 }
 
 function errorMessage(error, fallback) {
@@ -335,6 +341,7 @@ function updateControls() {
   elements.presetGrid.querySelectorAll("[data-preset]").forEach(function (button) {
     button.classList.toggle("is-active", button.dataset.preset === presetId)
   })
+  syncRadixControls()
   updatePreviewState()
 }
 
@@ -562,6 +569,7 @@ function updateSourceSelect() {
   setHidden(elements.sourceSelectShell, connectedImages.length === 0)
   if (currentSource.kind === "canvas") elements.sourceSelect.value = currentSource.nodeId
   else if (selectedSourceNodeId) elements.sourceSelect.value = selectedSourceNodeId
+  syncRadixControls()
 }
 
 function updateGenerationToolSelect() {
@@ -586,6 +594,7 @@ function updateGenerationToolSelect() {
   }
   elements.generationTool.disabled = generationInFlight || generationTools.length === 0
   elements.generationStatus.textContent = generationTools.length ? String(generationTools.length) + " 个可用" : "未找到模型"
+  syncRadixControls()
   updateGenerationAvailability()
 }
 
@@ -610,6 +619,7 @@ function updateGenerationAvailability() {
   } else {
     elements.generationHelp.textContent = "将使用“" + tool.title + "”生成；结果会作为新图片节点添加到 Canvas。"
   }
+  syncRadixControls()
 }
 
 async function refreshConnectedImages(forceReload) {
@@ -1071,6 +1081,10 @@ function bindLifecycle() {
       hostPort = null
     }
     if (currentBitmap) currentBitmap.close()
+    if (radixControls) {
+      radixControls.destroy()
+      radixControls = null
+    }
   })
   const canvas = renderer.canvas
   canvas.addEventListener("webglcontextlost", function (event) {
@@ -1093,6 +1107,7 @@ function bindLifecycle() {
 }
 
 function boot() {
+  radixControls = mountRadixControls(document)
   bindControls()
   bindLifecycle()
   updateControls()

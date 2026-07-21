@@ -151,11 +151,44 @@ describe("relight-studio package", () => {
     expect(app.slice(flushStart, flushEnd)).toContain("(!allowDuringGeneration && generationInFlight)")
   })
 
+  test("ships Radix Select and Slider as a self-contained local browser bundle", async () => {
+    const workspace = await readJson(path.join(sourceRoot, "package.json"))
+    expect(workspace.scripts).toMatchObject({
+      build: "bun scripts/build.ts",
+      typecheck: expect.stringContaining("tsc --noEmit"),
+    })
+    expect(workspace.devDependencies).toMatchObject({
+      "radix-ui": "1.6.2",
+      react: "19.2.4",
+      "react-dom": "19.2.4",
+    })
+
+    const [html, source, bundle] = await Promise.all([
+      fs.readFile(path.join(packageRoot, "index.html"), "utf8"),
+      fs.readFile(path.join(sourceRoot, "src", "radix-controls.tsx"), "utf8"),
+      fs.readFile(path.join(packageRoot, "assets", "radix-controls.js"), "utf8"),
+    ])
+    expect(html.match(/data-radix-select/g)).toHaveLength(2)
+    expect(html.match(/data-radix-slider/g)).toHaveLength(8)
+    expect(source).toContain('import { Select, Slider } from "radix-ui"')
+    expect(source).toContain("<Select.Root")
+    expect(source).toContain("<Slider.Root")
+    expect(bundle.length).toBeGreaterThan(1_000)
+    expect(bundle).not.toMatch(/https?:\/\//)
+    expect(bundle).not.toMatch(/from\s*["'](?:radix-ui|react|react-dom)/)
+  })
+
   test("keeps the install package inert and documents real host generation", async () => {
     const files = await collectFiles(packageRoot, "plugin/relight-studio")
     const names = files.map((file) => file.relativePath)
 
-    expect(names).toEqual(expect.arrayContaining(["LICENSE", "SKILL.md", "index.html", "manifest.json"]))
+    expect(names).toEqual(expect.arrayContaining([
+      "LICENSE",
+      "SKILL.md",
+      "assets/radix-controls.js",
+      "index.html",
+      "manifest.json",
+    ]))
     expect(() => assertPluginStatic(files, "plugin/relight-studio")).not.toThrow()
 
     const skill = files.find((file) => file.relativePath === "SKILL.md")?.data.toString("utf8") ?? ""

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>重打光</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox='0%200%201%201'%3E%3C/svg%3E" />
     <script type="module" src="./assets/app.js"></script>
     <link rel="stylesheet" href="./assets/styles.css" />
   </head>
@@ -96,8 +97,7 @@
             <div class="source-actions">
               <label class="select-shell is-hidden" id="sourceSelectShell">
                 <span class="sr-only">画布连接图片</span>
-                <select id="sourceSelect"></select>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+                <select id="sourceSelect" data-radix-select aria-label="画布连接图片"></select>
               </label>
               <button class="secondary-button" id="chooseButton" type="button">本地预览</button>
             </div>
@@ -143,14 +143,14 @@
               </div>
             </div>
             <div class="slider-list">
-              <label class="slider-row"><span>主光强度</span><input id="intensityRange" type="range" min="0" max="200" step="1" /><output id="intensityOutput"></output></label>
-              <label class="slider-row"><span>光源柔和</span><input id="softnessRange" type="range" min="10" max="100" step="1" /><output id="softnessOutput"></output></label>
-              <label class="slider-row"><span>曝光</span><input id="exposureRange" type="range" min="-100" max="100" step="1" /><output id="exposureOutput"></output></label>
-              <label class="slider-row"><span>色温</span><input id="temperatureRange" type="range" min="-100" max="100" step="1" /><output id="temperatureOutput"></output></label>
-              <label class="slider-row"><span>暗部抬升</span><input id="shadowsRange" type="range" min="0" max="100" step="1" /><output id="shadowsOutput"></output></label>
-              <label class="slider-row"><span>对比度</span><input id="contrastRange" type="range" min="50" max="150" step="1" /><output id="contrastOutput"></output></label>
-              <label class="slider-row"><span>饱和度</span><input id="saturationRange" type="range" min="0" max="160" step="1" /><output id="saturationOutput"></output></label>
-              <label class="slider-row"><span>暗角</span><input id="vignetteRange" type="range" min="0" max="100" step="1" /><output id="vignetteOutput"></output></label>
+              <label class="slider-row"><span>主光强度</span><input id="intensityRange" data-radix-slider aria-label="主光强度" type="range" min="0" max="200" step="1" /><output id="intensityOutput"></output></label>
+              <label class="slider-row"><span>光源柔和</span><input id="softnessRange" data-radix-slider aria-label="光源柔和" type="range" min="10" max="100" step="1" /><output id="softnessOutput"></output></label>
+              <label class="slider-row"><span>曝光</span><input id="exposureRange" data-radix-slider aria-label="曝光" type="range" min="-100" max="100" step="1" /><output id="exposureOutput"></output></label>
+              <label class="slider-row"><span>色温</span><input id="temperatureRange" data-radix-slider aria-label="色温" type="range" min="-100" max="100" step="1" /><output id="temperatureOutput"></output></label>
+              <label class="slider-row"><span>暗部抬升</span><input id="shadowsRange" data-radix-slider aria-label="暗部抬升" type="range" min="0" max="100" step="1" /><output id="shadowsOutput"></output></label>
+              <label class="slider-row"><span>对比度</span><input id="contrastRange" data-radix-slider aria-label="对比度" type="range" min="50" max="150" step="1" /><output id="contrastOutput"></output></label>
+              <label class="slider-row"><span>饱和度</span><input id="saturationRange" data-radix-slider aria-label="饱和度" type="range" min="0" max="160" step="1" /><output id="saturationOutput"></output></label>
+              <label class="slider-row"><span>暗角</span><input id="vignetteRange" data-radix-slider aria-label="暗角" type="range" min="0" max="100" step="1" /><output id="vignetteOutput"></output></label>
             </div>
           </section>
 
@@ -164,10 +164,9 @@
             </div>
             <label class="field-label" for="generationTool">生成模型</label>
             <label class="generation-select-shell">
-              <select id="generationTool" disabled>
+              <select id="generationTool" data-radix-select aria-label="生成模型" disabled>
                 <option value="">暂无可用模型</option>
               </select>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
             </label>
             <label class="field-label" for="additionalPrompt">补充要求（可选）</label>
             <textarea id="additionalPrompt" maxlength="1000" rows="3" placeholder="例如：保留窗外夜景，人物脸部更柔和。"></textarea>
