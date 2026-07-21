@@ -55,7 +55,7 @@ function notify(method: string, params: unknown) {
 try {
   const initialized = await request("initialize", {
     capabilities: {},
-    clientInfo: { name: "convax-xiaoyunque-live-smoke", version: "0.3.0" },
+    clientInfo: { name: "convax-xiaoyunque-live-smoke", version: "0.3.1" },
     protocolVersion: "2025-03-26",
   })
   if ((initialized.result as Record<string, unknown> | undefined)?.protocolVersion !== "2025-03-26") {
@@ -64,12 +64,12 @@ try {
   notify("notifications/initialized", {})
   const listed = await request("tools/list", {})
   const names = ((listed.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? []).map((tool) => tool.name)
-  if (!names.includes("image.seedream_4.5")) {
-    throw new Error("Sidecar did not expose the verified Seedream 4.5 generation tool")
+  if (!names.includes("image.seedream_5.0")) {
+    throw new Error("Sidecar did not expose the default Seedream 5.0 generation tool")
   }
   process.stderr.write("将使用 Convax 服务页授权的小云雀网页会话执行一次计费生图。\n")
   const generated = await request("tools/call", {
-    name: "image.seedream_4.5",
+    name: "image.seedream_5.0",
     arguments: {
       schema: "convax.generation-call/1",
       operation_id: `live-image-${crypto.randomUUID()}`,

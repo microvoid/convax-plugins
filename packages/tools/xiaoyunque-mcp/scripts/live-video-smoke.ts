@@ -117,7 +117,7 @@ try {
   progress("mcp.initialize")
   const initialized = await request("initialize", {
     capabilities: {},
-    clientInfo: { name: "convax-xiaoyunque-live-video-smoke", version: "0.3.0" },
+    clientInfo: { name: "convax-xiaoyunque-live-video-smoke", version: "0.3.1" },
     protocolVersion: "2025-03-26",
   })
   if ((initialized.result as Record<string, unknown> | undefined)?.protocolVersion !== "2025-03-26") {
@@ -130,7 +130,7 @@ try {
   const names = ((listed.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [])
     .map((tool) => tool.name)
   if (!names.includes(toolName)) {
-    throw new Error("Sidecar did not expose the verified Seedance 2.0 Mini Lite generation tool")
+    throw new Error("Sidecar did not expose the default Seedance 2.0 Mini Lite generation tool")
   }
 
   process.stderr.write(`${formatSafeGenerationOperation(operationId)}\n`)

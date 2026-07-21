@@ -27,7 +27,7 @@ function generationRequest(operationId: string) {
         references: [],
         schema: "convax.generation-call/1",
       },
-      name: "image.seedream_4.5",
+      name: "image.seedream_5.0",
     },
   })}\n`
 }
