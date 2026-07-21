@@ -52,7 +52,7 @@ actions so hosts can compose every Plugin without checking its id. Their ZIP sti
 contains only inert package files: it declares a separately installed bare
 `mcp-stdio` command for generation and/or fixed service actions, and never embeds
 that executable, its dependencies, vendor credentials, or provider configuration. See
-[`docs/plugin-authoring.md`](docs/plugin-authoring.md#generation-tool-plugin).
+[`docs/plugin-authoring.md`](docs/plugin-authoring.md#declarative-tool-plugin).
 For reviewed first-party tools, the Registry publishes exact
 platform/architecture companion artifacts beside the ZIP. Convax verifies their
 size and SHA-256 into host-owned storage, so users do not install a sidecar through

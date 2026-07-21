@@ -45,7 +45,7 @@ bun run pack -- --kind skill --id my-skill
 智能体工具和画布选中动作分开声明，使宿主无需识别插件标识即可完成组合。其 ZIP 仍然只包含惰性包文件：
 manifest 为生成能力和/或固定服务动作声明一个单独安装的裸 `mcp-stdio` 命令，但绝不
 内嵌可执行文件、依赖、厂商凭据或 provider 配置。参见
-[`docs/plugin-authoring.md`](docs/plugin-authoring.md#generation-tool-plugin)。
+[`docs/plugin-authoring.md`](docs/plugin-authoring.md#declarative-tool-plugin)。
 对于经过审查的第一方工具，Registry 会在 ZIP 之外发布精确到平台和架构的 companion
 工件。Convax 按字节数和 SHA-256 校验后写入宿主管理目录，因此用户无需通过 `PATH`
 手工安装 sidecar，可执行文件也始终不会进入插件包。
