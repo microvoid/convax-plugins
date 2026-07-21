@@ -26,6 +26,7 @@ describe("source packages", () => {
     expect(packages.map((pkg) => `${pkg.metadata.kind}/${pkg.metadata.id}`)).toEqual([
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
+      "plugin/subtitle-studio",
       "plugin/xiaoyunque-generation",
       "skill/ad-idea",
       "skill/audiobook",

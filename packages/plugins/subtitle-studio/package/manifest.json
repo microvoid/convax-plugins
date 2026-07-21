@@ -1,0 +1,75 @@
+{
+  "schema": "convax.plugin/3",
+  "id": "subtitle-studio",
+  "name": "Subtitle Studio",
+  "description": "Local-first subtitle creation, multilingual adaptation, soft-subtitle handling, and AI hard-subtitle removal for directly connected Canvas video.",
+  "version": "0.4.0",
+  "entry": "index.html",
+  "capabilities": [
+    "canvas.connectedMedia.read",
+    "canvas.node.write",
+    "agent.prompt",
+    "generation.execute",
+    "host.files.save"
+  ],
+  "contributes": {
+    "canvas": {
+      "renderer": {
+        "create": true,
+        "width": 1180,
+        "height": 780
+      }
+    },
+    "generation": {
+      "models": [],
+      "tools": [
+        {
+          "id": "subtitle.inspect",
+          "title": "Inspect video subtitles",
+          "description": "Inspect audio and embedded text-subtitle streams in one staged video.",
+          "output": "text",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "subtitle.transcribe",
+          "title": "Transcribe video audio",
+          "description": "Extract the selected audio stream and create a timestamped soft-subtitle document locally.",
+          "output": "text",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "subtitle.erase-soft",
+          "title": "Remove embedded soft subtitles",
+          "description": "Remux one video while excluding selected embedded text-subtitle streams.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "subtitle.preview-hard",
+          "title": "Preview hard-subtitle removal",
+          "description": "Create one preview frame using the selected normalized subtitle search region.",
+          "output": "image",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "subtitle.erase-hard",
+          "title": "Remove burned-in subtitles",
+          "description": "Use the reviewed local AI pipeline to detect and inpaint burned-in subtitles inside a bounded region.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        },
+        {
+          "id": "subtitle.mux-soft",
+          "title": "Package soft subtitles",
+          "description": "Create one MP4 whose soft-subtitle streams match the current Subtitle Studio tracks.",
+          "output": "video",
+          "acceptedInputs": ["reference_video"]
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "type": "mcp-stdio",
+    "command": "convax-subtitle-studio-mcp"
+  }
+}

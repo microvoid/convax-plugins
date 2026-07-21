@@ -26,6 +26,11 @@ const pluginCapabilities = new Set([
   "generation.execute",
   "ui.fullscreen",
 ])
+const pluginCapabilitiesV3 = new Set([
+  ...pluginCapabilities,
+  "canvas.connectedMedia.read",
+  "host.files.save",
+])
 const generationModalities = new Set(["text", "image", "video", "audio"])
 const generationInputRoles = new Set([
   "reference_image",
@@ -513,8 +518,8 @@ function parsePluginManifestV3(value, label) {
   exactKeys(value.contributes, ["agent", "canvas", "generation", "service"], [], `${label} contributes`)
 
   const capabilities = value.capabilities ?? []
-  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
-      capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
+  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilitiesV3.size ||
+      capabilities.some((item) => typeof item !== "string" || !pluginCapabilitiesV3.has(item)) ||
       new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
 
   const hasRuntime = value.runtime !== undefined
@@ -523,8 +528,9 @@ function parsePluginManifestV3(value, label) {
   if (hasRuntime !== (hasGeneration || hasService)) {
     error(label, "runtime and executable contribution must appear together")
   }
-  if (!hasRuntime && !capabilities.includes("generation.execute")) {
-    error(label, "convax.plugin/3 must declare an executable contribution or request generation.execute")
+  const rendererCapabilities = ["generation.execute", "canvas.connectedMedia.read", "host.files.save"]
+  if (!hasRuntime && !rendererCapabilities.some((capability) => capabilities.includes(capability))) {
+    error(label, "convax.plugin/3 must declare an executable contribution or request a renderer host capability")
   }
 
   const generation = hasGeneration ? parseGenerationV3(value.contributes.generation, `${label} generation`) : undefined
@@ -545,8 +551,8 @@ function parsePluginManifestV3(value, label) {
   const hasRenderer = canvas?.renderer !== undefined
   const hasEntry = value.entry !== undefined
   if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
-  if (capabilities.includes("generation.execute") && !hasRenderer) {
-    error(label, "generation.execute requires a sandboxed Canvas renderer")
+  if (rendererCapabilities.some((capability) => capabilities.includes(capability)) && !hasRenderer) {
+    error(label, "renderer host capabilities require a sandboxed Canvas renderer")
   }
 
   let entry

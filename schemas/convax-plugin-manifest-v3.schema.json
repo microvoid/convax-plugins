@@ -16,15 +16,17 @@
     "capabilities": {
       "type": "array",
       "uniqueItems": true,
-      "maxItems": 7,
+      "maxItems": 9,
       "items": {
         "enum": [
           "canvas.connectedImages.read",
+          "canvas.connectedMedia.read",
           "canvas.node.read",
           "canvas.node.write",
           "project.files.read",
           "agent.prompt",
           "generation.execute",
+          "host.files.save",
           "ui.fullscreen"
         ]
       }
@@ -114,7 +116,11 @@
     },
     {
       "if": {
-        "properties": { "capabilities": { "contains": { "const": "generation.execute" } } },
+        "properties": {
+          "capabilities": {
+            "contains": { "enum": ["generation.execute", "canvas.connectedMedia.read", "host.files.save"] }
+          }
+        },
         "required": ["capabilities"]
       },
       "then": {
@@ -131,7 +137,11 @@
   "anyOf": [
     { "required": ["runtime"] },
     {
-      "properties": { "capabilities": { "contains": { "const": "generation.execute" } } },
+      "properties": {
+        "capabilities": {
+          "contains": { "enum": ["generation.execute", "canvas.connectedMedia.read", "host.files.save"] }
+        }
+      },
       "required": ["capabilities"]
     }
   ],

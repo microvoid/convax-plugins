@@ -25,5 +25,7 @@ jobs:
         run: bun --cwd=tools/xiaoyunque-mcp install --frozen-lockfile
       - name: Install FFmpeg companion development dependencies
         run: bun --cwd=tools/ffmpeg-mcp install --frozen-lockfile
+      - name: Install Subtitle Studio companion development dependencies
+        run: bun --cwd=tools/subtitle-studio-mcp install --frozen-lockfile
       - name: Validate, test, and reproduce packages
         run: bun run check
