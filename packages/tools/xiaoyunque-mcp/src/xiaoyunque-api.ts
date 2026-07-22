@@ -37,9 +37,11 @@ export class XiaoYunqueQueryTimeoutError extends Error {
  */
 export class XiaoYunqueReferenceAssetRegistrationError extends Error {
   override name = "XiaoYunqueReferenceAssetRegistrationError"
+  readonly referenceType: "image" | "video"
 
-  constructor() {
-    super("XiaoYunque reference image asset registration failed")
+  constructor(referenceType: "image" | "video" = "image") {
+    super(`XiaoYunque reference ${referenceType} asset registration failed`)
+    this.referenceType = referenceType
   }
 }
 
@@ -136,6 +138,8 @@ interface XiaoYunqueUserInfo {
 }
 
 type FetchLike = typeof fetch
+type UploadAssetType = 1 | 2 | 4
+type RegisteredAssetType = 1 | 2
 
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -316,7 +320,7 @@ async function boundedJson(response: Response, label: string) {
   }
 }
 
-function uploadAssetType(reference: FileGenerationReference) {
+function uploadAssetType(reference: FileGenerationReference): UploadAssetType {
   if (reference.role === "reference_video" || reference.mime_type.startsWith("video/")) return 1
   if (reference.role === "audio" || reference.mime_type.startsWith("audio/")) return 4
   if (
@@ -328,10 +332,21 @@ function uploadAssetType(reference: FileGenerationReference) {
   throw new Error("XiaoYunque does not support this reference type")
 }
 
+function registeredAssetTypeForUpload(assetType: UploadAssetType): RegisteredAssetType | undefined {
+  switch (assetType) {
+    case 1: // video
+      return 2
+    case 2: // image
+      return 1
+    case 4: // audio does not require AssetCreateV2 registration
+      return undefined
+  }
+}
+
 function uploadedAsset(
   value: unknown,
   reference: FileGenerationReference,
-  assetType: 1 | 2 | 4,
+  assetType: UploadAssetType,
   allowLoopbackHttp: boolean,
 ): UploadedAsset {
   const data = record(value)
@@ -631,27 +646,36 @@ export class XiaoYunqueApi {
     const response = await this.#request(uploadPath, session, signal, { body, method: "POST" })
     const payload = requireSuccess(response.value, response.status, "XiaoYunque reference upload")
     const asset = uploadedAsset(payload.data, reference, assetType, this.#allowLoopbackTest)
-    if (assetType !== 2 || asset.pippitAssetId !== undefined) return asset
+    const registeredAssetType = registeredAssetTypeForUpload(assetType)
+    if (registeredAssetType === undefined || asset.pippitAssetId !== undefined) return asset
 
     return {
       ...asset,
-      pippitAssetId: await this.#registerUploadedImage(asset.assetId, session, signal),
+      pippitAssetId: await this.#registerUploadedAsset(
+        asset.assetId,
+        registeredAssetType,
+        session,
+        signal,
+      ),
     }
   }
 
-  async #registerUploadedImage(
+  async #registerUploadedAsset(
     assetId: string,
+    assetType: RegisteredAssetType,
     session: StoredWebSession,
     signal: AbortSignal,
   ) {
     try {
       // `upload_file.asset_id` is an EverPhoto source id. The first-party Web
       // product converts it into the identity consumed by image and video generation via
-      // AssetCreateV2; the two ids are deliberately never treated as aliases.
+      // AssetCreateV2; the two ids are deliberately never treated as aliases. The
+      // upload_file and AssetCreateV2 asset-type enums differ: upload 2/1 maps to
+      // registered image/video 1/2 respectively.
       const response = await this.#jsonRequest(assetCreateV2Path, {
         asset_source_type: 3,
         asset_source_id: assetId,
-        asset_type: 1,
+        asset_type: assetType,
         Base: { Client: "web" },
       }, session, signal)
       const payload = requireAssetRegistrationSuccess(response.value, response.status)
@@ -664,7 +688,7 @@ export class XiaoYunqueApi {
     } catch (error) {
       if (signal.aborted) throw cancellationError(signal)
       if (error instanceof XiaoYunqueAuthenticationError) throw error
-      throw new XiaoYunqueReferenceAssetRegistrationError()
+      throw new XiaoYunqueReferenceAssetRegistrationError(assetType === 1 ? "image" : "video")
     }
   }
 

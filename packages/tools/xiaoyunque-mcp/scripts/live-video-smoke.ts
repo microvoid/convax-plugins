@@ -117,7 +117,7 @@ try {
   progress("mcp.initialize")
   const initialized = await request("initialize", {
     capabilities: {},
-    clientInfo: { name: "convax-xiaoyunque-live-video-smoke", version: "0.3.2" },
+    clientInfo: { name: "convax-xiaoyunque-live-video-smoke", version: "0.3.3" },
     protocolVersion: "2025-03-26",
   })
   if ((initialized.result as Record<string, unknown> | undefined)?.protocolVersion !== "2025-03-26") {
