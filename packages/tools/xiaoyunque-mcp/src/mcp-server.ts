@@ -304,7 +304,7 @@ export class McpServer {
       this.#sendResult(request.id, {
         capabilities: { tools: {} },
         protocolVersion,
-        serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.2" },
+        serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.3" },
       })
       return
     }

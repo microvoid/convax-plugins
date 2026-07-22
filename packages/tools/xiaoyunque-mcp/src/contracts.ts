@@ -202,6 +202,19 @@ function requireTrimmedString(value: unknown, label: string, maxLength: number) 
   return value
 }
 
+function requireTrimmedText(value: unknown, label: string, maxLength: number) {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || value.length > maxLength
+    || value !== value.trim()
+    || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)
+  ) {
+    throw new Error(`${label} must be non-empty trimmed text`)
+  }
+  return value
+}
+
 const referenceRoles = new Set<GenerationReferenceRole>([
   "reference_image",
   "reference_video",
@@ -236,7 +249,7 @@ export function parseGenerationCall(value: unknown, expectedOutput: GenerationOu
     }
     const nodeId = requireTrimmedString(reference.node_id, `generation reference ${index} node_id`, 256)
     if (reference.kind === "text") {
-      const text = requireTrimmedString(reference.text, `generation reference ${index} text`, 200_000)
+      const text = requireTrimmedText(reference.text, `generation reference ${index} text`, 200_000)
       if (role !== "text") throw new Error("text generation references must use the text role")
       return { kind: "text", node_id: nodeId, role: "text", text }
     }
@@ -255,7 +268,7 @@ export function parseGenerationCall(value: unknown, expectedOutput: GenerationOu
     operation_id: requireTrimmedString(input.operation_id, "generation operation_id", 256),
     output: expectedOutput,
     output_directory: requireTrimmedString(input.output_directory, "generation output_directory", 4_096),
-    prompt: requireTrimmedString(input.prompt, "generation prompt", 20_000),
+    prompt: requireTrimmedText(input.prompt, "generation prompt", 20_000),
     references,
     schema: generationCallSchema,
   }
