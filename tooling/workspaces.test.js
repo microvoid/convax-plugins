@@ -39,6 +39,33 @@ describe("Bun workspace ownership", () => {
     expect(Object.keys(lock.workspaces)).toContain("packages/skills/ffmpeg-canvas")
   })
 
+  test("documents the public v5 pet package contract", async () => {
+    expect((await fs.stat(path.join(root, "schemas", "convax-plugin-manifest-v5.schema.json"))).isFile()).toBe(true)
+
+    const packageReadme = await fs.readFile(
+      path.join(root, "packages", "plugins", "convax-pet", "package", "README.md"),
+      "utf8",
+    )
+    expect(packageReadme).toContain("contributes.pet")
+    expect(packageReadme).toContain("spriteVersion: 2")
+    expect(packageReadme).toContain("1536×1872")
+    expect(packageReadme).toContain("inert ZIP")
+
+    const documentation = await Promise.all([
+      "README.md",
+      "README.zh-CN.md",
+      "docs/plugin-authoring.md",
+      "docs/packaging.md",
+      "docs/registry-spec.md",
+    ].map((file) => fs.readFile(path.join(root, file), "utf8")))
+    for (const text of documentation) {
+      expect(text).toContain("convax.plugin/5")
+      expect(text).toContain("contributes.pet")
+    }
+    expect(documentation[2]).toContain("convax.plugin-capability/1")
+    expect(documentation[2]).toContain("does not receive a host port")
+  })
+
   test("runs package builds in dependency order before repository validation and packing", async () => {
     const fixture = await fs.mkdtemp(path.join(os.tmpdir(), "convax-workspace-build-"))
     try {

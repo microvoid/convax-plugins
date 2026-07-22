@@ -26,11 +26,27 @@ STORE method. Thus identical source bytes produce identical SHA-256 digests acro
 machines. Uncompressed storage is intentional: packages are already size-bounded,
 and avoiding compressor-version drift makes releases reproducible.
 
-A headless `convax.plugin/2`, `convax.plugin/3`, or `convax.plugin/4` Tool Plugin may contain only `manifest.json` and a
+A headless `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5` Tool Plugin may contain only `manifest.json` and a
 license notice. Its generation and/or service contribution uses one declared
 `mcp-stdio` executable that is a separate distributable and
 must never appear anywhere below `package/`; validation and packing do not install,
 build, or execute companion source under `packages/tools/`.
+
+## Pet Plugin assets
+
+A pet-only `convax.plugin/5` package is also inert. Its ZIP may contain the
+manifest, license and documentation, plus the PNG or WebP referenced by
+`contributes.pet.spritesheet`; it must not contain an HTML entry, runtime,
+executable, dependency tree, installer, remote script, or server. Pet Plugins use
+the transport-neutral `convax.plugin-capability/1` compatibility pair and do not
+receive a host port.
+
+For `spriteVersion: 2`, the sprite sheet is exactly 1536×1872 pixels: eight columns
+of 192-pixel cells and nine rows of 208-pixel cells. The ordinary 2 MiB per-file
+limit still applies. Keep asset paths package-relative and let Convax inspect
+dimensions, format, transparency, and decoded image safety before installation.
+The Plugin contributes appearance only; the host owns the floating window and all
+Agent activity data.
 
 The matching source metadata declares the reviewed tool directory and build output
 for each target. For example:
@@ -63,7 +79,7 @@ admission checks used by packing.
 
 ## Plugin-owned Skill composition
 
-A `convax.plugin/4` manifest may declare `contributes.skills` entries such as
+A `convax.plugin/4` or `convax.plugin/5` manifest may declare `contributes.skills` entries such as
 `{"name":"ffmpeg-canvas","path":"skills/ffmpeg-canvas"}`. The named Skill remains
 an independent workspace and standard portable Skill package. Its source metadata
 declares `ownerPluginId`.

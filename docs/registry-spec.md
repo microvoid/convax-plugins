@@ -13,7 +13,7 @@ catalog-changing release or yanking deployment. `revision` is the lowercase, ful
 
 Every item contains `kind`, `id`, `name`, `description`, `version`,
 `compatibility`, `artifact`, and `yanked`, plus a complete `manifest` for Plugin items.
-A `convax.plugin/2`, `convax.plugin/3`, or `convax.plugin/4` item with a generation and/or service external runtime may additionally contain
+A `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5` item with a generation and/or service external runtime may additionally contain
 `companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
@@ -48,18 +48,33 @@ The abbreviated manifest above is explanatory only; production entries contain t
 complete validated manifest. Plugin compatibility accepts exactly one
 version-matched pair: `convax.plugin/1` + `convax.plugin-host/1`,
 `convax.plugin/2` + `convax.plugin-host/2`,
-`convax.plugin/3` + `convax.plugin-host/3`, or
-`convax.plugin/4` + `convax.plugin-host/4`. The embedded manifest schema must match
+`convax.plugin/3` + `convax.plugin-host/3`,
+`convax.plugin/4` + `convax.plugin-host/4`, or
+`convax.plugin/5` + `convax.plugin-capability/1`. The embedded manifest schema must match
 that pair. Crossed pairs and a v1 compatibility envelope around a v2 manifest are
 rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
 Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
 target `microvoid/convax-plugins` Release assets.
 
+## Pet Plugins
+
+A pet is a declarative `convax.plugin/5` capability published through the normal
+Plugin Registry item. The complete embedded manifest contains
+`contributes.pet` with `name`, `description`, package-relative `spritesheet`,
+`spriteVersion: 2`, and `alt`. Pet-only Plugins have no `entry`, `runtime`, or
+companion executable. The `convax.plugin-capability/1` compatibility label is a
+transport-neutral admission contract; it is not a host-port version.
+
+Clients validate the immutable artifact like every other Plugin, then validate the
+sprite image before making it selectable. Installation does not imply waking the
+pet. Convax—not the package—owns the desktop window, session activity, navigation,
+state persistence, and removal behavior.
+
 ## Plugin-owned Skills
 
 A Skill item may additionally contain `ownerPluginId`. This is lifecycle metadata
 for Convax, not an Agent Skills field. The id must resolve to a Plugin item whose
-`convax.plugin/4` manifest contains a matching `contributes.skills` item. The
+`convax.plugin/4` or `convax.plugin/5` manifest contains a matching `contributes.skills` item. The
 Registry is rejected if either side is missing.
 
 Convax may show an owned Skill as a normal Skill detail with a “Provided by”
@@ -82,7 +97,7 @@ Release entry; a new Skill entry cannot be published beside stale owner Plugin b
 
 ## Verified companion executables
 
-An external v2, v3, or v4 runtime is distributed beside, never inside, its static Plugin ZIP.
+An external v2, v3, v4, or v5 runtime is distributed beside, never inside, its static Plugin ZIP.
 Its Plugin item has the following optional strict field:
 
 ```json

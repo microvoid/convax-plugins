@@ -5,7 +5,7 @@ served through a private protocol and mounted in an iframe with exactly
 `sandbox="allow-scripts"`. It has an opaque origin: it cannot inspect the parent
 DOM, use browser storage as shared application state, or access Node/Electron.
 
-`convax.plugin/2`, `convax.plugin/3`, and `convax.plugin/4` may instead be headless
+`convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, and `convax.plugin/5` may instead be headless
 executable Tool Plugins. New executable Plugins should use v3, or v4 when they own
 Skills. Their ZIP still contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
@@ -16,13 +16,14 @@ later tool calls do not add another local-command prompt.
 ## Manifest
 
 `package/manifest.json` uses `convax.plugin/1`, `convax.plugin/2`,
-`convax.plugin/3`, or `convax.plugin/4`. Only
+`convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5`. Only
 documented fields are accepted. Source metadata must use the matching pair:
 
 - `convax.plugin/1` with `convax.plugin-host/1`;
 - `convax.plugin/2` with `convax.plugin-host/2`;
-- `convax.plugin/3` with `convax.plugin-host/3`.
-- `convax.plugin/4` with `convax.plugin-host/4`.
+- `convax.plugin/3` with `convax.plugin-host/3`;
+- `convax.plugin/4` with `convax.plugin-host/4`;
+- `convax.plugin/5` with `convax.plugin-capability/1`.
 
 The v1 schema is static-only:
 
@@ -49,6 +50,45 @@ Package paths are POSIX-relative and case-sensitive. The optional `skill` points
 a companion `SKILL.md` inside the same Plugin ZIP; installing it remains an explicit,
 independent user action. This legacy field is available only through v3. Do not use
 it for a Skill whose lifecycle belongs to its Plugin.
+
+## Pet contribution
+
+`convax.plugin/5` adds transport-neutral host capabilities. Its
+`convax.plugin-capability/1` compatibility label describes manifest support, not a
+MessagePort protocol. A pet-only Plugin is an inert package with no `entry`,
+`runtime`, or requested capabilities:
+
+```json
+{
+  "schema": "convax.plugin/5",
+  "id": "convax-pet",
+  "name": "Convax Pet",
+  "description": "Adds Violet as a local desktop companion for Convax activity.",
+  "version": "0.1.0",
+  "capabilities": [],
+  "contributes": {
+    "pet": {
+      "name": "Violet",
+      "description": "A pixel companion for Convax.",
+      "spritesheet": "assets/violet.webp",
+      "spriteVersion": 2,
+      "alt": "Violet, the Convax pixel companion"
+    }
+  }
+}
+```
+
+`contributes.pet` accepts a package-relative PNG or WebP. `spriteVersion: 2`
+requires a 1536×1872 atlas containing eight 192×208 cells across and nine state
+rows in this order: idle, moving right, moving left, waving, jumping, blocked,
+waiting, working, and ready. Keep the figure within every cell and retain useful
+transparency around it.
+
+A pet-only Plugin does not receive a host port, cannot create windows, and cannot
+observe Agent content. Convax owns the native window, global activity projection,
+priority, navigation, persisted selection/position, reduced-motion behavior, and
+asset loading. Installation only makes the pet selectable; selection and wake are
+explicit user actions.
 
 ## Plugin-owned Skills
 
@@ -104,7 +144,7 @@ an honest missing-tool fallback instead.
 
 ## Declarative Tool Plugin
 
-A headless v3 or v4 package declares `runtime` together with `contributes.generation`,
+A headless v3, v4, or v5 package declares `runtime` together with `contributes.generation`,
 `contributes.service`, or both. It does not need an `entry`, `capabilities`, fake
 HTML, Canvas renderer, provider field, or credential field. The execution catalog
 and model catalog are deliberately separate:
@@ -182,7 +222,7 @@ closed and require reinstall. The Plugin manifest never contains build paths,
 vendor credentials, or a fallback download URL, and the user does not need to copy
 the executable into `PATH`.
 
-A v2, v3, or v4 Web surface that calls installed generation tools requests
+A v2, v3, v4, or v5 Web surface that calls installed generation tools requests
 `generation.execute` and uses an ordinary `entry` plus Canvas contribution. It may
 omit `runtime` and `contributes.generation`. Declaring a runtime does not grant the
 Web surface caller authority, and granting `generation.execute` does not let the
@@ -190,7 +230,7 @@ iframe start processes or send arbitrary MCP requests.
 
 ## Plugin service contribution
 
-A v2, v3, or v4 executable Plugin may expose bounded account/service state through the same
+A v2, v3, v4, or v5 executable Plugin may expose bounded account/service state through the same
 verified sidecar process used by generation. The manifest declares only which
 fixed host actions are meaningful; it cannot choose MCP method names or attach an
 action payload:
@@ -237,9 +277,11 @@ not protect against processes already running as the same OS account.
 
 ## Host connection
 
-Convax transfers one fresh `MessagePort` to each mounted Plugin node. Accept it only
-from `window.parent`, for the host protocol matching the manifest major (`/1`,
-`/2`, `/3`, or `/4`), the exact Plugin id, and only once:
+Convax transfers one fresh `MessagePort` to each mounted Plugin node using the
+versioned `convax.plugin-host/1` through `/4` protocols. Accept it only
+from `window.parent`, for the host protocol matching the manifest major, the exact
+Plugin id, and only once. The transport-neutral v5 compatibility label does not by
+itself grant a port, and pet-only Plugins never receive one:
 
 ```js
 const PROTOCOL = "convax.plugin-host/1";
@@ -296,5 +338,5 @@ a failed optional view effect; do not report that as a reverted mutation.
 No remote scripts/assets, iframe network APIs, popups, downloads, eval-generated
 code, native/WASM executables, packaged Node servers, filesystem paths, secrets,
 telemetry, service workers, or generic method forwarding. Do not edit `.convax`
-files. A v2, v3, or v4 external runtime is a separately installed and authorized tool, never a
+files. A v2, v3, v4, or v5 external runtime is a separately installed and authorized tool, never a
 Plugin ZIP asset. Use host capabilities only.
