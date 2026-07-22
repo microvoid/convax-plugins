@@ -1,7 +1,7 @@
 import { animationFor, orderedActivities, statusText } from "../assets/activity.js"
 import { connectPetHost } from "../assets/pet-host.js"
 import { selectedPet } from "../assets/pet-library.js"
-import { activatePet, createDragGesture, frameFor, keyAction } from "model.js"
+import { activatePet, createDragGesture, frameFor, keyAction } from "./model.js"
 
 const root = document.querySelector("#pet-root")
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")

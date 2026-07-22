@@ -1,6 +1,6 @@
 import { connectPetHost } from "../assets/pet-host.js"
 import { petLibrary } from "../assets/pet-library.js"
-import { normalizePreferences, selectPreference, wakeRequest } from "model.js"
+import { normalizePreferences, selectPreference, wakeRequest } from "./model.js"
 
 const root = document.querySelector("#settings-root")
 let client
