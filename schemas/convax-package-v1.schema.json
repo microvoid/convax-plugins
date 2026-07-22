@@ -52,6 +52,15 @@
                 "pluginSchema": { "const": "convax.plugin/4" },
                 "pluginHost": { "const": "convax.plugin-host/4" }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pluginSchema", "pluginHost"],
+              "properties": {
+                "pluginSchema": { "const": "convax.plugin/5" },
+                "pluginHost": { "const": "convax.plugin-capability/1" }
+              }
             }
           ]
         },
@@ -82,6 +91,12 @@
                     "properties": {
                       "pluginSchema": { "const": "convax.plugin/4" },
                       "pluginHost": { "const": "convax.plugin-host/4" }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "pluginSchema": { "const": "convax.plugin/5" },
+                      "pluginHost": { "const": "convax.plugin-capability/1" }
                     }
                   }
                 ]

@@ -1,0 +1,39 @@
+{
+  "schema": "convax.plugin/5",
+  "id": "codex-service",
+  "name": "Codex",
+  "description": "Binds an existing local Codex installation and account to Convax for GPT-5.6, GPT-5.5, and GPT Image 2 without copying Codex credentials.",
+  "version": "0.1.1",
+  "contributes": {
+    "generation": {
+      "models": [
+        { "tool": "image.gpt-image-2", "name": "GPT Image 2" }
+      ],
+      "tools": [
+        {
+          "id": "image.gpt-image-2",
+          "title": "Codex · GPT Image 2",
+          "description": "Generate or edit an image through the bound local Codex account and its built-in GPT Image 2 capability.",
+          "output": "image",
+          "acceptedInputs": ["reference_image"]
+        }
+      ]
+    },
+    "llm": {
+      "provider": { "id": "codex", "name": "Codex" },
+      "models": [
+        { "id": "gpt-5.6-sol", "name": "GPT-5.6-Sol" },
+        { "id": "gpt-5.6-terra", "name": "GPT-5.6-Terra" },
+        { "id": "gpt-5.6-luna", "name": "GPT-5.6-Luna" },
+        { "id": "gpt-5.5", "name": "GPT-5.5" }
+      ]
+    },
+    "service": {
+      "actions": ["authorize", "reauthorize"]
+    }
+  },
+  "runtime": {
+    "type": "mcp-stdio",
+    "command": "convax-codex-mcp"
+  }
+}

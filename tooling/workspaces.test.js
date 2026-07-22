@@ -35,6 +35,8 @@ describe("Bun workspace ownership", () => {
   test("keeps one frozen root lockfile", async () => {
     const lock = await readJson(path.join(root, "bun.lock"))
     expect(lock.lockfileVersion).toBe(1)
+    expect(Object.keys(lock.workspaces)).toContain("packages/tools/codex-mcp")
+    expect(Object.keys(lock.workspaces)).toContain("packages/plugins/codex-service")
     expect(Object.keys(lock.workspaces)).toContain("packages/tools/ffmpeg-mcp")
     expect(Object.keys(lock.workspaces)).toContain("packages/skills/ffmpeg-canvas")
   })

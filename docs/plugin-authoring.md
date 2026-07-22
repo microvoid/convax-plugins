@@ -5,9 +5,9 @@ served through a private protocol and mounted in an iframe with exactly
 `sandbox="allow-scripts"`. It has an opaque origin: it cannot inspect the parent
 DOM, use browser storage as shared application state, or access Node/Electron.
 
-`convax.plugin/2`, `convax.plugin/3`, and `convax.plugin/4` may instead be headless
+`convax.plugin/2` through `convax.plugin/5` may instead be headless
 executable Tool Plugins. New executable Plugins should use v3, or v4 when they own
-Skills. Their ZIP still contains no executable code: the manifest names a separately distributed bare
+Skills; use v5 only when they contribute an LLM provider. Their ZIP still contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
 bind that command to verified platform artifacts that Convax installs into
 host-owned storage. Explicit Plugin install/update authorizes that exact binding;
@@ -16,13 +16,14 @@ later tool calls do not add another local-command prompt.
 ## Manifest
 
 `package/manifest.json` uses `convax.plugin/1`, `convax.plugin/2`,
-`convax.plugin/3`, or `convax.plugin/4`. Only
+`convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5`. Only
 documented fields are accepted. Source metadata must use the matching pair:
 
 - `convax.plugin/1` with `convax.plugin-host/1`;
 - `convax.plugin/2` with `convax.plugin-host/2`;
 - `convax.plugin/3` with `convax.plugin-host/3`.
 - `convax.plugin/4` with `convax.plugin-host/4`.
+- `convax.plugin/5` with `convax.plugin-capability/1`.
 
 The v1 schema is static-only:
 
@@ -182,7 +183,7 @@ closed and require reinstall. The Plugin manifest never contains build paths,
 vendor credentials, or a fallback download URL, and the user does not need to copy
 the executable into `PATH`.
 
-A v2, v3, or v4 Web surface that calls installed generation tools requests
+A v2 through v5 Web surface that calls installed generation tools requests
 `generation.execute` and uses an ordinary `entry` plus Canvas contribution. It may
 omit `runtime` and `contributes.generation`. Declaring a runtime does not grant the
 Web surface caller authority, and granting `generation.execute` does not let the
@@ -190,7 +191,7 @@ iframe start processes or send arbitrary MCP requests.
 
 ## Plugin service contribution
 
-A v2, v3, or v4 executable Plugin may expose bounded account/service state through the same
+A v2 through v5 executable Plugin may expose bounded account/service state through the same
 verified sidecar process used by generation. The manifest declares only which
 fixed host actions are meaningful; it cannot choose MCP method names or attach an
 action payload:
@@ -235,11 +236,45 @@ to the matching authorization generation, never return it through MCP, and clear
 it on sign-out. Mode `0600` is best-effort isolation from other OS users; it does
 not protect against processes already running as the same OS account.
 
+## LLM provider contribution
+
+`convax.plugin/5` may contribute one OpenAI-compatible provider through the same
+verified sidecar lifecycle. The manifest contains display and selection metadata
+only:
+
+```json
+{
+  "contributes": {
+    "llm": {
+      "provider": { "id": "example-llm", "name": "Example LLM" },
+      "models": [{ "id": "example-main", "name": "Example Main" }]
+    }
+  }
+}
+```
+
+The sidecar must expose the fixed, empty-input MCP tool `llm.gateway.start`. Its
+Main-only `structuredContent` is exactly `{schema, base_url, api_key}` with schema
+`convax.llm-gateway/1`, an ephemeral `http://127.0.0.1:<port>/v1` URL, and a random
+process-lifetime key. The gateway accepts only authenticated OpenAI-compatible
+requests for declared models. It owns upstream URLs, headers, credentials, Cookies,
+streaming, cancellation, and vendor error adaptation; none of those values belongs
+in the manifest, renderer, service status, or durable OpenCode config.
+
+Hosts namespace provider ids by Plugin identity, verify the installed executable
+before starting it, and discard the gateway when that exact Plugin runtime changes.
+An unavailable or invalid gateway is omitted rather than weakening loopback or
+executable verification.
+
+The v5 compatibility pair deliberately uses the independently versioned
+`convax.plugin-capability/1` broker. It does not extend the legacy iframe
+`convax.plugin-host/N` sequence.
+
 ## Host connection
 
 Convax transfers one fresh `MessagePort` to each mounted Plugin node. Accept it only
 from `window.parent`, for the host protocol matching the manifest major (`/1`,
-`/2`, `/3`, or `/4`), the exact Plugin id, and only once:
+`/2`, `/3`, `/4`, or `/5`), the exact Plugin id, and only once:
 
 ```js
 const PROTOCOL = "convax.plugin-host/1";
