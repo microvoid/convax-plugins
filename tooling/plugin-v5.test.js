@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { parsePluginManifest, parseSourceMetadata } from "./lib.mjs"
+import { parsePluginManifest, parseSourceMetadata, validatePetPackageLibrary } from "./lib.mjs"
 
 function webp(width, height) {
   const data = Buffer.alloc(30)
@@ -19,6 +19,25 @@ function png(width, height) {
   data.writeUInt32BE(width, 16)
   data.writeUInt32BE(height, 20)
   return data
+}
+
+function petLibrary(pets = [{
+  id: "violet",
+  displayName: "Violet",
+  description: "A pixel companion for Convax.",
+  spritesheet: "assets/violet.webp",
+  spriteVersion: 2,
+  alt: "Violet, the Convax pixel companion",
+}]) {
+  return { schema: "convax.pet-library/1", pets }
+}
+
+function packageFile(relativePath, data) {
+  return { relativePath, data: Buffer.isBuffer(data) ? data : Buffer.from(data) }
+}
+
+function petSurfaceFiles() {
+  return [packageFile("pet/index.html", "<!doctype html>"), packageFile("settings/index.html", "<!doctype html>")]
 }
 
 function petManifest(overrides = {}) {
@@ -159,5 +178,59 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
         runtime: { command: "pet-runtime", type: "mcp-stdio" },
       }),
     ).toThrow("pet feature")
+  })
+
+  test("validates every packaged pet library atlas", () => {
+    const manifest = parsePluginManifest(petManifest())
+    const comet = {
+      ...petLibrary().pets[0],
+      id: "comet",
+      displayName: "Comet",
+      spritesheet: "assets/comet.png",
+    }
+    const library = petLibrary([...petLibrary().pets, comet])
+    const files = [
+      ...petSurfaceFiles(),
+      packageFile("pet-library.json", JSON.stringify(library)),
+      packageFile("assets/violet.webp", webp(1536, 1872)),
+      packageFile("assets/comet.png", png(1536, 1872)),
+    ]
+
+    expect(validatePetPackageLibrary(manifest, files, "pet test")).toEqual(library)
+  })
+
+  test.each([
+    ["missing library", petSurfaceFiles()],
+    ["invalid JSON", [...petSurfaceFiles(), packageFile("pet-library.json", "{")]],
+    ["empty library", [...petSurfaceFiles(), packageFile("pet-library.json", JSON.stringify(petLibrary([])))]],
+    [
+      "duplicate id",
+      [
+        ...petSurfaceFiles(),
+        packageFile("pet-library.json", JSON.stringify(petLibrary([...petLibrary().pets, petLibrary().pets[0]]))),
+      ],
+    ],
+    [
+      "missing atlas",
+      [...petSurfaceFiles(), packageFile("pet-library.json", JSON.stringify(petLibrary()))],
+    ],
+    [
+      "forged atlas",
+      [
+        ...petSurfaceFiles(),
+        packageFile("pet-library.json", JSON.stringify(petLibrary())),
+        packageFile("assets/violet.webp", "not an image"),
+      ],
+    ],
+    [
+      "wrong dimensions",
+      [
+        ...petSurfaceFiles(),
+        packageFile("pet-library.json", JSON.stringify(petLibrary())),
+        packageFile("assets/violet.webp", webp(1, 1)),
+      ],
+    ],
+  ])("rejects a pet package with %s", (_label, files) => {
+    expect(() => validatePetPackageLibrary(parsePluginManifest(petManifest()), files, "pet test")).toThrow()
   })
 })

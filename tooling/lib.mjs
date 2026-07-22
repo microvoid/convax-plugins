@@ -1091,19 +1091,68 @@ function webpDimensions(data, label) {
   error(label, "unsupported or malformed WebP bitstream")
 }
 
-export function validatePetPackageAsset(manifest, files, label = "Plugin") {
+function parsePetLibrary(value, label) {
+  exactKeys(value, ["pets", "schema"], ["pets", "schema"], label)
+  if (value.schema !== "convax.pet-library/1") error(label, "schema must equal convax.pet-library/1")
+  if (!Array.isArray(value.pets) || value.pets.length < 1 || value.pets.length > 64) {
+    error(label, "pets must contain between 1 and 64 entries")
+  }
+  const pets = value.pets.map((item, index) => {
+    const itemLabel = `${label} pets[${index}]`
+    exactKeys(
+      item,
+      ["alt", "description", "displayName", "id", "spritesheet", "spriteVersion"],
+      ["alt", "description", "displayName", "id", "spritesheet", "spriteVersion"],
+      itemLabel,
+    )
+    const spritesheet = parseRelativePath(item.spritesheet, `${itemLabel} spritesheet`)
+    if (!/\.(?:png|webp)$/i.test(spritesheet)) error(itemLabel, "spritesheet must be a PNG or WebP file")
+    if (item.spriteVersion !== 2) error(itemLabel, "spriteVersion must equal 2")
+    return {
+      alt: cleanString(item.alt, `${itemLabel} alt`, 500),
+      description: cleanString(item.description, `${itemLabel} description`, 2_000),
+      displayName: cleanString(item.displayName, `${itemLabel} displayName`, 120),
+      id: parseId(item.id, `${itemLabel} id`),
+      spritesheet,
+      spriteVersion: 2,
+    }
+  })
+  if (new Set(pets.map((pet) => pet.id)).size !== pets.length) error(label, "pets contain duplicate ids")
+  if (new Set(pets.map((pet) => pet.spritesheet)).size !== pets.length) {
+    error(label, "pets contain duplicate spritesheet paths")
+  }
+  return { schema: "convax.pet-library/1", pets }
+}
+
+export function validatePetPackageLibrary(manifest, files, label = "Plugin") {
   const pet = manifest.contributes?.pet
   if (!pet) return undefined
-  const asset = files.find((file) => file.relativePath === pet.spritesheet)
-  if (!asset) error(label, `missing declared pet spritesheet ${pet.spritesheet}`)
-  const extension = path.posix.extname(pet.spritesheet).toLowerCase()
-  const dimensions = extension === ".png"
-    ? pngDimensions(asset.data, `${label} pet spritesheet`)
-    : webpDimensions(asset.data, `${label} pet spritesheet`)
-  if (dimensions.width !== 1536 || dimensions.height !== 1872) {
-    error(label, "pet spritesheet must be exactly 1536 by 1872 pixels")
+  const entries = new Map(files.map((file) => [file.relativePath, file]))
+  for (const [field, kind] of [["overlay", "overlay"], ["settings", "settings"]]) {
+    if (!entries.has(pet[field])) error(label, `missing declared pet ${kind} ${pet[field]}`)
   }
-  return dimensions
+  const libraryFile = entries.get(pet.library)
+  if (!libraryFile) error(label, `missing declared pet library ${pet.library}`)
+  let libraryValue
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(libraryFile.data)
+    libraryValue = JSON.parse(text)
+  } catch (cause) {
+    throw new Error(`${label} pet library: invalid UTF-8 JSON`, { cause })
+  }
+  const library = parsePetLibrary(libraryValue, `${label} pet library`)
+  for (const petEntry of library.pets) {
+    const asset = entries.get(petEntry.spritesheet)
+    if (!asset) error(label, `missing declared pet spritesheet ${petEntry.spritesheet}`)
+    const extension = path.posix.extname(petEntry.spritesheet).toLowerCase()
+    const dimensions = extension === ".png"
+      ? pngDimensions(asset.data, `${label} pet spritesheet ${petEntry.id}`)
+      : webpDimensions(asset.data, `${label} pet spritesheet ${petEntry.id}`)
+    if (dimensions.width !== 1536 || dimensions.height !== 1872) {
+      error(label, `pet spritesheet ${petEntry.id} must be exactly 1536 by 1872 pixels`)
+    }
+  }
+  return library
 }
 
 function mp4Dimensions(data, label) {
@@ -1250,7 +1299,7 @@ export async function discoverPackages(options = {}) {
       }
       const names = new Set(files.map((file) => file.relativePath))
       if (manifest.entry && !names.has(manifest.entry)) error(`${candidate.kind}/${candidate.id}`, `missing entry ${manifest.entry}`)
-      validatePetPackageAsset(manifest, files, `${candidate.kind}/${candidate.id}`)
+      validatePetPackageLibrary(manifest, files, `${candidate.kind}/${candidate.id}`)
       if (manifest.runtime && names.has(manifest.runtime.command)) {
         error(`${candidate.kind}/${candidate.id}`, "external runtime executable must not be included in the Plugin ZIP")
       }
