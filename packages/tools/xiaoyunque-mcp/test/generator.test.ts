@@ -482,6 +482,110 @@ describe("XiaoYunque generation engine", () => {
     }
   })
 
+  test("registers and submits one Canvas reference video for video generation", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-reference-video-"))
+    directories.push(directory)
+    const output = path.join(directory, "output")
+    const referenceVideo = path.join(directory, "reference.mp4")
+    await Promise.all([mkdir(output), writeFile(referenceVideo, mp4)])
+    let uploadCount = 0
+    let registrationCount = 0
+    let submittedBody: Record<string, unknown> | undefined
+    let submittedTask: ReturnType<typeof taskFromSubmitBody> | undefined
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: async (request): Promise<Response> => {
+        const url = new URL(request.url)
+        if (url.pathname === "/api/web/v1/common/upload_file") {
+          uploadCount += 1
+          const form = await request.formData()
+          expect(path.basename((form.get("file") as File | null)?.name ?? "")).toBe("reference.mp4")
+          expect(form.get("asset_type")).toBe("1")
+          return Response.json({
+            ret: 0,
+            data: {
+              asset_id: "everphoto-reference-video",
+              download_url: `${url.origin}/uploaded-reference.mp4`,
+              duration_ms: 5_000,
+            },
+          })
+        }
+        if (url.pathname === "/api/biz/v1/asset/create_v2") {
+          registrationCount += 1
+          expect(await request.json()).toEqual({
+            asset_source_type: 3,
+            asset_source_id: "everphoto-reference-video",
+            asset_type: 2,
+            Base: { Client: "web" },
+          })
+          return Response.json({ ret: 0, data: { PippitAssetID: "pippit-reference-video" } })
+        }
+        const accountPreflight = await accountPreflightResponse(request)
+        if (accountPreflight) return accountPreflight
+        if (url.pathname === "/api/biz/v1/agent/submit_run") {
+          submittedBody = await request.json() as Record<string, unknown>
+          submittedTask = taskFromSubmitBody(submittedBody)
+          return Response.json({ ret: 0, data: { accepted: true } })
+        }
+        if (url.pathname === "/api/biz/v1/agent/get_thread") {
+          return Response.json({
+            ret: 0,
+            data: {
+              thread: {
+                thread_id: submittedTask?.threadId,
+                run_list: [{
+                  entry_list: [artifactEntry("biz/x_data_video", `${url.origin}/result.mp4`)],
+                  run_id: submittedTask?.runId,
+                  state: 3,
+                  thread_id: submittedTask?.threadId,
+                }],
+              },
+            },
+          })
+        }
+        if (url.pathname === "/result.mp4") return new Response(mp4, { headers: { "Content-Type": "video/mp4" } })
+        return new Response("not found", { status: 404 })
+      },
+    })
+    const store = new OperationStore(path.join(directory, "state", "operations.json"))
+    const engine = new GenerationEngine({
+      api: new XiaoYunqueApi(`http://127.0.0.1:${server.port}`),
+      authorizer: { session: async () => testSession },
+      operationStore: store,
+      pollIntervalMs: 1,
+    })
+    try {
+      const artifacts = await engine.generate(call({
+        operation_id: "reference-video-generation",
+        output: "video",
+        output_directory: output,
+        references: [{
+          kind: "file",
+          mime_type: "video/mp4",
+          name: "reference.mp4",
+          node_id: "reference-video-node",
+          path: referenceVideo,
+          role: "reference_video",
+        }],
+      }), videoModel, new AbortController().signal)
+
+      expect(artifacts[0]?.mimeType).toBe("video/mp4")
+      expect(uploadCount).toBe(1)
+      expect(registrationCount).toBe(1)
+      expect(directVideoParameters(submittedBody!)).toMatchObject({
+        model: "Seedance_2.0_mini_lite",
+        videos: [{
+          asset_id: "everphoto-reference-video",
+          pippit_asset_id: "pippit-reference-video",
+        }],
+      })
+      expect(await store.find("reference-video-generation")).toMatchObject({ status: "submitted" })
+    } finally {
+      server.stop(true)
+    }
+  })
+
   test("rejects a last frame without a first frame before any API request", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-last-frame-only-"))
     directories.push(directory)

@@ -37,9 +37,11 @@ export class XiaoYunqueQueryTimeoutError extends Error {
  */
 export class XiaoYunqueReferenceAssetRegistrationError extends Error {
   override name = "XiaoYunqueReferenceAssetRegistrationError"
+  readonly referenceType: "image" | "video"
 
-  constructor() {
-    super("XiaoYunque reference image asset registration failed")
+  constructor(referenceType: "image" | "video" = "image") {
+    super(`XiaoYunque reference ${referenceType} asset registration failed`)
+    this.referenceType = referenceType
   }
 }
 
@@ -618,27 +620,36 @@ export class XiaoYunqueApi {
     const response = await this.#request(uploadPath, session, signal, { body, method: "POST" })
     const payload = requireSuccess(response.value, response.status, "XiaoYunque reference upload")
     const asset = uploadedAsset(payload.data, reference, assetType, this.#allowLoopbackTest)
-    if (assetType !== 2 || asset.pippitAssetId !== undefined) return asset
+    const registeredAssetType = assetType === 2 ? 1 : assetType === 1 ? 2 : undefined
+    if (registeredAssetType === undefined || asset.pippitAssetId !== undefined) return asset
 
     return {
       ...asset,
-      pippitAssetId: await this.#registerUploadedImage(asset.assetId, session, signal),
+      pippitAssetId: await this.#registerUploadedAsset(
+        asset.assetId,
+        registeredAssetType,
+        session,
+        signal,
+      ),
     }
   }
 
-  async #registerUploadedImage(
+  async #registerUploadedAsset(
     assetId: string,
+    assetType: 1 | 2,
     session: StoredWebSession,
     signal: AbortSignal,
   ) {
     try {
       // `upload_file.asset_id` is an EverPhoto source id. The first-party Web
       // product converts it into the identity consumed by image and video generation via
-      // AssetCreateV2; the two ids are deliberately never treated as aliases.
+      // AssetCreateV2; the two ids are deliberately never treated as aliases. The
+      // upload_file and AssetCreateV2 asset-type enums differ: upload 2/1 maps to
+      // registered image/video 1/2 respectively.
       const response = await this.#jsonRequest(assetCreateV2Path, {
         asset_source_type: 3,
         asset_source_id: assetId,
-        asset_type: 1,
+        asset_type: assetType,
         Base: { Client: "web" },
       }, session, signal)
       const payload = requireAssetRegistrationSuccess(response.value, response.status)
@@ -651,7 +662,7 @@ export class XiaoYunqueApi {
     } catch (error) {
       if (signal.aborted) throw cancellationError(signal)
       if (error instanceof XiaoYunqueAuthenticationError) throw error
-      throw new XiaoYunqueReferenceAssetRegistrationError()
+      throw new XiaoYunqueReferenceAssetRegistrationError(assetType === 1 ? "image" : "video")
     }
   }
 

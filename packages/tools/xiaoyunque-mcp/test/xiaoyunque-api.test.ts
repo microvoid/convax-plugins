@@ -270,6 +270,7 @@ describe("XiaoYunque first-party Web generation API", () => {
     for (const api of [rejected, incomplete]) {
       const error = await api.upload(reference, session, signal).catch((reason: unknown) => reason)
       expect(error).toBeInstanceOf(XiaoYunqueReferenceAssetRegistrationError)
+      expect((error as XiaoYunqueReferenceAssetRegistrationError).referenceType).toBe("image")
       expect(String(error)).toBe(
         "XiaoYunqueReferenceAssetRegistrationError: XiaoYunque reference image asset registration failed",
       )
@@ -294,6 +295,7 @@ describe("XiaoYunque first-party Web generation API", () => {
         data: {
           asset_id: `asset-${seenTypes.length}`,
           download_url: `https://cdn.example.test/reference-${seenTypes.length}`,
+          pippit_asset_id: `pippit-${seenTypes.length}`,
         },
       })
     })
@@ -316,6 +318,95 @@ describe("XiaoYunque first-party Web generation API", () => {
     }, session, signal)
 
     expect(seenTypes).toEqual(["1", "4"])
+  })
+
+  test("registers an uploaded EverPhoto video with the video AssetCreateV2 type", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-web-register-video-"))
+    directories.push(directory)
+    const referencePath = path.join(directory, "reference.mp4")
+    await writeFile(referencePath, Uint8Array.from([0, 0, 0, 16, 102, 116, 121, 112]))
+    const requests: string[] = []
+    const api = apiFor((url, init) => {
+      requests.push(url.pathname)
+      expectWebHeaders(init?.headers)
+      if (url.pathname === "/api/web/v1/common/upload_file") {
+        const body = init?.body as FormData
+        expect(body.get("asset_type")).toBe("1")
+        return Response.json({
+          ret: 0,
+          data: {
+            asset_id: "asset-video",
+            download_url: "https://cdn.example.test/reference.mp4",
+            duration_ms: 5_000,
+            pippit_asset_id: " ",
+          },
+        })
+      }
+      expect(url.pathname).toBe("/api/biz/v1/asset/create_v2")
+      expect(init?.method).toBe("POST")
+      expect(JSON.parse(String(init?.body))).toEqual({
+        asset_source_type: 3,
+        asset_source_id: "asset-video",
+        asset_type: 2,
+        Base: { Client: "web" },
+      })
+      return Response.json({
+        ret: "0",
+        data: { PippitAssetID: "pippit-video" },
+      })
+    })
+
+    expect(await api.upload({
+      kind: "file",
+      mime_type: "video/mp4",
+      name: "reference.mp4",
+      node_id: "video-node",
+      path: referencePath,
+      role: "reference_video",
+    }, session, signal)).toEqual({
+      assetId: "asset-video",
+      metadata: { durationMilliseconds: 5_000 },
+      name: "reference.mp4",
+      pippitAssetId: "pippit-video",
+      url: "https://cdn.example.test/reference.mp4",
+    })
+    expect(requests).toEqual([
+      "/api/web/v1/common/upload_file",
+      "/api/biz/v1/asset/create_v2",
+    ])
+  })
+
+  test("classifies failed reference video registration without leaking upstream details", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "xiaoyunque-web-register-video-failure-"))
+    directories.push(directory)
+    const referencePath = path.join(directory, "reference.mp4")
+    await writeFile(referencePath, Uint8Array.from([0, 0, 0, 16, 102, 116, 121, 112]))
+    const api = apiFor((url) => url.pathname === "/api/web/v1/common/upload_file"
+      ? Response.json({
+          ret: 0,
+          data: {
+            asset_id: "asset-video",
+            download_url: "https://cdn.example.test/reference.mp4",
+          },
+        })
+      : Response.json({ ret: 4001, errmsg: "private upstream video detail" }))
+
+    const error = await api.upload({
+      kind: "file",
+      mime_type: "video/mp4",
+      name: "reference.mp4",
+      node_id: "video-node",
+      path: referencePath,
+      role: "reference_video",
+    }, session, signal).catch((reason: unknown) => reason)
+
+    expect(error).toBeInstanceOf(XiaoYunqueReferenceAssetRegistrationError)
+    expect((error as XiaoYunqueReferenceAssetRegistrationError).referenceType).toBe("video")
+    expect(String(error)).toBe(
+      "XiaoYunqueReferenceAssetRegistrationError: XiaoYunque reference video asset registration failed",
+    )
+    expect(String(error)).not.toContain("private upstream video detail")
+    expect(String(error)).not.toContain("asset-video")
   })
 
   test("submits one image through the first-party Canvas image flow", async () => {

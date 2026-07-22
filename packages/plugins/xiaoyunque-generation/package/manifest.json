@@ -3,7 +3,7 @@
   "id": "xiaoyunque-generation",
   "name": "小云雀生成",
   "description": "通过宿主管理的小云雀网页授权展示服务状态，并使用小云雀第一方网页能力生成图片和视频。",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "contributes": {
     "generation": {
       "models": [
