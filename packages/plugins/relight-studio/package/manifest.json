@@ -3,7 +3,7 @@
   "id": "relight-studio",
   "name": "重打光",
   "description": "连接一张 Canvas 图片，通过宿主统一的 AI 生图能力生成不同主光方向、色温与电影氛围的重打光结果。",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "entry": "index.html",
   "capabilities": [
     "canvas.connectedImages.read",

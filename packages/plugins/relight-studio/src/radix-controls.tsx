@@ -1,4 +1,4 @@
-import { Select, Slider } from "radix-ui"
+import { Select, Slider, Tooltip } from "radix-ui"
 import { createRoot, type Root } from "react-dom/client"
 
 interface MountedControl {
@@ -93,28 +93,41 @@ function mountSlider(input: HTMLInputElement, controls: MountedControl[]) {
       const maximum = Number(input.max)
       const step = Number(input.step)
       const value = Number(input.value)
+      const displayValue = input.labels?.[0]?.querySelector("output")?.textContent || input.value
       root.render(
-        <Slider.Root
-          aria-label={labelFor(input)}
-          className="radix-slider-root"
-          disabled={input.disabled}
-          max={Number.isFinite(maximum) ? maximum : 100}
-          min={Number.isFinite(minimum) ? minimum : 0}
-          step={Number.isFinite(step) && step > 0 ? step : 1}
-          value={[Number.isFinite(value) ? value : 0]}
-          onValueChange={([next]) => {
-            if (next === undefined) return
-            input.value = String(next)
-            dispatchNativeControl(input, "input")
-            mounted.render()
-          }}
-          onValueCommit={() => dispatchNativeControl(input, "change")}
-        >
-          <Slider.Track className="radix-slider-track">
-            <Slider.Range className="radix-slider-range" />
-          </Slider.Track>
-          <Slider.Thumb className="radix-slider-thumb" />
-        </Slider.Root>,
+        <Tooltip.Provider delayDuration={260}>
+          <Slider.Root
+            aria-label={labelFor(input)}
+            className="radix-slider-root"
+            disabled={input.disabled}
+            max={Number.isFinite(maximum) ? maximum : 100}
+            min={Number.isFinite(minimum) ? minimum : 0}
+            step={Number.isFinite(step) && step > 0 ? step : 1}
+            value={[Number.isFinite(value) ? value : 0]}
+            onValueChange={([next]) => {
+              if (next === undefined) return
+              input.value = String(next)
+              dispatchNativeControl(input, "input")
+              mounted.render()
+            }}
+            onValueCommit={() => dispatchNativeControl(input, "change")}
+          >
+            <Slider.Track className="radix-slider-track">
+              <Slider.Range className="radix-slider-range" />
+            </Slider.Track>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <Slider.Thumb className="radix-slider-thumb" />
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content className="radix-tooltip-content" sideOffset={7}>
+                  {displayValue}
+                  <Tooltip.Arrow className="radix-tooltip-arrow" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Slider.Root>
+        </Tooltip.Provider>,
       )
     },
   }

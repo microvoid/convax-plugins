@@ -35,7 +35,7 @@ describe("relight-studio package", () => {
       id: "relight-studio",
       name: "重打光",
       description: manifest.description,
-      version: "0.1.1",
+      version: "0.1.2",
       license: "MIT",
       compatibility: {
         pluginSchema: "convax.plugin/3",
@@ -151,7 +151,7 @@ describe("relight-studio package", () => {
     expect(app.slice(flushStart, flushEnd)).toContain("(!allowDuringGeneration && generationInFlight)")
   })
 
-  test("ships Radix Select and Slider as a self-contained local browser bundle", async () => {
+  test("ships Radix Select, Slider, and Tooltip as a self-contained local browser bundle", async () => {
     const workspace = await readJson(path.join(sourceRoot, "package.json"))
     expect(workspace.scripts).toMatchObject({
       build: "bun scripts/build.ts",
@@ -170,9 +170,10 @@ describe("relight-studio package", () => {
     ])
     expect(html.match(/data-radix-select/g)).toHaveLength(2)
     expect(html.match(/data-radix-slider/g)).toHaveLength(8)
-    expect(source).toContain('import { Select, Slider } from "radix-ui"')
+    expect(source).toContain('import { Select, Slider, Tooltip } from "radix-ui"')
     expect(source).toContain("<Select.Root")
     expect(source).toContain("<Slider.Root")
+    expect(source).toContain("<Tooltip.Root")
     expect(bundle.length).toBeGreaterThan(1_000)
     expect(bundle).not.toMatch(/https?:\/\//)
     expect(bundle).not.toMatch(/from\s*["'](?:radix-ui|react|react-dom)/)
