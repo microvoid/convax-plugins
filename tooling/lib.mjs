@@ -143,8 +143,9 @@ function parseCompatibility(value, kind, label) {
     const v2 = value.pluginSchema === "convax.plugin/2" && value.pluginHost === "convax.plugin-host/2"
     const v3 = value.pluginSchema === "convax.plugin/3" && value.pluginHost === "convax.plugin-host/3"
     const v4 = value.pluginSchema === "convax.plugin/4" && value.pluginHost === "convax.plugin-host/4"
-    if (!v1 && !v2 && !v3 && !v4) {
-      error(label, "must pair matching convax.plugin and convax.plugin-host major versions 1, 2, 3, or 4")
+    const v5 = value.pluginSchema === "convax.plugin/5" && value.pluginHost === "convax.plugin-capability/1"
+    if (!v1 && !v2 && !v3 && !v4 && !v5) {
+      error(label, "must pair matching convax.plugin and convax.plugin-host versions, or convax.plugin/5 with convax.plugin-capability/1")
     }
     return { pluginSchema: value.pluginSchema, pluginHost: value.pluginHost }
   }
@@ -226,8 +227,9 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
   const compatibility = parseCompatibility(value.compatibility, kind, `${label} compatibility`)
   const companions = parseSourceCompanions(value.companions, `${label} companions`)
   if (companions && compatibility.pluginSchema !== "convax.plugin/2" &&
-      compatibility.pluginSchema !== "convax.plugin/3" && compatibility.pluginSchema !== "convax.plugin/4") {
-    error(label, "companions require convax.plugin/2, convax.plugin/3, or convax.plugin/4 compatibility")
+      compatibility.pluginSchema !== "convax.plugin/3" && compatibility.pluginSchema !== "convax.plugin/4" &&
+      compatibility.pluginSchema !== "convax.plugin/5") {
+    error(label, "companions require convax.plugin/2 through convax.plugin/5 compatibility")
   }
   return {
     schema: "convax.package/1",
@@ -608,12 +610,32 @@ function parseOwnedSkillsV4(value, label) {
   return skills
 }
 
-function parsePluginManifestV4(value, label) {
+function parseLlmV5(value, label) {
+  exactKeys(value, ["models", "provider"], ["models", "provider"], label)
+  exactKeys(value.provider, ["id", "name"], ["id", "name"], `${label} provider`)
+  const providerId = parseId(value.provider.id, `${label} provider id`)
+  if (!Array.isArray(value.models) || value.models.length < 1 || value.models.length > 32) {
+    error(label, "models must be a non-empty array with at most 32 items")
+  }
+  const models = value.models.map((item, index) => {
+    const itemLabel = `${label} model ${index}`
+    exactKeys(item, ["id", "name"], ["id", "name"], itemLabel)
+    const id = cleanString(item.id, `${itemLabel} id`, 128)
+    if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) error(itemLabel, "id is invalid")
+    return { id, name: cleanString(item.name, `${itemLabel} name`, 120) }
+  })
+  if (new Set(models.map((model) => model.id)).size !== models.length) error(label, "models contain duplicate ids")
+  return { models, provider: { id: providerId, name: cleanString(value.provider.name, `${label} provider name`, 120) } }
+}
+
+function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
   const required = ["contributes", "description", "id", "name", "schema", "version"]
   exactKeys(value,
     ["capabilities", "contributes", "description", "entry", "id", "name", "runtime", "schema", "version"],
     required, label)
-  exactKeys(value.contributes, ["agent", "canvas", "generation", "service", "skills"], [], `${label} contributes`)
+  exactKeys(value.contributes,
+    ["agent", "canvas", "generation", ...(schema === "convax.plugin/5" ? ["llm"] : []), "service", "skills"],
+    [], `${label} contributes`)
 
   const capabilities = value.capabilities ?? []
   if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
@@ -623,7 +645,8 @@ function parsePluginManifestV4(value, label) {
   const hasRuntime = value.runtime !== undefined
   const hasGeneration = value.contributes.generation !== undefined
   const hasService = value.contributes.service !== undefined
-  if (hasRuntime !== (hasGeneration || hasService)) {
+  const hasLlm = value.contributes.llm !== undefined
+  if (hasRuntime !== (hasGeneration || hasService || hasLlm)) {
     error(label, "runtime and executable contribution must appear together")
   }
 
@@ -644,7 +667,7 @@ function parsePluginManifestV4(value, label) {
     : undefined
   const hasRenderer = canvas?.renderer !== undefined
   if (!hasRuntime && !hasRenderer && !capabilities.includes("generation.execute")) {
-    error(label, "convax.plugin/4 must declare a Plugin capability beyond owned Skills")
+    error(label, `${schema} must declare a Plugin capability beyond owned Skills`)
   }
   const hasEntry = value.entry !== undefined
   if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
@@ -659,6 +682,7 @@ function parsePluginManifestV4(value, label) {
   }
 
   const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
+  const llm = hasLlm ? parseLlmV5(value.contributes.llm, `${label} llm`) : undefined
   const skills = parseOwnedSkillsV4(value.contributes.skills, `${label} skills`)
   const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
   return {
@@ -667,6 +691,7 @@ function parsePluginManifestV4(value, label) {
       ...(agent === undefined ? {} : { agent }),
       ...(canvas === undefined ? {} : { canvas }),
       ...(generation === undefined ? {} : { generation }),
+      ...(llm === undefined ? {} : { llm }),
       ...(service === undefined ? {} : { service }),
       ...(skills === undefined ? {} : { skills }),
     },
@@ -674,7 +699,7 @@ function parsePluginManifestV4(value, label) {
     ...(entry === undefined ? {} : { entry }),
     id: parseId(value.id, `${label} id`),
     name: cleanString(value.name, `${label} name`, 120),
-    schema: "convax.plugin/4",
+    schema,
     ...(runtime === undefined ? {} : { runtime }),
     version: parseSemver(value.version, `${label} version`),
   }
@@ -683,9 +708,11 @@ function parsePluginManifestV4(value, label) {
 export function parsePluginManifest(value, label = "manifest.json") {
   if (!isObject(value) ||
       (value.schema !== "convax.plugin/1" && value.schema !== "convax.plugin/2" &&
-       value.schema !== "convax.plugin/3" && value.schema !== "convax.plugin/4")) {
+       value.schema !== "convax.plugin/3" && value.schema !== "convax.plugin/4" &&
+       value.schema !== "convax.plugin/5")) {
     error(label, "unsupported schema")
   }
+  if (value.schema === "convax.plugin/5") return parsePluginManifestV4(value, label, "convax.plugin/5")
   if (value.schema === "convax.plugin/4") return parsePluginManifestV4(value, label)
   if (value.schema === "convax.plugin/3") return parsePluginManifestV3(value, label)
   return parseLegacyPluginManifest(value, label)
@@ -1528,8 +1555,8 @@ function parseCompanionArtifact(value, metadata, companion, target, label) {
 function parseRegistryCompanions(value, metadata, manifest, label) {
   if (value === undefined) return undefined
   if ((manifest.schema !== "convax.plugin/2" && manifest.schema !== "convax.plugin/3" &&
-       manifest.schema !== "convax.plugin/4") || !manifest.runtime) {
-    error(label, "companions require a convax.plugin/2, convax.plugin/3, or convax.plugin/4 external runtime")
+       manifest.schema !== "convax.plugin/4" && manifest.schema !== "convax.plugin/5") || !manifest.runtime) {
+    error(label, "companions require a convax.plugin/2 through convax.plugin/5 external runtime")
   }
   if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
     error(label, "must be a non-empty array with at most 16 items")
@@ -1619,7 +1646,7 @@ export function parseRegistry(value, label = "Registry") {
     .map((entry) => [entry.id, entry]))
   for (const skill of packages.filter((entry) => entry.kind === "skill" && entry.ownerPluginId)) {
     const owner = pluginsById.get(skill.ownerPluginId)
-    const contribution = owner?.manifest.schema === "convax.plugin/4"
+    const contribution = owner?.manifest.schema === "convax.plugin/4" || owner?.manifest.schema === "convax.plugin/5"
       ? owner.manifest.contributes.skills?.find((item) => item.name === skill.id)
       : undefined
     if (!owner || !contribution) {
@@ -1627,7 +1654,8 @@ export function parseRegistry(value, label = "Registry") {
     }
   }
   for (const plugin of packages.filter((entry) =>
-    entry.kind === "plugin" && entry.manifest.schema === "convax.plugin/4")) {
+    entry.kind === "plugin" &&
+    (entry.manifest.schema === "convax.plugin/4" || entry.manifest.schema === "convax.plugin/5"))) {
     for (const contribution of plugin.manifest.contributes.skills ?? []) {
       const skill = skillsById.get(contribution.name)
       if (!skill || skill.ownerPluginId !== plugin.id) {

@@ -67,6 +67,11 @@ platform/architecture companion artifacts beside the ZIP. Convax verifies their
 size and SHA-256 into host-owned storage, so users do not install a sidecar through
 `PATH` and executables still never enter a Plugin package.
 
+`convax.plugin/5` additionally declares an LLM provider as bounded provider/model
+metadata. The verified sidecar supplies a random, Main-only loopback gateway at
+runtime; manifests and service projections never contain upstream URLs, Cookies,
+headers, or credentials.
+
 `convax.plugin/4` adds Plugin-owned Skills. A v4 Plugin declares
 `contributes.skills`, and the packer injects each referenced standard Skill
 workspace into the Plugin ZIP. Convax may show that Skill in its catalog, but its

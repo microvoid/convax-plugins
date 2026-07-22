@@ -1,0 +1,13 @@
+{
+  "name": "@microvoid/convax-plugin-codex-service",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@microvoid/convax-codex-mcp": "workspace:*"
+  },
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id codex-service",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id codex-service"
+  }
+}
