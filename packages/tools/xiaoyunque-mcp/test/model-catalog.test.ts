@@ -56,6 +56,9 @@ describe("XiaoYunque governed model catalog", () => {
     ])
     const mcpNames: string[] = generationMcpTools.map((tool) => tool.name)
     expect(mcpNames).toEqual(manifestIds)
+    for (const tool of manifest.contributes.generation.tools.filter((item) => item.id.startsWith("image."))) {
+      expect(tool.acceptedInputs).toEqual(["reference_image"])
+    }
     for (const tool of manifest.contributes.generation.tools.filter((item) => item.id.startsWith("video."))) {
       expect(tool.acceptedInputs).toEqual([
         "reference_image",

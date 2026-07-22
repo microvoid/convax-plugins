@@ -24,6 +24,7 @@ import {
 import {
   XiaoYunqueAuthenticationError,
   XiaoYunqueQueryTimeoutError,
+  XiaoYunqueReferenceAssetRegistrationError,
   XiaoYunqueRequestRejectedError,
 } from "./xiaoyunque-api.ts"
 
@@ -151,6 +152,9 @@ export function publicGenerationErrorMessage(error: unknown) {
   if (error instanceof XiaoYunqueUnsupportedImageModelError) {
     return "The selected XiaoYunque image model is no longer available. Choose another image model and try again."
   }
+  if (error instanceof XiaoYunqueReferenceAssetRegistrationError) {
+    return "XiaoYunque could not prepare the reference image for generation. No generation was submitted; try again."
+  }
   if (error instanceof XiaoYunqueRequestRejectedError) {
     return "XiaoYunque did not accept this generation request. Refresh Services and try a model listed for this capability."
   }
@@ -164,6 +168,7 @@ export const safeGenerationDiagnosticCodes = [
   "status-check-rejected",
   "status-check-timeout",
   "unsupported-image-model",
+  "reference-image-registration-failed",
   "upstream-envelope-rejected",
   "upstream-http-rejected",
   "upstream-request-rejected",
@@ -179,6 +184,9 @@ export function safeGenerationDiagnosticCode(error: unknown): SafeGenerationDiag
   if (error instanceof XiaoYunqueObservationRejectedError) return "status-check-rejected"
   if (error instanceof XiaoYunqueQueryTimeoutError) return "status-check-timeout"
   if (error instanceof XiaoYunqueUnsupportedImageModelError) return "unsupported-image-model"
+  if (error instanceof XiaoYunqueReferenceAssetRegistrationError) {
+    return "reference-image-registration-failed"
+  }
   if (error instanceof XiaoYunqueRequestRejectedError) return error.diagnosticCode
   return "unclassified-failure"
 }
@@ -296,7 +304,7 @@ export class McpServer {
       this.#sendResult(request.id, {
         capabilities: { tools: {} },
         protocolVersion,
-        serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.1" },
+        serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.3" },
       })
       return
     }

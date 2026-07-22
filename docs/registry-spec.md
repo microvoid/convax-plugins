@@ -110,6 +110,11 @@ is not arbitrary: it must exactly equal the package's immutable Release tag plus
 Windows). Clients select only their exact target, then verify byte count and SHA-256
 before admitting the executable to host-owned storage. An absent target is an
 unsupported platform, never permission to search `PATH` or download another URL.
+An admitted asset beginning exactly with `#!/usr/bin/env convax-bun` is a bundled
+Bun program for a compatible host's app-owned shared runtime; every other asset is
+executed natively. This byte-level convention adds no Registry v1 field, so older
+clients still parse the catalog and fail closed at execution if the host runner is
+unavailable.
 
 `opencode.skill/1` is the retained Registry v1 compatibility label used by current
 Convax clients; it is not the bundle format. Published Skill ZIPs follow the open

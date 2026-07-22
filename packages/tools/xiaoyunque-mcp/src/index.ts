@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env convax-bun
 
 import path from "node:path"
 import { XiaoYunqueAuthorizationState } from "./authorization-state.ts"

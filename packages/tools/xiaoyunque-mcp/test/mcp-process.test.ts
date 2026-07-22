@@ -253,7 +253,7 @@ describe("MCP process", () => {
       })
       expect(initialized).toMatchObject({
         result: {
-          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.1" },
+          serverInfo: { name: "convax-xiaoyunque-mcp", version: "0.3.3" },
         },
       })
       const authorization = await harness.request("tools/call", { name: "service.authorize", arguments: {} })
@@ -542,7 +542,7 @@ describe("MCP process", () => {
         arguments: {
           schema: "convax.generation-call/1",
           operation_id: "black-box-operation",
-          prompt: "Create a monochrome paper bird",
+          prompt: "Create a monochrome paper bird\nKeep the composition unchanged\tand use soft moonlight",
           output: "image",
           output_directory: outputDirectory,
           references: [],

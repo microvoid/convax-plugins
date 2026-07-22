@@ -55,9 +55,10 @@ the Plugin ZIP and must never be imported by Convax packages.
   only for a canonical terminal state, unrecoverable repeated observation failure,
   authentication failure, or caller cancellation, without resubmitting the task.
 - Generated binaries and local credentials are ignored build/runtime output.
-- The protected release build writes the `darwin/arm64` binary below
+- The protected release build writes the `darwin/arm64` `convax-bun` program below
   `dist/darwin-arm64/`; repository tooling hashes and publishes it as an independent
-  companion asset. It must never be copied below the Plugin's `package/` directory.
+  companion asset. It reuses Convax's app-owned Bun runtime and must never be copied
+  below the Plugin's `package/` directory or compiled with a private Bun runtime.
 
 Run `bun typecheck`, `bun test`, `bun run build`, and
 `bun run build:release:darwin-arm64` before handoff.

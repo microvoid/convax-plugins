@@ -11,6 +11,7 @@ import {
 const odinUserInfoPath = "/api/biz/v1/common/get_odin_user_info"
 const userWorkspacePath = "/api/web/v1/workspace/get_user_workspace"
 const uploadPath = "/api/web/v1/common/upload_file"
+const assetCreateV2Path = "/api/biz/v1/asset/create_v2"
 const submitPath = "/api/biz/v1/agent/submit_run"
 const getThreadPath = "/api/biz/v1/agent/get_thread"
 
@@ -26,6 +27,20 @@ export class XiaoYunqueAuthenticationError extends Error {
 
 export class XiaoYunqueQueryTimeoutError extends Error {
   override name = "XiaoYunqueQueryTimeoutError"
+}
+
+/**
+ * The first-party upload succeeded, but its EverPhoto asset could not be
+ * registered as the Pippit asset identity required by image and video generation.
+ * Never attach upstream response details to this error because it crosses the
+ * MCP diagnostic boundary.
+ */
+export class XiaoYunqueReferenceAssetRegistrationError extends Error {
+  override name = "XiaoYunqueReferenceAssetRegistrationError"
+
+  constructor() {
+    super("XiaoYunque reference image asset registration failed")
+  }
 }
 
 /**
@@ -147,9 +162,32 @@ function boundedString(value: unknown, label: string, maximumBytes = 4_096) {
   return value
 }
 
+function boundedText(value: unknown, label: string, maximumBytes = 4_096) {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || value !== value.trim()
+    || Buffer.byteLength(value, "utf8") > maximumBytes
+    || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)
+  ) {
+    throw new Error(`${label} is invalid`)
+  }
+  return value
+}
+
 function optionalBoundedString(value: unknown, label: string, maximumBytes = 4_096) {
   if (value === undefined || value === null || value === "") return undefined
   return boundedString(value, label, maximumBytes)
+}
+
+function optionalPippitAssetId(value: unknown) {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== "string") {
+    return boundedString(value, "XiaoYunque uploaded Pippit asset id", 1_024)
+  }
+  const candidate = value.trim()
+  if (candidate.length === 0) return undefined
+  return boundedString(candidate, "XiaoYunque uploaded Pippit asset id", 1_024)
 }
 
 function nonNegativeInteger(value: unknown, label: string) {
@@ -204,6 +242,24 @@ function requireSuccess(value: unknown, status: number, label: string) {
     throw new XiaoYunqueRequestRejectedError(`${label} was rejected`, "upstream-http-rejected")
   }
   if (envelope.ret !== 0 && envelope.ret !== "0") {
+    throw new XiaoYunqueRequestRejectedError(`${label} was rejected`, "upstream-envelope-rejected")
+  }
+  return envelope
+}
+
+function requireAssetRegistrationSuccess(value: unknown, status: number) {
+  const label = "XiaoYunque reference image asset registration"
+  const envelope = record(value)
+  if (!envelope) throw new Error(`${label} returned an invalid response`)
+  if (looksLikeAuthenticationFailure(envelope, status)) {
+    throw new XiaoYunqueAuthenticationError("XiaoYunque authorization is no longer valid")
+  }
+  if (status < 200 || status >= 300) {
+    throw new XiaoYunqueRequestRejectedError(`${label} was rejected`, "upstream-http-rejected")
+  }
+  // Unlike generation envelopes, the first-party AssetCreateV2 contract may
+  // omit `ret`; an explicit value must still be the canonical numeric zero.
+  if (envelope.ret !== undefined && envelope.ret !== 0 && envelope.ret !== "0") {
     throw new XiaoYunqueRequestRejectedError(`${label} was rejected`, "upstream-envelope-rejected")
   }
   return envelope
@@ -292,11 +348,7 @@ function uploadedAsset(
   const format = optionalBoundedString(data.format, "XiaoYunque uploaded asset format", 128)
   const md5 = optionalBoundedString(data.md5, "XiaoYunque uploaded asset md5", 256)
   const mime = optionalBoundedString(data.mime, "XiaoYunque uploaded asset MIME type", 256)
-  const pippitAssetId = optionalBoundedString(
-    data.pippit_asset_id,
-    "XiaoYunque uploaded Pippit asset id",
-    1_024,
-  )
+  const pippitAssetId = optionalPippitAssetId(data.pippit_asset_id)
   const ratio = width && height ? `${width}:${height}` : undefined
   return {
     assetId,
@@ -578,7 +630,42 @@ export class XiaoYunqueApi {
     body.append("asset_type", String(assetType))
     const response = await this.#request(uploadPath, session, signal, { body, method: "POST" })
     const payload = requireSuccess(response.value, response.status, "XiaoYunque reference upload")
-    return uploadedAsset(payload.data, reference, assetType, this.#allowLoopbackTest)
+    const asset = uploadedAsset(payload.data, reference, assetType, this.#allowLoopbackTest)
+    if (assetType !== 2 || asset.pippitAssetId !== undefined) return asset
+
+    return {
+      ...asset,
+      pippitAssetId: await this.#registerUploadedImage(asset.assetId, session, signal),
+    }
+  }
+
+  async #registerUploadedImage(
+    assetId: string,
+    session: StoredWebSession,
+    signal: AbortSignal,
+  ) {
+    try {
+      // `upload_file.asset_id` is an EverPhoto source id. The first-party Web
+      // product converts it into the identity consumed by image and video generation via
+      // AssetCreateV2; the two ids are deliberately never treated as aliases.
+      const response = await this.#jsonRequest(assetCreateV2Path, {
+        asset_source_type: 3,
+        asset_source_id: assetId,
+        asset_type: 1,
+        Base: { Client: "web" },
+      }, session, signal)
+      const payload = requireAssetRegistrationSuccess(response.value, response.status)
+      const data = record(payload.data)
+      return boundedString(
+        data?.PippitAssetID,
+        "XiaoYunque registered Pippit asset id",
+        1_024,
+      )
+    } catch (error) {
+      if (signal.aborted) throw cancellationError(signal)
+      if (error instanceof XiaoYunqueAuthenticationError) throw error
+      throw new XiaoYunqueReferenceAssetRegistrationError()
+    }
   }
 
   async submitImage(
@@ -586,7 +673,7 @@ export class XiaoYunqueApi {
     session: StoredWebSession,
     signal: AbortSignal,
   ): Promise<RemoteTask> {
-    const prompt = boundedString(options.prompt.trim(), "XiaoYunque image prompt", 32_768)
+    const prompt = boundedText(options.prompt.trim(), "XiaoYunque image prompt", 32_768)
     if (options.assets.length > 9) throw new Error("XiaoYunque accepts at most nine reference images")
     const task = { runId: randomUUID(), threadId: randomUUID() }
     const agentName = "pippit_novel_agent_cn_v2"
@@ -633,7 +720,7 @@ export class XiaoYunqueApi {
     session: StoredWebSession,
     signal: AbortSignal,
   ): Promise<RemoteTask> {
-    const prompt = boundedString(options.prompt.trim(), "XiaoYunque video prompt", 32_768)
+    const prompt = boundedText(options.prompt.trim(), "XiaoYunque video prompt", 32_768)
     const maximumImages = options.model === "Seedance_1.0_fast" ? 1 : 9
     if (options.imageAssets.length > maximumImages) {
       throw new Error(`XiaoYunque ${options.model} accepts at most ${maximumImages} reference image${maximumImages === 1 ? "" : "s"}`)

@@ -15,7 +15,9 @@ bun run build
 bun run build:release:darwin-arm64
 ```
 
-正式发布产物为 `dist/darwin-arm64/convax-xiaoyunque-mcp`。它作为独立的
+正式发布产物为 `dist/darwin-arm64/convax-xiaoyunque-mcp`。它是带有精确
+`#!/usr/bin/env convax-bun` 标头的小型 Bun 程序，通过兼容版本 Convax 已随应用
+发布的共享 Bun runtime 运行，不再为这个插件重复打包一份 Bun。它作为独立的
 `convax-companion-*` Release asset 发布，由 Registry 固定 URL、字节数和
 SHA-256；Convax 安装插件时把它放入宿主管理目录。可执行文件不进入静态 Plugin
 ZIP，也不要求用户配置 `PATH`。
