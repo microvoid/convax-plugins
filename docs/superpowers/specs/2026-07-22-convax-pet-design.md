@@ -212,6 +212,7 @@ pet asset:
   ],
   "contributes": {
     "pet": {
+      "library": "pet-library.json",
       "overlay": "pet/index.html",
       "settings": "settings/index.html",
       "protocol": "convax.pet-host/1"
@@ -220,9 +221,10 @@ pet asset:
 }
 ```
 
-Paths are package-relative, case-sensitive, and must resolve to regular files.
-Unknown fields and capabilities are rejected. A Pet feature package remains static
-Web content; it may contain bundled JavaScript but no native runtime.
+`library`, `overlay`, and `settings` are package-relative, case-sensitive paths
+that must resolve to regular files. Unknown fields and capabilities are rejected.
+A Pet feature package remains static Web content; it may contain bundled JavaScript
+but no native runtime.
 
 The current `name`, `description`, `spritesheet`, `spriteVersion`, and `alt` form is
 removed before publication. Existing unrelated `convax.plugin/5` contributions
