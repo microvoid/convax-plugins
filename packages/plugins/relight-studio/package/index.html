@@ -21,8 +21,9 @@
           </div>
           <div>
             <div class="brand-title">重打光</div>
-            <div class="brand-subtitle">RELIGHT STUDIO · 灯光预览与 AI 生成</div>
+            <div class="brand-subtitle">RELIGHT STUDIO</div>
           </div>
+          <span class="brand-badge">AI LIGHTING</span>
         </div>
         <div class="topbar-actions">
           <span class="connection-pill" id="connectionPill">
@@ -47,6 +48,13 @@
 
       <main class="workspace">
         <section class="preview-panel">
+          <header class="preview-panel-heading">
+            <div>
+              <span class="panel-eyebrow">CANVAS PREVIEW</span>
+              <strong>灯光画布</strong>
+            </div>
+            <span class="preview-mode-pill"><span></span>实时预览</span>
+          </header>
           <div class="preview" id="preview">
             <canvas id="relightCanvas" aria-label="重打光灯光预览"></canvas>
             <div class="preview-glow" aria-hidden="true"></div>
@@ -59,14 +67,21 @@
                   <path d="M40 50v18M32 68h16"></path>
                 </svg>
               </div>
-              <div class="empty-eyebrow">LIGHTING WORKBENCH</div>
-              <h1>连接一张 Canvas 图片</h1>
-              <p>将图片节点连接到此插件即可预览并生成。也可临时载入本地图片，只用于灯光预览。</p>
+              <div class="empty-eyebrow">START A NEW RELIGHT</div>
+              <h1>为画面重新设计光线</h1>
+              <p>连接一张 Canvas 图片，选择光线氛围并精细调整。也可先用本地图片体验实时灯光预览。</p>
               <div class="empty-actions">
-                <button class="primary-button" id="emptyChooseButton" type="button">本地预览</button>
+                <button class="primary-button" id="emptyChooseButton" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"></path></svg>
+                  选择本地图片
+                </button>
               </div>
-              <div class="feature-tags" aria-label="功能标签">
-                <span>光影</span><span>图片</span><span>日落</span><span>霓虹</span><span>电影感</span>
+              <div class="empty-steps" aria-label="使用步骤">
+                <span><b>1</b>连接图片</span>
+                <i></i>
+                <span><b>2</b>设计光线</span>
+                <i></i>
+                <span><b>3</b>生成到 Canvas</span>
               </div>
             </section>
 

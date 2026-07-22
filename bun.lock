@@ -20,7 +20,7 @@
     },
     "packages/plugins/relight-studio": {
       "name": "@microvoid/convax-plugin-relight-studio",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "devDependencies": {
         "@types/react": "19.2.14",
         "@types/react-dom": "19.2.3",
