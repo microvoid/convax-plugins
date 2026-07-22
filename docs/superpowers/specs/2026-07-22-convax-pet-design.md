@@ -88,9 +88,12 @@ bytes are validated, packed deterministically, indexed in the Registry, and
 versioned with package SemVer plus the Registry sequence.
 
 Existing Plugin versions are matched to versioned host protocols. The current
-public repository supports `convax.plugin/1` through `convax.plugin/4`. The pet
-requires a new strict `convax.plugin/5` schema that remains compatible with the
-host's independently versioned capability contract.
+public repository supports `convax.plugin/1` through `convax.plugin/4`, while
+Convax `convax-next` already implements `convax.plugin/5` with the independently
+versioned `convax.plugin-capability/1` contract. The public repository must first
+adopt that existing v5 contract, then add `contributes.pet` as an optional,
+non-executable v5 contribution without narrowing or replacing the other v5
+capabilities.
 
 ### 4.3 Convax host architecture
 
@@ -192,11 +195,14 @@ contract is generic so any valid Plugin can contribute a pet.
 
 ### 6.2 Protocol ownership
 
-- `convax.plugin/5` describes installable Plugin metadata and contributions.
+- `convax.plugin/5` describes installable Plugin metadata and contributions,
+  including existing project-wide Canvas, LLM, and owned-Skill declarations plus
+  the new optional pet declaration.
 - `convax.plugin-capability/1` remains an independently versioned host capability
   contract.
 - A pet contribution does not receive Canvas capabilities or a MessagePort.
-- Host and repository keep shared valid/invalid fixtures to detect schema drift.
+- Host and repository keep shared valid/invalid fixtures to detect schema drift;
+  existing v5 fixtures remain valid after the pet field is added.
 - Older Plugin versions continue to install and run unchanged.
 
 ### 6.3 Trusted host components
@@ -609,4 +615,3 @@ The feature is complete when:
 - host logic is generic and contains no `convax-pet` package-ID special case;
 - the package artwork and UI are original and visually consistent with Convax;
 - all required verification commands and end-to-end acceptance scenarios pass.
-
