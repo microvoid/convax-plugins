@@ -1,0 +1,20 @@
+{
+  "name": "@microvoid/convax-plugin-relight-studio",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "typecheck": "tsc --noEmit --jsx react-jsx --module ESNext --moduleResolution Bundler --target ES2022 --lib ES2022,DOM src/radix-controls.tsx",
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id relight-studio",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id relight-studio"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "radix-ui": "1.6.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "5.9.3"
+  }
+}

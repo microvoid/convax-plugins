@@ -36,6 +36,7 @@ describe("source packages", () => {
       "plugin/codex-service",
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
+      "plugin/relight-studio",
       "plugin/xiaoyunque-generation",
       "skill/ad-idea",
       "skill/audiobook",
