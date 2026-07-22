@@ -1066,4 +1066,3 @@ git log --oneline --decorate -15
 ```
 
 Expected: only intentional source changes/commits; no `dist`, dependencies, credentials, local state, generated indexes, or temporary art files are tracked.
-
