@@ -39,6 +39,20 @@ describe("Bun workspace ownership", () => {
     expect(Object.keys(lock.workspaces)).toContain("packages/skills/ffmpeg-canvas")
   })
 
+  test("keeps workspace versions synchronized with the root lockfile", async () => {
+    const lock = await readJson(path.join(root, "bun.lock"))
+
+    for (const collection of collections) {
+      const directory = path.join(root, "packages", collection)
+      const entries = await fs.readdir(directory, { withFileTypes: true })
+      for (const entry of entries.filter((item) => item.isDirectory())) {
+        const workspacePath = path.posix.join("packages", collection, entry.name)
+        const workspace = await readJson(path.join(directory, entry.name, "package.json"))
+        expect(lock.workspaces[workspacePath]?.version).toBe(workspace.version)
+      }
+    }
+  })
+
   test("documents the public v5 pet package contract", async () => {
     expect((await fs.stat(path.join(root, "schemas", "convax-plugin-manifest-v5.schema.json"))).isFile()).toBe(true)
 
