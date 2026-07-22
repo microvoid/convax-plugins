@@ -166,6 +166,19 @@ function boundedString(value: unknown, label: string, maximumBytes = 4_096) {
   return value
 }
 
+function boundedText(value: unknown, label: string, maximumBytes = 4_096) {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || value !== value.trim()
+    || Buffer.byteLength(value, "utf8") > maximumBytes
+    || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)
+  ) {
+    throw new Error(`${label} is invalid`)
+  }
+  return value
+}
+
 function optionalBoundedString(value: unknown, label: string, maximumBytes = 4_096) {
   if (value === undefined || value === null || value === "") return undefined
   return boundedString(value, label, maximumBytes)
@@ -684,7 +697,7 @@ export class XiaoYunqueApi {
     session: StoredWebSession,
     signal: AbortSignal,
   ): Promise<RemoteTask> {
-    const prompt = boundedString(options.prompt.trim(), "XiaoYunque image prompt", 32_768)
+    const prompt = boundedText(options.prompt.trim(), "XiaoYunque image prompt", 32_768)
     if (options.assets.length > 9) throw new Error("XiaoYunque accepts at most nine reference images")
     const task = { runId: randomUUID(), threadId: randomUUID() }
     const agentName = "pippit_novel_agent_cn_v2"
@@ -731,7 +744,7 @@ export class XiaoYunqueApi {
     session: StoredWebSession,
     signal: AbortSignal,
   ): Promise<RemoteTask> {
-    const prompt = boundedString(options.prompt.trim(), "XiaoYunque video prompt", 32_768)
+    const prompt = boundedText(options.prompt.trim(), "XiaoYunque video prompt", 32_768)
     const maximumImages = options.model === "Seedance_1.0_fast" ? 1 : 9
     if (options.imageAssets.length > maximumImages) {
       throw new Error(`XiaoYunque ${options.model} accepts at most ${maximumImages} reference image${maximumImages === 1 ? "" : "s"}`)

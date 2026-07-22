@@ -443,7 +443,7 @@ describe("XiaoYunque first-party Web generation API", () => {
         ordering.push("before-submit")
       },
       model: "seedream_4.5",
-      prompt: "  draw a lighthouse  ",
+      prompt: "  draw a lighthouse\n\twith soft blue moonlight  ",
       ratio: "16:9",
       resolution: "4k",
     }, session, signal)
@@ -487,7 +487,7 @@ describe("XiaoYunque first-party Web generation API", () => {
       image_resolution: "4K",
       model: "seedream_4.5",
       pippit_asset_ids: ["pippit-image"],
-      prompt: "draw a lighthouse",
+      prompt: "draw a lighthouse\n\twith soft blue moonlight",
       ratio: "16:9",
     })
     expect(typeof body.run_extra).toBe("string")
