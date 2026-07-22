@@ -61,6 +61,12 @@ only that fixed reviewed script name (never a command supplied by package metada
 then immediately applies the same path, symlink, executable-mode, size, and digest
 admission checks used by packing.
 
+A reviewed Bun companion may publish a bundle beginning exactly with
+`#!/usr/bin/env convax-bun`. Compatible Convax hosts run that verified script through
+their app-owned shared Bun runtime, avoiding one embedded Bun runtime per companion.
+The script remains an immutable executable Release asset and follows the same target,
+mode, size and SHA-256 checks as a native companion. Native companions remain valid.
+
 ## Plugin-owned Skill composition
 
 A `convax.plugin/4` manifest may declare `contributes.skills` entries such as
