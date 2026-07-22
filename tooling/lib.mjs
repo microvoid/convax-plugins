@@ -32,6 +32,9 @@ const pluginCapabilities = new Set([
   "canvas.document.read",
   "canvas.document.write",
   "canvas.events.subscribe",
+  "pet.activity.read",
+  "pet.activity.open",
+  "pet.preferences.write",
 ])
 const pluginV5Capabilities = new Set([
   "projects.read",
@@ -39,6 +42,9 @@ const pluginV5Capabilities = new Set([
   "canvas.document.read",
   "canvas.document.write",
   "canvas.events.subscribe",
+  "pet.activity.read",
+  "pet.activity.open",
+  "pet.preferences.write",
 ])
 const generationModalities = new Set(["text", "image", "video", "audio"])
 const generationInputRoles = new Set([
@@ -725,22 +731,15 @@ function parseLlmV5(value, label) {
 }
 
 function parsePetV5(value, label) {
-  exactKeys(
-    value,
-    ["alt", "description", "name", "spritesheet", "spriteVersion"],
-    ["alt", "description", "name", "spritesheet", "spriteVersion"],
-    label,
-  )
-  const spritesheet = parseRelativePath(value.spritesheet, `${label} spritesheet`)
-  if (!/\.(?:png|webp)$/.test(spritesheet)) error(label, "spritesheet must be a PNG or WebP file")
-  if (value.spriteVersion !== 2) error(label, "spriteVersion must equal 2")
-  return {
-    alt: cleanString(value.alt, `${label} alt`, 500),
-    description: cleanString(value.description, `${label} description`, 2_000),
-    name: cleanString(value.name, `${label} name`, 120),
-    spritesheet,
-    spriteVersion: 2,
-  }
+  exactKeys(value, ["library", "overlay", "protocol", "settings"], ["library", "overlay", "protocol", "settings"], label)
+  const library = parseRelativePath(value.library, `${label} library`)
+  const overlay = parseRelativePath(value.overlay, `${label} overlay`)
+  const settings = parseRelativePath(value.settings, `${label} settings`)
+  if (!library.toLowerCase().endsWith(".json")) error(label, "library must be a JSON file")
+  if (!overlay.toLowerCase().endsWith(".html")) error(label, "overlay must be an HTML file")
+  if (!settings.toLowerCase().endsWith(".html")) error(label, "settings must be an HTML file")
+  if (value.protocol !== "convax.pet-host/1") error(label, "protocol must equal convax.pet-host/1")
+  return { library, overlay, protocol: "convax.pet-host/1", settings }
 }
 
 function parsePluginManifestV5(value, label) {
@@ -797,6 +796,14 @@ function parsePluginManifestV5(value, label) {
   const pet = value.contributes.pet === undefined
     ? undefined
     : parsePetV5(value.contributes.pet, `${label} pet`)
+  if (pet !== undefined) {
+    const requiredPetCapabilities = ["pet.activity.read", "pet.activity.open", "pet.preferences.write"]
+    if (capabilities.length !== requiredPetCapabilities.length ||
+        requiredPetCapabilities.some((capability) => !capabilities.includes(capability))) {
+      error(label, "pet capabilities must be exactly pet.activity.read, pet.activity.open, and pet.preferences.write")
+    }
+    if (hasRuntime) error(label, "pet feature cannot declare an executable runtime")
+  }
   const hasProjectCapability = capabilities.some((capability) => pluginV5Capabilities.has(capability))
   if (!hasRuntime && !hasRenderer && !canvas?.selectionActions?.length &&
       !capabilities.includes("generation.execute") && !hasProjectCapability && pet === undefined) {

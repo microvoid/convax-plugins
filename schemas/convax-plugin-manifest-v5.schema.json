@@ -15,7 +15,7 @@
     "capabilities": {
       "type": "array",
       "uniqueItems": true,
-      "maxItems": 12,
+      "maxItems": 15,
       "items": {
         "enum": [
           "canvas.connectedImages.read",
@@ -29,7 +29,10 @@
           "canvas.catalog.read",
           "canvas.document.read",
           "canvas.document.write",
-          "canvas.events.subscribe"
+          "canvas.events.subscribe",
+          "pet.activity.read",
+          "pet.activity.open",
+          "pet.preferences.write"
         ]
       }
     },
@@ -136,6 +139,27 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": { "contributes": { "required": ["pet"] } },
+        "required": ["contributes"]
+      },
+      "then": {
+        "required": ["capabilities"],
+        "properties": {
+          "capabilities": {
+            "minItems": 3,
+            "maxItems": 3,
+            "allOf": [
+              { "contains": { "const": "pet.activity.read" } },
+              { "contains": { "const": "pet.activity.open" } },
+              { "contains": { "const": "pet.preferences.write" } }
+            ]
+          }
+        },
+        "not": { "required": ["runtime"] }
+      }
     }
   ],
   "anyOf": [
@@ -197,18 +221,27 @@
     "pet": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "description", "spritesheet", "spriteVersion", "alt"],
+      "required": ["library", "overlay", "settings", "protocol"],
       "properties": {
-        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
-        "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
-        "spritesheet": {
+        "library": {
           "allOf": [
             { "$ref": "./convax-plugin-manifest-v4.schema.json#/$defs/path" },
-            { "pattern": "\\.(?:png|webp)$" }
+            { "pattern": "\\.json$" }
           ]
         },
-        "spriteVersion": { "const": 2 },
-        "alt": { "type": "string", "minLength": 1, "maxLength": 500 }
+        "overlay": {
+          "allOf": [
+            { "$ref": "./convax-plugin-manifest-v4.schema.json#/$defs/path" },
+            { "pattern": "\\.html$" }
+          ]
+        },
+        "settings": {
+          "allOf": [
+            { "$ref": "./convax-plugin-manifest-v4.schema.json#/$defs/path" },
+            { "pattern": "\\.html$" }
+          ]
+        },
+        "protocol": { "const": "convax.pet-host/1" }
       }
     }
   }

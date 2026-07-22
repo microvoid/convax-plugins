@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { parsePluginManifest, parseSourceMetadata, validatePetPackageAsset } from "./lib.mjs"
+import { parsePluginManifest, parseSourceMetadata } from "./lib.mjs"
 
 function webp(width, height) {
   const data = Buffer.alloc(30)
@@ -26,16 +26,15 @@ function petManifest(overrides = {}) {
     schema: "convax.plugin/5",
     id: "convax-pet",
     name: "Convax Pet",
-    description: "Adds Violet as a local desktop companion.",
-    version: "0.1.0",
-    capabilities: [],
+    description: "A local desktop companion and pet library.",
+    version: "0.2.0",
+    capabilities: ["pet.activity.read", "pet.activity.open", "pet.preferences.write"],
     contributes: {
       pet: {
-        name: "Violet",
-        description: "A pixel companion for Convax.",
-        spritesheet: "assets/violet.webp",
-        spriteVersion: 2,
-        alt: "Violet, the Convax pixel companion",
+        library: "pet-library.json",
+        overlay: "pet/index.html",
+        settings: "settings/index.html",
+        protocol: "convax.pet-host/1",
       },
     },
     ...overrides,
@@ -81,17 +80,17 @@ function llmManifest(overrides = {}) {
 }
 
 describe("convax.plugin/5 transport-neutral and pet contributions", () => {
-  test("parses an inert pet as a real Plugin capability", () => {
+  test("parses a sandboxed pet feature as a real Plugin capability", () => {
     const parsed = parsePluginManifest(petManifest())
 
     expect(parsed.schema).toBe("convax.plugin/5")
     expect(parsed.contributes.pet).toEqual({
-      alt: "Violet, the Convax pixel companion",
-      description: "A pixel companion for Convax.",
-      name: "Violet",
-      spritesheet: "assets/violet.webp",
-      spriteVersion: 2,
+      library: "pet-library.json",
+      overlay: "pet/index.html",
+      protocol: "convax.pet-host/1",
+      settings: "settings/index.html",
     })
+    expect(parsed.capabilities).toEqual(["pet.activity.read", "pet.activity.open", "pet.preferences.write"])
     expect(parsed).not.toHaveProperty("entry")
     expect(parsed).not.toHaveProperty("runtime")
   })
@@ -134,11 +133,13 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
   })
 
   test.each([
-    ["remote URL", { spritesheet: "https://example.invalid/pet.webp" }],
-    ["traversal", { spritesheet: "../pet.webp" }],
-    ["wrong extension", { spritesheet: "assets/violet.gif" }],
+    ["remote URL", { overlay: "https://example.invalid/pet.html" }],
+    ["traversal", { settings: "../settings.html" }],
+    ["wrong library extension", { library: "pet-library.js" }],
+    ["wrong overlay extension", { overlay: "pet/app.js" }],
+    ["wrong settings extension", { settings: "settings/app.js" }],
+    ["unsupported protocol", { protocol: "convax.pet-host/2" }],
     ["unknown field", { mood: "happy" }],
-    ["unsupported sprite version", { spriteVersion: 3 }],
   ])("rejects a pet with %s", (_label, override) => {
     const manifest = petManifest()
     manifest.contributes.pet = { ...manifest.contributes.pet, ...override }
@@ -149,39 +150,14 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
     expect(() => parsePluginManifest({ ...petManifest(), schema: "convax.plugin/4" })).toThrow("unsupported field pet")
   })
 
-  test("requires the declared pet spritesheet to be a real fixed-size package asset", () => {
-    const manifest = parsePluginManifest(petManifest())
-    expect(() => validatePetPackageAsset(manifest, [], "pet test")).toThrow("missing declared pet spritesheet")
+  test("requires the exact pet capabilities and forbids executable runtimes", () => {
+    expect(() => parsePluginManifest({ ...petManifest(), capabilities: [] })).toThrow("pet capabilities")
     expect(() =>
-      validatePetPackageAsset(
-        manifest,
-        [{ relativePath: "assets/violet.webp", data: Buffer.from("not an image") }],
-        "pet test",
-      ),
-    ).toThrow("not a WebP")
-    expect(() =>
-      validatePetPackageAsset(
-        manifest,
-        [{ relativePath: "assets/violet.webp", data: webp(1, 1) }],
-        "pet test",
-      ),
-    ).toThrow("1536 by 1872")
-    expect(
-      validatePetPackageAsset(
-        manifest,
-        [{ relativePath: "assets/violet.webp", data: webp(1536, 1872) }],
-        "pet test",
-      ),
-    ).toEqual({ height: 1872, width: 1536 })
-    const pngManifest = parsePluginManifest(
-      petManifest({ contributes: { pet: { ...petManifest().contributes.pet, spritesheet: "assets/violet.png" } } }),
-    )
-    expect(
-      validatePetPackageAsset(
-        pngManifest,
-        [{ relativePath: "assets/violet.png", data: png(1536, 1872) }],
-        "pet test",
-      ),
-    ).toEqual({ height: 1872, width: 1536 })
+      parsePluginManifest({
+        ...petManifest(),
+        contributes: { ...petManifest().contributes, llm: llmManifest().contributes.llm },
+        runtime: { command: "pet-runtime", type: "mcp-stdio" },
+      }),
+    ).toThrow("pet feature")
   })
 })
