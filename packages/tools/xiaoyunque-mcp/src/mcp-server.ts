@@ -153,7 +153,9 @@ export function publicGenerationErrorMessage(error: unknown) {
     return "The selected XiaoYunque image model is no longer available. Choose another image model and try again."
   }
   if (error instanceof XiaoYunqueReferenceAssetRegistrationError) {
-    return "XiaoYunque could not prepare the reference image for generation. No generation was submitted; try again."
+    return error.referenceType === "video"
+      ? "XiaoYunque could not prepare the reference video for generation. No generation was submitted; try again."
+      : "XiaoYunque could not prepare the reference image for generation. No generation was submitted; try again."
   }
   if (error instanceof XiaoYunqueRequestRejectedError) {
     return "XiaoYunque did not accept this generation request. Refresh Services and try a model listed for this capability."
@@ -169,6 +171,7 @@ export const safeGenerationDiagnosticCodes = [
   "status-check-timeout",
   "unsupported-image-model",
   "reference-image-registration-failed",
+  "reference-video-registration-failed",
   "upstream-envelope-rejected",
   "upstream-http-rejected",
   "upstream-request-rejected",
@@ -185,7 +188,9 @@ export function safeGenerationDiagnosticCode(error: unknown): SafeGenerationDiag
   if (error instanceof XiaoYunqueQueryTimeoutError) return "status-check-timeout"
   if (error instanceof XiaoYunqueUnsupportedImageModelError) return "unsupported-image-model"
   if (error instanceof XiaoYunqueReferenceAssetRegistrationError) {
-    return "reference-image-registration-failed"
+    return error.referenceType === "video"
+      ? "reference-video-registration-failed"
+      : "reference-image-registration-failed"
   }
   if (error instanceof XiaoYunqueRequestRejectedError) return error.diagnosticCode
   return "unclassified-failure"
