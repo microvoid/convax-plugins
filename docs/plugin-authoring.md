@@ -80,9 +80,9 @@ MessagePort protocol. A pet-only Plugin is an inert package with no `entry`,
 
 `contributes.pet` accepts a package-relative PNG or WebP. `spriteVersion: 2`
 requires a 1536×1872 atlas containing eight 192×208 cells across and nine state
-rows in this order: idle, moving right, moving left, waving, jumping, blocked,
-waiting, working, and ready. Keep the figure within every cell and retain useful
-transparency around it.
+rows in this order: `idle`, `running-right`, `running-left`, `waving`, `jumping`,
+`failed`, `waiting`, `running`, and `review`. Keep the figure within every cell and
+retain useful transparency around it.
 
 A pet-only Plugin does not receive a host port, cannot create windows, and cannot
 observe Agent content. Convax owns the native window, global activity projection,

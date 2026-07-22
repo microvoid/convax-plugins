@@ -13,8 +13,9 @@ catalog-changing release or yanking deployment. `revision` is the lowercase, ful
 
 Every item contains `kind`, `id`, `name`, `description`, `version`,
 `compatibility`, `artifact`, and `yanked`, plus a complete `manifest` for Plugin items.
-A `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5` item with a generation and/or service external runtime may additionally contain
-`companions`; no other item may contain it.
+A `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5`
+item with a generation, LLM, and/or service external runtime may additionally
+contain `companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
 

@@ -1084,6 +1084,21 @@ function webpDimensions(data, label) {
   error(label, "unsupported or malformed WebP bitstream")
 }
 
+export function validatePetPackageAsset(manifest, files, label = "Plugin") {
+  const pet = manifest.contributes?.pet
+  if (!pet) return undefined
+  const asset = files.find((file) => file.relativePath === pet.spritesheet)
+  if (!asset) error(label, `missing declared pet spritesheet ${pet.spritesheet}`)
+  const extension = path.posix.extname(pet.spritesheet).toLowerCase()
+  const dimensions = extension === ".png"
+    ? pngDimensions(asset.data, `${label} pet spritesheet`)
+    : webpDimensions(asset.data, `${label} pet spritesheet`)
+  if (dimensions.width !== 1536 || dimensions.height !== 1872) {
+    error(label, "pet spritesheet must be exactly 1536 by 1872 pixels")
+  }
+  return dimensions
+}
+
 function mp4Dimensions(data, label) {
   if (data.length < 24 || data.toString("ascii", 4, 8) !== "ftyp") error(label, "content is not an MP4 file")
   for (let offset = 4; offset + 4 <= data.length; offset += 1) {
@@ -1228,6 +1243,7 @@ export async function discoverPackages(options = {}) {
       }
       const names = new Set(files.map((file) => file.relativePath))
       if (manifest.entry && !names.has(manifest.entry)) error(`${candidate.kind}/${candidate.id}`, `missing entry ${manifest.entry}`)
+      validatePetPackageAsset(manifest, files, `${candidate.kind}/${candidate.id}`)
       if (manifest.runtime && names.has(manifest.runtime.command)) {
         error(`${candidate.kind}/${candidate.id}`, "external runtime executable must not be included in the Plugin ZIP")
       }

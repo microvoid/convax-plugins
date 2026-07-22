@@ -1,6 +1,25 @@
 import { describe, expect, test } from "bun:test"
 
-import { parsePluginManifest, parseSourceMetadata } from "./lib.mjs"
+import { parsePluginManifest, parseSourceMetadata, validatePetPackageAsset } from "./lib.mjs"
+
+function webp(width, height) {
+  const data = Buffer.alloc(30)
+  data.write("RIFF", 0)
+  data.write("WEBP", 8)
+  data.write("VP8X", 12)
+  data.writeUIntLE(width - 1, 24, 3)
+  data.writeUIntLE(height - 1, 27, 3)
+  return data
+}
+
+function png(width, height) {
+  const data = Buffer.alloc(24)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(data)
+  data.write("IHDR", 12)
+  data.writeUInt32BE(width, 16)
+  data.writeUInt32BE(height, 20)
+  return data
+}
 
 function petManifest(overrides = {}) {
   return {
@@ -128,5 +147,41 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
 
   test("does not make pet available to legacy manifest schemas", () => {
     expect(() => parsePluginManifest({ ...petManifest(), schema: "convax.plugin/4" })).toThrow("unsupported field pet")
+  })
+
+  test("requires the declared pet spritesheet to be a real fixed-size package asset", () => {
+    const manifest = parsePluginManifest(petManifest())
+    expect(() => validatePetPackageAsset(manifest, [], "pet test")).toThrow("missing declared pet spritesheet")
+    expect(() =>
+      validatePetPackageAsset(
+        manifest,
+        [{ relativePath: "assets/violet.webp", data: Buffer.from("not an image") }],
+        "pet test",
+      ),
+    ).toThrow("not a WebP")
+    expect(() =>
+      validatePetPackageAsset(
+        manifest,
+        [{ relativePath: "assets/violet.webp", data: webp(1, 1) }],
+        "pet test",
+      ),
+    ).toThrow("1536 by 1872")
+    expect(
+      validatePetPackageAsset(
+        manifest,
+        [{ relativePath: "assets/violet.webp", data: webp(1536, 1872) }],
+        "pet test",
+      ),
+    ).toEqual({ height: 1872, width: 1536 })
+    const pngManifest = parsePluginManifest(
+      petManifest({ contributes: { pet: { ...petManifest().contributes.pet, spritesheet: "assets/violet.png" } } }),
+    )
+    expect(
+      validatePetPackageAsset(
+        pngManifest,
+        [{ relativePath: "assets/violet.png", data: png(1536, 1872) }],
+        "pet test",
+      ),
+    ).toEqual({ height: 1872, width: 1536 })
   })
 })
