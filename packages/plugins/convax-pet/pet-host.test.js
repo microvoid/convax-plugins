@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test"
+import { afterEach, describe, expect, jest, mock, test } from "bun:test"
 
 class FakeSource {
   listeners = new Set()
@@ -26,6 +26,10 @@ class FakePort {
     this.onmessage?.({ data })
   }
 }
+
+afterEach(() => {
+  jest.useRealTimers()
+})
 
 describe("pet host client", () => {
   test("accepts one exact scoped connection and matches responses", async () => {
@@ -70,9 +74,11 @@ describe("pet host client", () => {
     port.emit({ event: "activity.changed", payload: { revision: 3 }, protocol: "convax.pet-host/1", type: "event" })
     expect(listener).toHaveBeenCalledTimes(1)
 
-    const pending = client.request("activity.getSnapshot", {})
+    const pendingSnapshot = client.request("activity.getSnapshot", {})
+    const pendingPreferences = client.request("preferences.get", {})
     client.close()
-    await expect(pending).rejects.toThrow("closed")
+    await expect(pendingSnapshot).rejects.toThrow("closed")
+    await expect(pendingPreferences).rejects.toThrow("closed")
     await expect(client.request("activity.getSnapshot", {})).rejects.toThrow("closed")
     expect(port.close).toHaveBeenCalledTimes(1)
   })
@@ -88,6 +94,66 @@ describe("pet host client", () => {
     const pending = Array.from({ length: 64 }, () => client.request("activity.getSnapshot", {}).catch(() => undefined))
 
     await expect(client.request("activity.getSnapshot", {})).rejects.toThrow("pending request limit")
+    client.close()
+    await Promise.all(pending)
+  })
+
+  test("times out an absent host and removes the handshake listener", async () => {
+    jest.useFakeTimers()
+    const { connectPetHost } = await import("./package/assets/pet-host.js")
+    const source = new FakeSource()
+    let timeoutError
+    const connecting = connectPetHost({
+      expectedSource: {},
+      handshakeTimeoutMs: 25,
+      pluginId: "convax-pet",
+      source,
+      surface: "overlay",
+    })
+    void connecting.catch((error) => {
+      timeoutError = error
+    })
+
+    expect(source.listeners.size).toBe(1)
+    jest.advanceTimersByTime(25)
+    await Promise.resolve()
+
+    expect(timeoutError?.message).toContain("timed out")
+    expect(source.listeners.size).toBe(0)
+  })
+
+  test("times out a silent request and removes it from pending work", async () => {
+    jest.useFakeTimers()
+    const { connectPetHost } = await import("./package/assets/pet-host.js")
+    const source = new FakeSource()
+    const parent = {}
+    const port = new FakePort()
+    const connecting = connectPetHost({
+      expectedSource: parent,
+      pluginId: "convax-pet",
+      requestTimeoutMs: 25,
+      source,
+      surface: "settings",
+    })
+    source.emit({ data: { pluginId: "convax-pet", protocol: "convax.pet-host/1", surface: "settings", type: "connect" }, ports: [port], source: parent })
+    const client = await connecting
+    let timeoutError
+    const silent = client.request("preferences.get", {})
+    void silent.catch((error) => {
+      timeoutError = error
+    })
+
+    jest.advanceTimersByTime(25)
+    await Promise.resolve()
+    expect(timeoutError?.message).toContain("timed out")
+
+    const next = client.request("preferences.get", {})
+    port.emit({ id: "2", ok: true, protocol: "convax.pet-host/1", result: { selectedPetId: "violet" }, type: "response" })
+    expect(await next).toEqual({ selectedPetId: "violet" })
+
+    const pending = Array.from({ length: 64 }, () => client.request("preferences.get", {}).catch(() => undefined))
+    expect(port.postMessage).toHaveBeenCalledTimes(66)
+    await expect(client.request("preferences.get", {})).rejects.toThrow("pending request limit")
     client.close()
     await Promise.all(pending)
   })

@@ -10,6 +10,13 @@ describe("Plugin-owned pet overlay", () => {
     expect(frameFor("review", 5_000, true)).toEqual({ column: 0, row: 8 })
   })
 
+  test("maps atlas cells to normalized CSS background positions", async () => {
+    const { backgroundPositionFor } = await import("./package/pet/model.js")
+
+    expect(backgroundPositionFor({ column: 3, row: 4 })).toBe(`${300 / 7}% 50%`)
+    expect(backgroundPositionFor({ column: 7, row: 8 })).toBe("100% 100%")
+  })
+
   test("distinguishes click from a four-pixel drag", async () => {
     const { createDragGesture } = await import("./package/pet/model.js")
     const onDrag = mock(() => undefined)
@@ -39,6 +46,38 @@ describe("Plugin-owned pet overlay", () => {
       wait: async () => calls.push("wait"),
     })
     expect(calls).toEqual(["jump", "wait", "navigate"])
+  })
+
+  test("contains activity.open failures and always resets jumping", async () => {
+    const { openActivity } = await import("./package/pet/model.js")
+    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
+    const calls = []
+
+    await expect(openActivity(client, { id: "activity-one" }, 7, {
+      jump: () => calls.push("jump"),
+      settle: () => calls.push("settle"),
+      wait: async () => calls.push("wait"),
+    })).resolves.toBeUndefined()
+
+    expect(client.request).toHaveBeenCalledWith("activity.open", { activityId: "activity-one", revision: 7 })
+    expect(calls).toEqual(["jump", "wait", "settle"])
+  })
+
+  test("reconciles failed expansion requests to the previous state", async () => {
+    const { reconcileExpanded } = await import("./package/pet/model.js")
+    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
+
+    await expect(reconcileExpanded(client, false, true)).resolves.toBe(false)
+    expect(client.request).toHaveBeenCalledWith("overlay.setExpanded", { expanded: true })
+  })
+
+  test("contains overlay.move failures", async () => {
+    const { moveOverlay } = await import("./package/pet/model.js")
+    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
+    const input = { dx: 4, dy: -2, phase: "move" }
+
+    await expect(moveOverlay(client, input)).resolves.toBeUndefined()
+    expect(client.request).toHaveBeenCalledWith("overlay.move", input)
   })
 
   test("ships only local sandbox-compatible surface dependencies", async () => {

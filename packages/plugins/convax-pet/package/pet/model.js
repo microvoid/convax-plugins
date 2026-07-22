@@ -1,5 +1,9 @@
 import { animations } from "../assets/activity.js"
 
+export function backgroundPositionFor({ column, row }) {
+  return `${(column / 7) * 100}% ${(row / 8) * 100}%`
+}
+
 export function frameFor(animation, elapsed, reducedMotion) {
   const definition = animations[animation] ?? animations.idle
   if (reducedMotion) return { column: 0, row: definition.row }
@@ -52,4 +56,40 @@ export async function activatePet(activityId, { jump, navigate, wait }) {
   jump()
   await wait()
   await navigate()
+}
+
+export async function moveOverlay(client, input) {
+  try {
+    await client.request("overlay.move", input)
+  } catch {
+    // Drag feedback is best-effort; the next host snapshot remains authoritative.
+  }
+}
+
+export async function openActivity(client, activity, revision, { jump, settle, wait }) {
+  if (!activity?.id) return
+  try {
+    await activatePet(activity.id, {
+      jump,
+      navigate: async () => {
+        try {
+          await client.request("activity.open", { activityId: activity.id, revision })
+        } catch {
+          // The overlay remains usable when the target activity disappears.
+        }
+      },
+      wait,
+    })
+  } finally {
+    settle()
+  }
+}
+
+export async function reconcileExpanded(client, previous, next) {
+  try {
+    await client.request("overlay.setExpanded", { expanded: next })
+    return next
+  } catch {
+    return previous
+  }
 }

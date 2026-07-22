@@ -1,6 +1,10 @@
 const protocol = "convax.pet-host/1"
+const defaultHandshakeTimeoutMs = 5_000
+const defaultRequestTimeoutMs = 10_000
+const maximumTimeoutMs = 60_000
 const maximumPendingRequests = 64
 const maximumMessageCharacters = 64 * 1024
+const minimumTimeoutMs = 25
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -14,7 +18,12 @@ function bounded(value) {
   }
 }
 
-function clientForPort(port) {
+function timeoutFor(value, fallback) {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(maximumTimeoutMs, Math.max(minimumTimeoutMs, Math.trunc(value)))
+}
+
+function clientForPort(port, requestTimeoutMs) {
   const pending = new Map()
   const listeners = new Map()
   let closed = false
@@ -26,6 +35,7 @@ function clientForPort(port) {
       const request = pending.get(data.id)
       if (!request) return
       pending.delete(data.id)
+      clearTimeout(request.timeoutId)
       if (data.ok === true) request.resolve(data.result)
       else request.reject(new Error(typeof data.error === "string" ? data.error.slice(0, 500) : "Pet host request failed"))
       return
@@ -41,10 +51,13 @@ function clientForPort(port) {
       if (closed) return
       closed = true
       port.onmessage = null
-      port.close()
-      for (const request of pending.values()) request.reject(new Error("Pet host connection closed"))
+      for (const request of pending.values()) {
+        clearTimeout(request.timeoutId)
+        request.reject(new Error("Pet host connection closed"))
+      }
       pending.clear()
       listeners.clear()
+      port.close()
     },
     request(method, params) {
       if (closed) return Promise.reject(new Error("Pet host connection closed"))
@@ -54,8 +67,20 @@ function clientForPort(port) {
       if (pending.size >= maximumPendingRequests) return Promise.reject(new Error("Pet host pending request limit reached"))
       const id = String(nextId++)
       return new Promise((resolve, reject) => {
-        pending.set(id, { reject, resolve })
-        port.postMessage({ id, method, params, protocol, type: "request" })
+        const timeoutId = setTimeout(() => {
+          const request = pending.get(id)
+          if (!request) return
+          pending.delete(id)
+          request.reject(new Error("Pet host request timed out"))
+        }, requestTimeoutMs)
+        pending.set(id, { reject, resolve, timeoutId })
+        try {
+          port.postMessage({ id, method, params, protocol, type: "request" })
+        } catch (error) {
+          clearTimeout(timeoutId)
+          pending.delete(id)
+          reject(error)
+        }
       })
     },
     subscribe(event, listener) {
@@ -75,14 +100,23 @@ function clientForPort(port) {
 
 export function connectPetHost({
   expectedSource = window.parent,
+  handshakeTimeoutMs = defaultHandshakeTimeoutMs,
   pluginId,
+  requestTimeoutMs = defaultRequestTimeoutMs,
   source = window,
   surface,
 }) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(pluginId) || (surface !== "overlay" && surface !== "settings")) {
     return Promise.reject(new Error("Pet host connection scope is invalid"))
   }
-  return new Promise((resolve) => {
+  const boundedHandshakeTimeoutMs = timeoutFor(handshakeTimeoutMs, defaultHandshakeTimeoutMs)
+  const boundedRequestTimeoutMs = timeoutFor(requestTimeoutMs, defaultRequestTimeoutMs)
+  return new Promise((resolve, reject) => {
+    let timeoutId
+    const cleanup = () => {
+      source.removeEventListener("message", connect)
+      clearTimeout(timeoutId)
+    }
     const connect = (event) => {
       const message = event.data
       if (
@@ -96,9 +130,13 @@ export function connectPetHost({
       ) {
         return
       }
-      source.removeEventListener("message", connect)
-      resolve(clientForPort(event.ports[0]))
+      cleanup()
+      resolve(clientForPort(event.ports[0], boundedRequestTimeoutMs))
     }
     source.addEventListener("message", connect)
+    timeoutId = setTimeout(() => {
+      cleanup()
+      reject(new Error("Pet host connection timed out"))
+    }, boundedHandshakeTimeoutMs)
   })
 }

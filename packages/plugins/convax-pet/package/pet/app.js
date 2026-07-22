@@ -1,7 +1,15 @@
 import { animationFor, orderedActivities, statusText } from "../assets/activity.js"
 import { connectPetHost } from "../assets/pet-host.js"
 import { selectedPet } from "../assets/pet-library.js"
-import { activatePet, createDragGesture, frameFor, keyAction } from "./model.js"
+import {
+  backgroundPositionFor,
+  createDragGesture,
+  frameFor,
+  keyAction,
+  moveOverlay,
+  openActivity,
+  reconcileExpanded,
+} from "./model.js"
 
 const root = document.querySelector("#pet-root")
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -25,7 +33,7 @@ function currentAnimation() {
 
 function paintSprite(sprite) {
   const frame = frameFor(currentAnimation(), performance.now() - animationStarted, reducedMotion.matches)
-  sprite.style.backgroundPosition = `${frame.column * -100}% ${frame.row * -100}%`
+  sprite.style.backgroundPosition = backgroundPositionFor(frame)
   if (!reducedMotion.matches) animationFrame = requestAnimationFrame(() => paintSprite(sprite))
 }
 
@@ -35,24 +43,29 @@ function stopAnimation() {
 }
 
 async function setExpanded(next) {
+  const previous = expanded
   expanded = next
-  await client.request("overlay.setExpanded", { expanded })
+  render()
+  const reconciled = await reconcileExpanded(client, previous, next)
+  if (expanded !== next || reconciled === next) return
+  expanded = reconciled
   render()
 }
 
 async function navigate(activity) {
-  await activatePet(activity?.id, {
+  await openActivity(client, activity, snapshot.revision, {
     jump() {
       jumping = true
       animationStarted = performance.now()
       render()
     },
-    navigate: () => client.request("activity.open", { activityId: activity.id, revision: snapshot.revision }),
+    settle() {
+      jumping = false
+      animationStarted = performance.now()
+      render()
+    },
     wait: () => new Promise((resolve) => window.setTimeout(resolve, reducedMotion.matches ? 0 : 180)),
   })
-  jumping = false
-  animationStarted = performance.now()
-  render()
 }
 
 function activityRow(activity) {
@@ -103,7 +116,7 @@ function render() {
   sprite.setAttribute("aria-hidden", "true")
   sprite.style.backgroundImage = `url("${new URL(`../${pet.spritesheet}`, import.meta.url)}")`
   spriteButton.append(sprite)
-  const drag = createDragGesture((input) => void client.request("overlay.move", input))
+  const drag = createDragGesture((input) => void moveOverlay(client, input))
   let dragged = false
   spriteButton.addEventListener("pointerdown", (event) => {
     dragged = false
