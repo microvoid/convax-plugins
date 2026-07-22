@@ -1,442 +1,454 @@
-# Convax Pet Plugin Design
+# Convax Pet Feature Plugin Design
 
-**Date:** 2026-07-22  
-**Status:** Approved design  
-**Packages:** `packages/plugins/convax-pet` in `convax-plugins`; generic pet and activity support in `@convax/agent-runtime` and `@convax/desktop` in `/Users/bytedance/src/convax`  
+**Date:** 2026-07-22
+**Status:** Proposed — section design approved; written review pending
+**Plugin owner:** `packages/plugins/convax-pet` in `convax-plugins`
+**Host owners:** generic pet platform support in `@convax/agent-runtime` and
+`@convax/desktop` in `/Users/bytedance/src/convax`
 **External tools:** None
 
 ## 1. Summary
 
-Add a Codex-style floating desktop pet to Convax without turning the Plugin ZIP
-into executable application code.
+Convax Pet is one installable feature Plugin that owns the complete pet product
+experience. It renders the floating companion, maps Agent activity to animation,
+provides the pet collection and settings UI, ships Violet, and imports multiple
+legacy Codex pets such as `/Users/bytedance/Desktop/pets/goku`.
 
-The first pet is an original character named **Violet**. The Plugin contributes
-only a manifest, license information, and a local sprite atlas. Convax owns the
-trusted behavior: aggregating agent activity across all projects, selecting the
-highest-priority activity, rendering a transparent always-on-top window,
-navigating to a selected session, persisting preferences, and enforcing the
-security boundary.
+Convax remains a thin trusted host. It provides only operations that a sandboxed
+Web Plugin cannot safely perform: creating a native transparent overlay, projecting
+content-free Agent activity across projects, resolving session navigation, showing
+native file dialogs, copying authorized assets into Plugin-private storage, and
+persisting bounded Plugin state.
 
-This split preserves the existing Convax Plugin architecture:
+The key ownership rule is:
 
-- Plugin packages remain inert, offline assets.
-- Host capabilities are generic and keyed by contribution type, never by the
-  `convax-pet` package ID.
-- No executable, server, native binary, dependency tree, or install hook is
-  included in the Plugin ZIP.
-- The design is visually consistent with Convax and behaviorally similar to the
-  documented Codex pet, without copying Codex source code or character assets.
+```text
+One Pet feature Plugin owns many pets.
+Pets are library data; individual pets are not separate Convax Plugins.
+```
+
+The current branch implementation instead makes each pet a declarative resource
+Plugin and keeps most product behavior in Convax. This design supersedes that
+boundary before release.
 
 ## 2. Goals
 
-1. Provide a floating, optional desktop companion that reflects activity from
-   every open or known Convax project and agent session.
-2. Match the useful Codex pet semantics: running, needs-input, ready, blocked,
-   persistent selection and position, direct navigation, custom pet import, and
-   reduced-motion behavior.
-3. Extend the Plugin contract with a strict, declarative `contributes.pet`
-   contribution.
-4. Keep all security-sensitive and stateful behavior in trusted Convax code.
-5. Reuse Convax's theme, spacing, typography, agent runtime, preferences,
-   project routing, and Electron lifecycle patterns.
+1. Make the complete pet experience installable, disableable, and uninstallable as
+   one Convax Plugin.
+2. Let that Plugin manage Violet, Goku, and any number of compatible local pets.
+3. Support both a single legacy `pet.json` and batch import from a `pets` root
+   directory.
+4. Preserve Codex-style activity semantics, direct navigation, reduced motion,
+   multi-display positioning, and Convax visual language.
+5. Keep Electron, native paths, unrestricted filesystem access, Agent content, and
+   navigation authority outside the Plugin sandbox.
+6. Keep host behavior generic and contribution-driven, with no special case for the
+   `convax-pet` package ID.
 
 ## 3. Non-goals
 
-- Copying Codex implementation code, private Convax implementation into this
-  repository, or existing copyrighted pet artwork.
-- Running arbitrary HTML, JavaScript, Electron, Node.js, or a companion process
-  from a pet Plugin.
-- Exposing message bodies, prompts, project paths, tool arguments, permission
-  contents, or question contents to the pet renderer.
-- Adding a pet that exists only inside a Canvas iframe.
-- Automatically showing a pet immediately after package installation.
-- Adding network-backed pet resources or a pet marketplace downloader.
+- Making Violet and Goku separate Convax Plugins.
+- Giving Plugin code Node, Electron, arbitrary IPC, shell, network, or native path
+  access.
+- Loading remote scripts, remote pet assets, native binaries, a companion process,
+  or an install hook from the Plugin ZIP.
+- Exposing prompts, messages, question text, permission details, tool arguments,
+  project paths, or credentials to the Plugin.
+- Copying private Codex or Convax implementation code or third-party character art.
+- Defining a network marketplace for pets in the first release.
+- Supporting arbitrary legacy directory recursion; batch import scans exactly one
+  directory level below the selected `pets` root.
 
-## 4. Research Findings
+## 4. Research and Current State
 
-### 4.1 Codex pet behavior
+### 4.1 Codex-compatible pet data
 
-OpenAI's documented pet behavior establishes the product reference:
+The legacy data to preserve uses one directory per pet:
 
-- Pets float above other apps and may be selected, woken, or tucked away.
-- Selection and window position persist.
-- The visible states are Running, Needs input, Ready, and Blocked.
-- State priority is Needs input, Blocked, Ready, then Running.
-- Clicking the pet returns to the relevant activity.
-- Reduced motion displays a still frame.
-- Custom pets remain local.
+```text
+pets/
+  goku/
+    pet.json
+    spritesheet.webp
+```
 
-The documented custom pet format is a transparent PNG or WebP sprite atlas at
-1536 by 1872 pixels, no larger than 20 MiB. Public Codex pet tooling shows an
-8-column by 9-row atlas with 192 by 208 pixel cells and animation rows for idle,
-directional movement, waving, jumping, failure, waiting, running, and review.
+The manifest shape is:
 
-References:
+```json
+{
+  "id": "goku",
+  "displayName": "Goku",
+  "description": "A compact desktop companion.",
+  "spritesheetPath": "spritesheet.webp"
+}
+```
+
+The sprite atlas is a transparent PNG or WebP, no larger than 20 MiB, exactly
+1536 by 1872 pixels. It contains eight 192 by 208 cells across and nine animation
+rows: `idle`, `running-right`, `running-left`, `waving`, `jumping`, `failed`,
+`waiting`, `running`, and `review`.
+
+References used for behavioral and file compatibility only:
 
 - [OpenAI Academy: Pets](https://learn.chatgpt.com/docs/pets)
 - [OpenAI Codex documentation](https://developers.openai.com/codex/)
 - [Public Codex pet atlas constants](https://github.com/backnotprop/codex-pets-react/blob/main/src/lib/atlas.ts)
 
-These sources inform behavior and file compatibility only. Violet is an original
-asset and Convax uses its own UI and host architecture.
+### 4.2 Convax Plugin constraints
 
-### 4.2 `convax-plugins` architecture
+A Convax Web Plugin is inert, offline package content. Its HTML, CSS, and
+JavaScript run in a sandboxed renderer without Node or Electron. Native operations
+must be exposed as versioned, contribution-scoped host methods. The Plugin ZIP
+must not contain an executable, server, dependency tree, native binary, or install
+hook.
 
-The repository packages static Plugin content as inert bytes. The contents of a
-workspace's `package/` directory become the ZIP root. Published metadata and
-bytes are validated, packed deterministically, indexed in the Registry, and
-versioned with package SemVer plus the Registry sequence.
+The package remains independently validated, deterministically packed, and
+published through the Registry. The contents of `package/` are the ZIP root.
 
-Existing Plugin versions are matched to versioned host protocols. The current
-public repository supports `convax.plugin/1` through `convax.plugin/4`, while
-Convax `convax-next` already implements `convax.plugin/5` with the independently
-versioned `convax.plugin-capability/1` contract. The public repository must first
-adopt that existing v5 contract, then add `contributes.pet` as an optional,
-non-executable v5 contribution without narrowing or replacing the other v5
-capabilities.
+### 4.3 Superseded implementation
 
-### 4.3 Convax host architecture
+The first implementation on `codex/convax-pet` has this shape:
 
-The referenced `/Users/bytedance/src/convax` repository separates ownership as
-follows:
+```text
+Convax host
+  owns overlay UI, animation mapping, pet collection, import and preferences
+       ^
+       | reads one contributes.pet resource
+       |
+one Plugin per pet
+  owns only name, description and one atlas
+```
 
-- `@convax/agent-runtime` owns generic agent sessions, messages, permissions,
-  questions, busy/retry status, prompts, and cancellation.
-- `@convax/ui` owns shared visual primitives and theme tokens.
-- `@convax/desktop` owns Electron composition, IPC, preferences, project
-  navigation, native windows, and process lifecycle.
-- Plugin routing is contribution-based and must not special-case package IDs.
-
-The current Canvas Plugin host is intentionally scoped to a project/canvas/node
-context. Its agent prompt method starts a session for that context. It does not
-provide a trusted, cross-project activity stream or permission to create a native
-desktop overlay. A Canvas iframe therefore cannot safely implement the requested
-experience.
-
-The correct boundary is a host-owned overlay driven by a generic declarative pet
-contribution.
+It also exposes a host-owned raw spritesheet import path. That is useful as a
+prototype but does not make the pet product a Plugin and cannot preserve legacy
+`pet.json` metadata. The implementation must be refactored rather than published
+in that form.
 
 ## 5. Considered Approaches
 
-### 5.1 Declarative pet Plugin plus host-owned overlay — selected
+### 5.1 Host-owned feature with one Plugin per pet
 
-The Plugin contributes static metadata and a sprite atlas. Convax owns all
-runtime behavior and native UI.
+This is the current prototype. It has a small Plugin API, but product logic is
+permanently built into Convax and every pet becomes a separately installed Plugin.
+It does not meet the product ownership goal.
 
-Advantages:
+### 5.2 Thin host plus one feature Plugin — selected
 
-- Matches the repository's inert Plugin model.
-- Keeps Electron, filesystem, navigation, and agent state behind trusted IPC.
-- Supports third-party pets without package-ID special cases.
-- Reuses existing Convax lifecycle and theme ownership.
+Convax supplies native and security-sensitive primitives. One sandboxed Pet Plugin
+owns the overlay renderer, animation rules, library, import interpretation, and
+settings UI. This makes the feature genuinely installable while preserving the
+existing trust boundary.
 
-### 5.2 Plugin-owned Web overlay
+### 5.3 Fully privileged Plugin
 
-A Plugin iframe could render the pet, but the host would still need to expose
-cross-project activity, native-window control, focus/navigation, display
-positioning, and persistence. That would create an unnecessarily broad and
-difficult-to-secure API surface.
+Allowing a Plugin to create Electron windows, inspect sessions, and read the
+filesystem directly would reduce host adapter code but would defeat the Convax
+sandbox. It is rejected.
 
-### 5.3 Sidecar executable
+### 5.4 Sidecar executable
 
-A companion executable could independently create a window, but it would add a
-second process, IPC authentication, installation, updates, and platform-specific
-packaging. It conflicts with the desired Plugin architecture and is unnecessary.
+A companion process would add platform packaging, process supervision, executable
+authorization, and a second IPC boundary without providing a meaningful product
+benefit. It is rejected.
 
 ## 6. Architecture
 
 ```text
 packages/plugins/convax-pet
-  manifest + license + Violet sprite atlas
-              |
-              | convax.plugin/5 contributes.pet
-              v
-Convax Plugin registry/installer
-  schema, path, image, digest and lifecycle validation
-              |
-              v
-Desktop Pet Controller <---- Agent Activity Controller
-  selection/state               all projects/sessions
-  window lifecycle              priority/read state
-  persistence                   bounded snapshots
-       |                              |
-       v                              v
-Sandboxed pet renderer       project/session navigation
-  sprite animation only      resolved in trusted main process
+  static overlay + settings bundles
+  Violet atlas + pet library logic + legacy parser
+                  |
+                  | convax.plugin/5 contributes.pet
+                  | convax.pet-host/1 scoped ports
+                  v
+Convax Desktop pet platform
+  provider lifecycle + isolated BrowserWindow + settings mount
+  activity projection + validated navigation
+  native selection grants + private asset/state storage
+                  |
+                  v
+@convax/agent-runtime and Electron
+  projects/sessions             displays/windows/files
 ```
 
-### 6.1 Plugin contribution
+### 6.1 Ownership
 
-The initial source manifest is:
+The Pet Plugin owns:
+
+- overlay HTML, CSS, JavaScript, and accessible interaction behavior;
+- collapsed and expanded layouts;
+- activity priority and state-to-animation mapping;
+- sprite animation timing and reduced-motion presentation;
+- pet collection, selection, descriptions, previews, and delete controls;
+- Violet as the built-in default library entry;
+- legacy manifest parsing and batch import result presentation;
+- Plugin preferences that do not require native interpretation.
+
+Convax owns:
+
+- discovering and activating exactly one Pet contribution;
+- the transparent, always-on-top, frameless BrowserWindow;
+- isolated sessions, CSP, navigation blocking, crash recovery, and fixed preload;
+- cross-project content-free Agent activity projection;
+- resolving opaque activity IDs and opening the correct project/session;
+- native file/directory selection and temporary import grants;
+- image inspection and atomic Plugin-private asset publication;
+- bounded, atomic Plugin-private state storage;
+- window position, display identity, scale context, wake/tuck lifecycle, and app
+  shutdown ordering.
+
+Convax does not own Violet, animation rows, activity priority, pet cards, legacy
+manifest semantics, or pet-specific copy.
+
+### 6.2 Provider uniqueness
+
+`contributes.pet` is a singleton feature contribution. At most one enabled Plugin
+may own the Pet surface at a time. Installation may coexist with another disabled
+provider, but activation must ask the user to replace the active provider rather
+than allowing two Plugins to compete for one native overlay.
+
+The rule is keyed by contribution type, never package ID. When no Pet provider is
+enabled, Convax does not create the overlay, subscribe to global activity, or show
+the Pet settings section.
+
+## 7. Plugin Contract
+
+### 7.1 Manifest
+
+The revised `convax.plugin/5` contribution declares feature entry points, not one
+pet asset:
 
 ```json
 {
   "schema": "convax.plugin/5",
   "id": "convax-pet",
   "name": "Convax Pet",
-  "version": "0.1.0",
+  "description": "A local desktop companion and pet library for Convax activity.",
+  "version": "0.2.0",
+  "capabilities": [
+    "pet.activity.read",
+    "pet.activity.open",
+    "pet.library.manage",
+    "pet.preferences.write"
+  ],
   "contributes": {
     "pet": {
-      "name": "Violet",
-      "description": "A pixel companion for Convax.",
-      "spritesheet": "assets/violet.webp",
-      "spriteVersion": 2,
-      "alt": "Violet, the Convax pixel companion"
+      "overlay": "pet/index.html",
+      "settings": "settings/index.html",
+      "protocol": "convax.pet-host/1"
     }
   }
 }
 ```
 
-The final manifest follows the exact field layout established by the new schema.
-The schema is strict: unknown keys are rejected rather than silently ignored.
+Paths are package-relative, case-sensitive, and must resolve to regular files.
+Unknown fields and capabilities are rejected. A Pet feature package remains static
+Web content; it may contain bundled JavaScript but no native runtime.
 
-`spriteVersion: 2` denotes the 8 by 9 atlas layout defined in section 7. The
-contract is generic so any valid Plugin can contribute a pet.
+The current `name`, `description`, `spritesheet`, `spriteVersion`, and `alt` form is
+removed before publication. Existing unrelated `convax.plugin/5` contributions
+remain valid.
 
-### 6.2 Protocol ownership
+### 7.2 Pet host protocol
 
-- `convax.plugin/5` describes installable Plugin metadata and contributions,
-  including existing project-wide Canvas, LLM, and owned-Skill declarations plus
-  the new optional pet declaration.
-- `convax.plugin-capability/1` remains an independently versioned host capability
-  contract.
-- A pet contribution does not receive Canvas capabilities or a MessagePort.
-- Host and repository keep shared valid/invalid fixtures to detect schema drift;
-  existing v5 fixtures remain valid after the pet field is added.
-- Older Plugin versions continue to install and run unchanged.
+`convax.pet-host/1` is separate from Canvas host protocols. Convax transfers a
+fresh MessagePort to each mounted Pet surface after verifying the installed Plugin,
+manifest entry, document URL, renderer identity, and requested capabilities.
 
-### 6.3 Trusted host components
+The overlay and settings surfaces receive different allowlists:
 
-`@convax/agent-runtime` exposes a bounded, content-free activity summary. It does
-not know about Electron windows or pet animations.
+| Surface | Allowed operation groups |
+| --- | --- |
+| Overlay | activity snapshot/events, activity open, selected pet asset, presentation preferences, overlay move/expand |
+| Settings | library snapshot/events, import selection/commit, select/delete, preferences, wake/tuck |
 
-`@convax/desktop` adds:
+Neither surface can forward arbitrary method names. Requests and responses are
+versioned, uniquely identified, size-bounded, schema-validated, and rejected after
+the surface or Plugin generation changes.
 
-- `AgentActivityController`: aggregates project/session activity, computes
-  priority and unread state, and emits monotonically revisioned snapshots.
-- `PetController`: resolves the selected contribution, maps activity to
-  animation, owns wake/tuck state, and manages the overlay lifecycle.
-- `PetWindow`: creates the hardened transparent BrowserWindow, validates IPC,
-  and clamps display position.
-- Preferences and settings integration for pet selection and custom imports.
+### 7.3 Host method semantics
 
-The pet renderer receives only presentation-ready state and opaque activity IDs.
+The protocol exposes narrow operations equivalent to:
 
-## 7. Sprite Contract and Violet Art Direction
+```text
+activity.getSnapshot / activity.changed
+activity.open
+overlay.move / overlay.setExpanded
+library.getSnapshot / library.changed
+library.selectLegacySource / library.commitLegacyImport
+library.deleteImportedAsset
+preferences.get / preferences.update
+lifecycle.setAwake
+```
 
-### 7.1 Atlas format
+Method names are part of the versioned contract; the implementation plan may group
+request and event types differently without expanding their authority.
 
-- PNG or WebP.
-- Exactly 1536 by 1872 pixels.
-- 8 columns and 9 rows.
-- Cell size: 192 by 208 pixels.
-- Contains an alpha channel and at least one transparent pixel.
-- Maximum file size: 20 MiB.
-- Rendered with pixelated image sampling.
+`activity.open` accepts only an opaque activity ID and the snapshot revision.
+`preferences.update` accepts an exact bounded schema, not arbitrary filesystem or
+application settings. Asset responses use opaque Plugin-scoped URLs and never
+native paths.
 
-Animation rows:
+## 8. Pet Library
 
-| Row | Animation | Frames | Frame durations in milliseconds |
-| --- | --- | ---: | --- |
-| 0 | idle | 6 | 280, 110, 110, 140, 140, 320 |
-| 1 | running-right | 8 | 120, 120, 120, 120, 120, 120, 120, 220 |
-| 2 | running-left | 8 | 120, 120, 120, 120, 120, 120, 120, 220 |
-| 3 | waving | 4 | 140, 140, 140, 280 |
-| 4 | jumping | 5 | 140, 140, 140, 140, 280 |
-| 5 | failed | 8 | 140, 140, 140, 140, 140, 140, 140, 240 |
-| 6 | waiting | 6 | 150, 150, 150, 150, 150, 260 |
-| 7 | running | 6 | 120, 120, 120, 120, 120, 220 |
-| 8 | review | 6 | 150, 150, 150, 150, 150, 280 |
+### 8.1 Data model
 
-Unused cells remain fully transparent.
+The Plugin maintains a `convax.pet-library/1` record:
 
-### 7.2 Violet
+```json
+{
+  "schema": "convax.pet-library/1",
+  "selectedId": "goku",
+  "pets": [
+    {
+      "id": "goku",
+      "displayName": "Goku",
+      "description": "A compact desktop companion.",
+      "assetId": "sha256:...",
+      "sha256": "...",
+      "source": "legacy-import"
+    }
+  ]
+}
+```
 
-Violet is an original, small purple pixel companion. The silhouette must remain
-legible around 96 by 104 rendered pixels, with restrained highlights and a clear
-face/gesture language. It may use Convax purple as an accent but must not copy a
-Codex pet character, pose sheet, logo, or other third-party asset.
+Built-in entries use package asset URLs and `source: "built-in"`. Imported entries
+use opaque IDs allocated by Convax. Library metadata is stored through bounded,
+atomic Plugin-private preferences. Imported bytes live in a separate Plugin-private
+asset root.
 
-All source and generated asset licensing must be recorded in the package.
+Violet is always recoverable from immutable package bytes. Corrupt imported entries
+are isolated without resetting the rest of the library.
 
-## 8. Activity State Model
+### 8.2 Legacy selection
 
-The activity summary has five presentation states:
+The settings surface offers one “Import legacy pets” action with both modes:
 
-| State | Source condition | Animation |
-| --- | --- | --- |
-| `needs-input` | Pending permission or question | `review` for permission, `waiting` for question |
-| `blocked` | Terminal agent, tool, or system error | `failed` |
-| `ready` | Successful completion not yet viewed | `waving` |
-| `running` | Busy, retry, or known in-flight prompt | `running` |
-| `idle` | No unread or active work | `idle` |
+- select one `pet.json`;
+- select a `pets` root and scan each immediate child for `pet.json`.
 
-Priority is exact and global:
+The Plugin never receives native paths. Convax issues a short-lived, Plugin-bound
+selection grant containing bounded candidate IDs, manifest text, safe relative
+filenames, and inspected image facts. The grant expires on timeout, Plugin reload,
+cancel, or commit.
+
+### 8.3 Parsing and validation
+
+The Plugin parses the exact legacy keys `id`, `displayName`, `description`, and
+`spritesheetPath`. It rejects unknown keys, invalid identifiers, unsafe relative
+paths, missing fields, and unsupported formats.
+
+Before publishing any asset, Convax independently enforces:
+
+- the selected manifest and image remain within the authorized candidate;
+- neither component is a symlink or non-regular file;
+- the path has no traversal, absolute segment, reserved name, or case ambiguity;
+- bytes are a real PNG or WebP matching the extension;
+- dimensions are exactly 1536 by 1872;
+- an alpha channel and useful transparency are present;
+- size does not exceed 20 MiB;
+- the bytes have not changed since grant inspection.
+
+Plugin validation improves error messages but never substitutes for host
+validation.
+
+### 8.4 Commit behavior
+
+Each valid candidate is committed atomically. Batch import is not all-or-nothing:
+valid pets succeed, invalid pets are skipped, and the settings surface presents a
+summary for every candidate.
+
+An existing ID is updated only after the replacement asset is fully validated and
+published. Identical content is deduplicated by SHA-256. Failed or canceled imports
+leave the current library and selection unchanged. Temporary grants and staged
+bytes are always removed.
+
+After a successful import, the newest successfully imported pet becomes selected.
+Import never wakes a tucked overlay automatically.
+
+## 9. Activity and Presentation
+
+### 9.1 Host activity projection
+
+Convax aggregates every known project and session and emits bounded,
+monotonically-revisioned activity snapshots. It may use event routing, bounded
+recovery polling, global fairness, and backoff internally. The Plugin receives only:
+
+- opaque activity ID;
+- opaque project and session identity required for freshness checks;
+- already-approved user-visible project/session labels;
+- normalized state and subtype;
+- update timestamp and snapshot revision.
+
+It never receives prompts, messages, question or permission content, tool details,
+paths, environment values, or credentials.
+
+### 9.2 Plugin presentation rules
+
+The Plugin applies exact global priority:
 
 ```text
 needs-input > blocked > ready > running > idle
 ```
 
-Activities with the same priority are ordered by most recent meaningful update.
-Retry remains `running`. User-initiated cancellation becomes `idle`, not
-`blocked`.
+Default mappings are:
 
-### 8.1 Aggregation
+| Activity | Animation |
+| --- | --- |
+| Pending question | `waiting` |
+| Pending permission | `review` |
+| Blocked or terminal error | `failed` |
+| Successful completion not yet displayed | `waving` |
+| Busy, retry, or in-flight prompt | `running` |
+| No visible activity | `idle` |
 
-- Aggregate every known project and session, not only the selected Canvas.
-- On startup, enumerate projects and recover active, waiting, and unread sessions.
-- Route normal prompt, abort, permission, and question flows through the activity
-  controller so steady-state changes do not require permanent idle polling.
-- Poll only active or externally recoverable sessions with bounded intervals;
-  use backoff when the runtime is unavailable.
-- Every published snapshot carries a monotonic revision. Consumers discard older
-  revisions and delayed poll results.
-- Bound the number of retained activities and read watermarks.
+Same-priority activities are ordered by most recent meaningful update. User
+cancellation becomes idle, not blocked. Clicking the pet briefly plays `jumping`
+before requesting navigation to the selected activity.
 
-### 8.2 Privacy boundary
+### 9.3 Window and accessibility
 
-A renderer snapshot may contain:
-
-- opaque activity ID;
-- opaque project and session IDs;
-- user-visible project/session label already approved for navigation UI;
-- presentation status and subtype;
-- update timestamp and revision.
-
-It must not contain message text, prompts, answers, filesystem paths, tool names
-or parameters, permission details, question contents, environment values, or
-credentials.
-
-Clicking an activity returns its opaque ID to the main process. The main process
-resolves and validates the current target before asking the main Convax renderer
-to navigate.
-
-### 8.3 Read semantics
-
-Opening the pet tray does not mark an activity read. A `ready` or `blocked`
-activity is marked read only after its destination session has actually been
-displayed by Convax. Watermarks are bounded and persisted without conversation
-content.
-
-## 9. Interaction and Visual Design
-
-### 9.1 Lifecycle
-
-- Installing a pet does not automatically show it.
-- The user selects a pet and explicitly wakes it from Convax settings or the pet
-  control.
-- `/pet` parity is an interaction goal, but command-palette syntax is optional for
-  the first release if Convax has no existing slash-command owner.
-- Tucking a pet closes the overlay while preserving selection and position.
-- Uninstalling the selected pet closes the overlay and clears that selection; the
-  host does not silently substitute another pet.
-
-### 9.2 Window states
-
-- Collapsed overlay: approximately 176 by 176 logical pixels, containing the pet,
-  a small status dot, and a compact status pill.
-- Expanded tray: approximately 356 by 320 logical pixels, containing at most four
-  visible activity rows with scrolling for additional rows.
-- The window is transparent, frameless, excluded from the taskbar, and above
-  normal application windows.
-- It never steals focus merely because status changes.
-- Dragging begins after a 4-pixel threshold and clamps the pet to a usable area of
-  the current display.
-- Horizontal dragging may use the directional running rows.
-
-Clicking the pet briefly plays `jumping`, then focuses Convax and opens the
-highest-priority activity. Clicking the status pill toggles the tray. Clicking a
-tray row navigates to that specific activity.
-
-### 9.3 Existing Convax style
-
-Use Convax UI primitives and current theme tokens, including:
-
-- 6-pixel radius;
-- light background `#f7f8f7` and card `#ffffff`;
-- foreground `#171a18` and muted foreground `#68716c`;
-- border `#d9ddda`;
-- primary purple `#7657e8`;
-- destructive `#c43d49`;
-- Inter typography.
-
-Status colors are secondary cues:
-
-- running: primary purple;
-- needs input: amber;
-- ready: green;
-- blocked: destructive red.
-
-Every state also has text and animation semantics, so meaning never depends on
-color alone.
-
-### 9.4 Accessibility
-
-- Reduced-motion mode displays a representative still frame and does not run an
+- Collapsed surface: approximately 176 by 176 logical pixels.
+- Expanded tray: approximately 356 by 320 logical pixels with scrolling beyond
+  four visible activity rows.
+- Drag begins after four logical pixels and may use directional running rows.
+- The window never steals focus merely because activity changed.
+- Reduced motion fixes each state to a representative still frame and creates no
   animation timer.
-- The collapsed pet does not enter the tab order unless explicitly focused.
-- The expanded tray supports keyboard navigation, activation, dismissal, and
-  accessible labels.
-- Alternative text comes from the validated contribution manifest.
-- Announcements are limited to meaningful state changes and must not repeatedly
-  announce polling refreshes.
+- Expanded controls support keyboard navigation, activation, dismissal, labels,
+  and non-color status cues.
+- The Plugin uses current Convax theme tokens, typography, spacing, and six-pixel
+  corner radius rather than reproducing Codex styling literally.
 
-## 10. Persistence
+## 10. Lifecycle and Persistence
 
-Persist a versioned, atomic `pet-state-v1` record through Convax's preference
-owner. It contains:
+Installing the Plugin does not wake the pet. Enabling it mounts the settings
+surface and prepares the provider. The user explicitly selects a pet and wakes the
+overlay.
 
-- selected installed pet identity and version-safe reference;
+Convax persists native lifecycle data separately from Plugin product data:
+
 - awake/tucked state;
-- last valid position per display identity and scale context;
-- bounded activity read watermarks;
-- reduced-motion preference only if Convax does not already expose it globally.
+- last valid position per display ID and scale context;
+- active provider identity and generation;
+- bounded navigation/read acknowledgements where host validation requires them.
 
-It contains no chat content, project path, tool parameters, or custom asset source
-path.
+The Plugin persists library selection and presentation preferences through its
+private store. No record contains source paths or Agent content.
 
-On display changes, resume, or DPI changes, revalidate and clamp the position. On
-corrupt persistence, fall back to tucked state and default positioning without
-deleting installed pet data.
+Disabling or uninstalling the provider closes the overlay, stops global activity
+projection, revokes ports and grants, and removes the Pet settings surface. Imported
+pet data remains inert in Plugin-private storage so reinstall can restore it. A
+future explicit “remove Plugin data” operation may delete it; ordinary uninstall
+does not silently destroy user-imported pets.
 
-## 11. Custom Pet Import
+Updates stage new package bytes before revoking the old generation. State is
+reconnected only after the new manifest and entry points validate. A failed update
+preserves the previous installed Plugin and library.
 
-The settings UI provides selection, preview, wake/tuck, import, and deletion.
+## 11. Security Model
 
-Import flow:
-
-1. Copy the candidate to a private staging directory.
-2. Validate path, byte size, file signature, decode, dimensions, alpha channel,
-   and atlas contract.
-3. Generate a stable internal identity and atomically move the validated asset to
-   private application storage.
-4. Store only the internal identity in preferences; never expose or retain the
-   original source path in renderer state.
-5. On failure, remove staging data and leave the current selection unchanged.
-
-Custom pets are local and are never uploaded by this feature.
-
-## 12. Security Model
-
-### 12.1 Installation validation
-
-Both repository validation and the Convax installer enforce:
-
-- a version-matched strict manifest;
-- relative, normalized resource paths within the package;
-- no URL, absolute path, traversal, symlink, reserved name, or missing file;
-- PNG/WebP signature, decodability, dimensions, alpha, and size limits;
-- no executable, script entry, remote hook, companion declaration, or dependency
-  tree for a pet-only Plugin;
-- digest and Registry metadata integrity.
-
-Updates are staged and committed atomically. A failed update preserves the
-previous installed version. Released byte or catalog changes require a SemVer
-bump; catalog publication also increments the Registry sequence.
-
-### 12.2 Overlay hardening
-
-The BrowserWindow uses:
+The overlay BrowserWindow uses:
 
 ```text
 contextIsolation: true
@@ -446,110 +458,135 @@ frame: false
 transparent: true
 ```
 
-Its fixed preload exposes only the minimal pet operations. The host blocks
-navigation, popups, downloads, permission requests, remote resources, arbitrary
-IPC channels, and untrusted senders. Content Security Policy permits only bundled
-local UI and the validated local sprite image.
+It uses a nonpersistent, Plugin-scoped Electron session. The custom asset protocol
+is registered and removed on that same session. Convax blocks navigation, popups,
+downloads, permission requests, remote resources, service workers, and untrusted
+senders. CSP permits only the installed Plugin bundle and validated Plugin-private
+pet assets.
 
-The renderer cannot read arbitrary files, create windows, access agent runtime
-objects, or resolve activity IDs.
+The fixed preload transfers only the surface-specific `convax.pet-host/1` port. It
+does not expose Electron APIs, native paths, a generic IPC method, or unrestricted
+fetch. Every asynchronous result is bound to the provider and document generation
+that requested it.
 
-## 13. Failure Handling
+Installation and packing remain inert. Repository validation may inspect asset
+bytes but never executes contributor package scripts during validation or packing.
 
-- Runtime unavailable: show one generic system `blocked` activity, retry with
-  bounded backoff, and do not expose internal error data.
-- Temporarily unavailable project: show a generic unavailable label; remove the
-  activity if the project is confirmed deleted.
-- Sprite decode failure after installation: mark the contribution invalid and
-  close the overlay rather than rendering a broken or remote fallback.
-- Overlay renderer crash: recreate once; on repeated failure tuck the pet and
-  leave Convax usable.
-- Stale activity response: discard by revision and per-session update token.
-- Display removal, resume, or scale change: move the overlay to a valid visible
-  location.
-- Application quit: stop timers, reject new overlay IPC, persist atomically, and
-  close without blocking shutdown.
-- Update or uninstall: close users of the old asset before replacing or deleting
-  it.
+## 12. Failure Handling
 
-## 14. Testing Strategy
+- Invalid legacy candidate: skip it and show a bounded, actionable reason.
+- Partial batch failure: keep successful imports and summarize failures.
+- Runtime temporarily unavailable: publish a generic unavailable activity and
+  retry with bounded backoff without leaking diagnostics.
+- Stale activity or navigation revision: reject the action and let the Plugin
+  refresh its snapshot.
+- Overlay renderer crash: recreate once; a second crash tucks the pet and leaves
+  Convax usable.
+- Settings renderer crash: discard its port and remount through the normal Plugin
+  surface lifecycle.
+- Sprite failure after import: quarantine that entry and retain the rest of the
+  library.
+- Corrupt Plugin preferences: restore Violet and safe defaults without deleting
+  imported bytes.
+- Display removal, resume, or scale change: clamp the overlay to a visible work
+  area, preferring the last display identity.
+- App shutdown: reject new requests, revoke grants, persist atomically, stop
+  activity work, and close without blocking shutdown.
 
-### 14.1 `convax-plugins`
+## 13. Testing Strategy
 
-Schema and validator tests cover:
+### 13.1 `convax-plugins`
 
-- valid pet-only `convax.plugin/5` manifests;
-- schema/protocol mismatch and unknown fields;
-- missing resource, traversal, absolute path, URL, symlink, and unsafe names;
-- wrong extension, signature, dimensions, transparency, or byte size;
-- executable content, runtime entry, companion, scripts, or install hooks;
-- deterministic ZIP layout with `package/` contents at its root;
-- package version and Registry sequence expectations;
-- shared host/repository contract fixtures.
+Schema, validator, packer, and Registry tests cover:
 
-The real `convax-pet` package runs its trusted asset validation/build, package
-tests, validation, packing, and Registry index generation.
+- a valid Pet feature Plugin with both static entry points;
+- capability and protocol mismatch, missing entry, unknown field, unsafe path,
+  symlink, remote resource, executable, companion, and install hook rejection;
+- retention of unrelated `convax.plugin/5` contributions;
+- deterministic ZIP layout and Registry metadata;
+- package SemVer and Registry sequence requirements.
 
-### 14.2 Agent runtime and activity controller
+Pet Plugin workspace tests cover:
 
-Unit tests with fake clocks and fake session repositories cover:
+- exact single and batch legacy parsing;
+- duplicate IDs, identical-content deduplication, replacement, and partial failure;
+- activity priority and animation mappings;
+- library selection, delete, corruption recovery, and preference migration;
+- overlay interactions, reduced motion, scrolling, keyboard behavior, and labels;
+- disconnected and rejected host requests.
 
-- every source-to-presentation state mapping;
-- exact priority and timestamp tie-breaking;
-- retry and user cancellation semantics;
-- unread completion and mark-seen behavior;
-- multiple projects and sessions;
-- startup recovery, project removal, runtime failure, and backoff;
-- stale poll/revision rejection;
-- bounded retention and absence of sensitive content.
+### 13.2 Convax host
 
-### 14.3 Desktop main process
+Host tests cover:
 
-Tests cover:
+- singleton provider activation without package-ID special cases;
+- per-surface protocol allowlists, identity validation, generation revocation, and
+  bounded messages;
+- isolated session protocol registration and navigation hardening;
+- content-free, fair, bounded cross-project activity projection;
+- opaque navigation resolution and stale revision rejection;
+- single-file and one-level directory selection grants;
+- symlink, traversal, file replacement, signature, dimension, alpha, and size
+  rejection at commit time;
+- atomic asset publication, deduplication, retained data, and cleanup;
+- wake/tuck, multi-display restore, crash recovery, update, uninstall, and shutdown.
 
-- hardened BrowserWindow options and fixed preload surface;
-- sender validation, opaque activity resolution, and navigation integrity;
-- CSP, navigation, popup, download, permission, and remote-resource blocking;
-- position clamping across multi-display, scale, resume, and display removal;
-- awake state and position persistence;
-- overlay crash recovery;
-- update, uninstall, invalid sprite, and shutdown lifecycle.
+### 13.3 End-to-end acceptance
 
-### 14.4 Renderer and accessibility
+1. Install and enable Convax Pet; the settings surface appears but the overlay
+   remains tucked.
+2. Wake bundled Violet and verify idle rendering.
+3. Select `/Users/bytedance/Desktop/pets/goku/pet.json`; Goku imports with its name,
+   description, and atlas.
+4. Select `/Users/bytedance/Desktop/pets`; valid immediate children import in one
+   batch and invalid children appear in the summary.
+5. Re-import identical Goku bytes without creating a duplicate.
+6. Start work in project A and request input in project B; the Plugin applies the
+   documented priority.
+7. Click the active row; Convax focuses and opens the correct project/session.
+8. Enable reduced motion and verify no animation timer runs.
+9. Restart and restore the selected pet, library, wake state, and visible display
+   position.
+10. Disable or uninstall the Plugin; the overlay and activity subscription stop.
+11. Reinstall and recover imported pets from inert private storage.
+12. Perform the complete flow offline with no remote request.
 
-Tests cover:
+## 14. Migration from the Prototype
 
-- selection, preview, wake/tuck, import, and delete controls;
-- collapsed/expanded interactions and activity scrolling;
-- drag-versus-click threshold;
-- animation row/frame/duration mapping;
-- reduced motion with no animation timer;
-- keyboard navigation, labels, focus behavior, and non-color status cues;
-- navigation followed by confirmed mark-seen behavior.
+Because the current Pet contract has not been published, migration replaces it
+before release rather than supporting two public models.
 
-### 14.5 End-to-end acceptance
+### `convax-plugins`
 
-Use two projects and multiple sessions to verify:
+- Replace the one-pet manifest fields with feature `overlay`, `settings`, and
+  `protocol` entries.
+- Move Violet into the Plugin-owned library and add bundled static Web surfaces.
+- Move animation, priority, collection, import interpretation, and settings tests
+  into the Plugin workspace.
+- Update schema, authoring, packaging, Registry documentation, tests, version, and
+  Registry sequence.
 
-1. Explicitly waking Violet starts in idle.
-2. A prompt in project A selects running.
-3. A permission in project B immediately preempts with needs-input.
-4. Answering it returns to the next highest-priority activity.
-5. An unseen successful completion selects ready.
-6. Clicking the pet focuses Convax and opens the correct project/session.
-7. The activity becomes read only after the session is displayed.
-8. A terminal failure selects blocked; user cancellation does not.
-9. Restart restores selection, awake state, and valid display position.
-10. Update preserves selection; uninstall safely closes and clears it.
-11. Valid custom import succeeds; invalid and malicious inputs are rejected.
-12. Offline operation produces no network request.
+### `/Users/bytedance/src/convax`
+
+- Keep and generalize the secure window, activity projection, navigation,
+  persistence, asset inspection, and lifecycle foundations.
+- Replace host-owned pet React UI and product controller logic with provider
+  activation, surface mounting, protocol ports, selection grants, and private
+  storage adapters.
+- Remove raw spritesheet import and the assumption that installed Plugins each
+  contribute one selectable pet.
+- Preserve the already-tested fairness, stale-result handling, multi-display
+  recovery, isolated session, and sandboxed preload behavior.
+
+No unrelated application or Plugin architecture is refactored.
 
 ## 15. Required Verification
 
-In `convax-plugins`, after the explicit trusted workspace build phases:
+In `convax-plugins`:
 
 ```sh
 bun install --frozen-lockfile --ignore-scripts
+bun run workspaces:build:packages
 bun run validate
 bun run workspaces:typecheck
 bun run workspaces:test
@@ -559,59 +596,29 @@ bun run pack
 bun run build:index
 ```
 
-Run any repository-defined trusted Plugin/Skill build commands before validation
-and packing, as required by the contributor contract.
-
 In `/Users/bytedance/src/convax`:
 
-- run targeted typecheck and tests for `@convax/agent-runtime` and desktop;
-- run the desktop build;
-- run root `bun check` because the change crosses IPC, protocol, persistence, and
-  package boundaries;
-- run the repository's built desktop open-project smoke test;
-- perform a manual multi-display and reduced-motion smoke test for native window
-  behavior that unit tests cannot fully represent.
+- run affected package typechecks and focused tests;
+- run the complete root `bun run check`;
+- run the built Electron open-project and Plugin smoke path;
+- manually verify native multi-display drag/restore and reduced motion where
+  automated Electron coverage cannot prove OS behavior.
 
-## 16. Expected Change Areas
+## 16. Acceptance Criteria
 
-The implementation plan will resolve exact filenames before editing, but the
-expected ownership is:
+The revision is complete when:
 
-### `convax-plugins`
-
-- `packages/plugins/convax-pet/`: manifest workspace, package assets, license,
-  tests, and trusted asset checks.
-- manifest/schema types and validators: add strict `contributes.pet` and
-  `convax.plugin/5` support.
-- packer and Registry tooling: recognize and publish the new version without
-  executing package content.
-- Registry catalog/config: add `convax-pet` and increment the sequence.
-- authoring/Registry documentation: document the contribution and sprite
-  contract.
-
-### `/Users/bytedance/src/convax`
-
-- agent runtime: content-free activity summary contract and implementation.
-- desktop main/IPC/preload: activity controller, pet controller/window, validated
-  navigation, persistence, import, and lifecycle.
-- desktop renderer/settings: selection, preview, controls, and activity tray.
-- Plugin contract/installer: version 5 and pet resource validation.
-- tests and smoke coverage adjacent to each changed owner.
-
-Exact file changes must follow each repository's local contributor instructions
-and preserve unrelated user changes.
-
-## 17. Acceptance Criteria
-
-The feature is complete when:
-
-- a valid `convax-pet` Plugin can be validated, packed, indexed, installed, and
-  selected without executable Plugin content;
-- Violet behaves according to the state, priority, interaction, persistence, and
-  accessibility contracts above across all projects/sessions;
-- no pet renderer or package can access sensitive activity content, arbitrary
-  files, Node/Electron APIs, remote resources, or unrestricted IPC;
-- invalid assets and lifecycle failures degrade safely without breaking Convax;
-- host logic is generic and contains no `convax-pet` package-ID special case;
-- the package artwork and UI are original and visually consistent with Convax;
-- all required verification commands and end-to-end acceptance scenarios pass.
+- installing one Convax Pet Plugin provides the overlay, settings, Violet, pet
+  library, and legacy import experience;
+- Goku imports from the supplied old format without becoming a separate Convax
+  Plugin;
+- selecting a `pets` root imports valid immediate children and reports invalid
+  ones independently;
+- disabling or uninstalling the feature Plugin removes the running feature while
+  preserving inert imported user data;
+- Convax contains only generic native/security primitives and no Violet, pet card,
+  animation mapping, or package-ID special case;
+- Plugin code cannot access Agent content, native paths, unrestricted files,
+  Node/Electron, network, or arbitrary IPC;
+- all repository, host, integration, accessibility, lifecycle, and security tests
+  pass.
