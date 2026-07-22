@@ -6,6 +6,13 @@
       "name": "@microvoid/convax-plugins-registry",
       "version": "0.1.0"
     },
+    "packages/plugins/codex-service": {
+      "name": "@microvoid/convax-plugin-codex-service",
+      "version": "0.1.1",
+      "dependencies": {
+        "@microvoid/convax-codex-mcp": "workspace:*"
+      }
+    },
     "packages/plugins/ffmpeg-tools": {
       "name": "@microvoid/convax-plugin-ffmpeg-tools",
       "version": "0.3.1",
@@ -73,6 +80,17 @@
       "name": "@microvoid/convax-skill-video-prompting",
       "version": "0.3.0"
     },
+    "packages/tools/codex-mcp": {
+      "name": "@microvoid/convax-codex-mcp",
+      "version": "0.1.1",
+      "bin": {
+        "convax-codex-mcp": "dist/convax-codex-mcp"
+      },
+      "devDependencies": {
+        "@types/bun": "1.3.14",
+        "typescript": "5.9.3"
+      }
+    },
     "packages/tools/ffmpeg-mcp": {
       "name": "@microvoid/convax-ffmpeg-mcp",
       "version": "0.2.0",
@@ -91,10 +109,52 @@
     }
   },
   "packages": {
+    "@microvoid/convax-codex-mcp": ["@microvoid/convax-codex-mcp@workspace:packages/tools/codex-mcp"],
+
+    "@microvoid/convax-ffmpeg-mcp": ["@microvoid/convax-ffmpeg-mcp@workspace:packages/tools/ffmpeg-mcp"],
+
+    "@microvoid/convax-plugin-codex-service": ["@microvoid/convax-plugin-codex-service@workspace:packages/plugins/codex-service"],
+
+    "@microvoid/convax-plugin-ffmpeg-tools": ["@microvoid/convax-plugin-ffmpeg-tools@workspace:packages/plugins/ffmpeg-tools"],
+
+    "@microvoid/convax-plugin-hello-convax": ["@microvoid/convax-plugin-hello-convax@workspace:packages/plugins/hello-convax"],
+
+    "@microvoid/convax-plugin-xiaoyunque-generation": ["@microvoid/convax-plugin-xiaoyunque-generation@workspace:packages/plugins/xiaoyunque-generation"],
+
+    "@microvoid/convax-skill-ad-idea": ["@microvoid/convax-skill-ad-idea@workspace:packages/skills/ad-idea"],
+
+    "@microvoid/convax-skill-audiobook": ["@microvoid/convax-skill-audiobook@workspace:packages/skills/audiobook"],
+
+    "@microvoid/convax-skill-clip-export": ["@microvoid/convax-skill-clip-export@workspace:packages/skills/clip-export"],
+
+    "@microvoid/convax-skill-ecommerce-image": ["@microvoid/convax-skill-ecommerce-image@workspace:packages/skills/ecommerce-image"],
+
+    "@microvoid/convax-skill-ffmpeg-canvas": ["@microvoid/convax-skill-ffmpeg-canvas@workspace:packages/skills/ffmpeg-canvas"],
+
+    "@microvoid/convax-skill-film-shot": ["@microvoid/convax-skill-film-shot@workspace:packages/skills/film-shot"],
+
+    "@microvoid/convax-skill-hello-convax-guide": ["@microvoid/convax-skill-hello-convax-guide@workspace:packages/skills/hello-convax-guide"],
+
+    "@microvoid/convax-skill-image-remix": ["@microvoid/convax-skill-image-remix@workspace:packages/skills/image-remix"],
+
+    "@microvoid/convax-skill-short-drama-screenwriter": ["@microvoid/convax-skill-short-drama-screenwriter@workspace:packages/skills/short-drama-screenwriter"],
+
+    "@microvoid/convax-skill-skill-creator": ["@microvoid/convax-skill-skill-creator@workspace:packages/skills/skill-creator"],
+
+    "@microvoid/convax-skill-skill-reviewer": ["@microvoid/convax-skill-skill-reviewer@workspace:packages/skills/skill-reviewer"],
+
+    "@microvoid/convax-skill-video-prompting": ["@microvoid/convax-skill-video-prompting@workspace:packages/skills/video-prompting"],
+
+    "@microvoid/convax-xiaoyunque-mcp": ["@microvoid/convax-xiaoyunque-mcp@workspace:packages/tools/xiaoyunque-mcp"],
+
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
     "@types/node": ["@types/node@26.1.1", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw=="],
+
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="]
   }
 }

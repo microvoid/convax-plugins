@@ -13,7 +13,7 @@ catalog-changing release or yanking deployment. `revision` is the lowercase, ful
 
 Every item contains `kind`, `id`, `name`, `description`, `version`,
 `compatibility`, `artifact`, and `yanked`, plus a complete `manifest` for Plugin items.
-A `convax.plugin/2`, `convax.plugin/3`, or `convax.plugin/4` item with a generation and/or service external runtime may additionally contain
+A `convax.plugin/2` through `convax.plugin/5` item with an external runtime may additionally contain
 `companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
@@ -49,7 +49,8 @@ complete validated manifest. Plugin compatibility accepts exactly one
 version-matched pair: `convax.plugin/1` + `convax.plugin-host/1`,
 `convax.plugin/2` + `convax.plugin-host/2`,
 `convax.plugin/3` + `convax.plugin-host/3`, or
-`convax.plugin/4` + `convax.plugin-host/4`. The embedded manifest schema must match
+`convax.plugin/4` + `convax.plugin-host/4`, or
+`convax.plugin/5` + `convax.plugin-capability/1`. The embedded manifest schema must match
 that pair. Crossed pairs and a v1 compatibility envelope around a v2 manifest are
 rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
 Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
