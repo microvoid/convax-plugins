@@ -64,10 +64,11 @@ manifest 为生成能力和/或固定服务动作声明一个单独安装的裸 
 Agent Skills 的客户端使用。由于同一份源码会同时改变两个压缩包，发布插件拥有的技能时
 必须同步提升并发布所属插件版本；发布覆盖检查会校验双方的确定性产物字节。
 
-`convax.plugin/5` 新增与传输方式无关的宿主能力，其中包括声明式桌面宠物。宠物插件
-使用 `convax.plugin-capability/1` 兼容性组合，仅通过 `contributes.pet` 提供元数据与
-固定精灵图；它没有 Web 入口、可执行 runtime、宿主端口，也无权自行创建窗口。
-悬浮窗、跨项目活动聚合、导航、偏好和生命周期均由 Convax 管理。可参考完整的惰性包
+`convax.plugin/5` 新增与传输方式无关的宿主能力，其中包括沙箱化桌面宠物功能。一个
+Pet 功能插件使用 `convax.plugin-capability/1` 兼容性组合，通过 `contributes.pet`
+提供静态悬浮窗、设置页面和 `convax.pet-library/1` 内置宠物库。页面通过受限的
+`convax.pet-host/1` 协议使用宿主能力；Convax 仅保留原生窗口、无内容活动投影、
+受控导航、已安装资产读取和有限持久化。可参考完整示例
 [`packages/plugins/convax-pet`](packages/plugins/convax-pet)。
 
 可以先阅读完整示例

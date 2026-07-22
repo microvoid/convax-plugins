@@ -3,8 +3,8 @@
   "kind": "plugin",
   "id": "convax-pet",
   "name": "Convax Pet",
-  "description": "Adds Violet as a local desktop companion for Convax activity.",
-  "version": "0.1.0",
+  "description": "A local desktop companion and pet library for Convax activity.",
+  "version": "0.2.0",
   "license": "MIT",
   "compatibility": {
     "pluginSchema": "convax.plugin/5",

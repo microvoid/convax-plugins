@@ -47,9 +47,10 @@ describe("Bun workspace ownership", () => {
       "utf8",
     )
     expect(packageReadme).toContain("contributes.pet")
-    expect(packageReadme).toContain("spriteVersion: 2")
+    expect(packageReadme).toContain("convax.pet-library/1")
+    expect(packageReadme).toContain("convax.pet-host/1")
     expect(packageReadme).toContain("1536×1872")
-    expect(packageReadme).toContain("inert ZIP")
+    expect(packageReadme).toContain("feature Plugin")
 
     const documentation = await Promise.all([
       "README.md",
@@ -63,7 +64,8 @@ describe("Bun workspace ownership", () => {
       expect(text).toContain("contributes.pet")
     }
     expect(documentation[2]).toContain("convax.plugin-capability/1")
-    expect(documentation[2]).toContain("does not receive a host port")
+    expect(documentation[2]).toContain("convax.pet-host/1")
+    expect(documentation[2]).toContain("one Pet feature Plugin")
   })
 
   test("runs package builds in dependency order before repository validation and packing", async () => {

@@ -55,15 +55,26 @@ describe("source packages", () => {
     const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
+    expect(violet.metadata.version).toBe("0.2.0")
+    expect(violet.manifest.capabilities).toEqual([
+      "pet.activity.read",
+      "pet.activity.open",
+      "pet.preferences.write",
+    ])
     expect(violet.manifest.contributes.pet).toEqual({
-      alt: "Violet, the Convax pixel companion",
-      description: "A pixel companion for Convax.",
-      name: "Violet",
-      spritesheet: "assets/violet.webp",
-      spriteVersion: 2,
+      library: "pet-library.json",
+      overlay: "pet/index.html",
+      protocol: "convax.pet-host/1",
+      settings: "settings/index.html",
     })
     expect(violet.manifest).not.toHaveProperty("entry")
     expect(violet.manifest).not.toHaveProperty("runtime")
+    expect(violet.files.map((file) => file.relativePath)).toEqual(expect.arrayContaining([
+      "assets/violet.webp",
+      "pet-library.json",
+      "pet/index.html",
+      "settings/index.html",
+    ]))
     expect(hello.manifest.schema).toBe("convax.plugin/1")
     expect(hello.manifest.capabilities).toEqual([])
     expect(xiaoyunque.manifest).toEqual(expect.objectContaining({

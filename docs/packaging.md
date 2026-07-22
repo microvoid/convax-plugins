@@ -32,21 +32,24 @@ license notice. Its generation and/or service contribution uses one declared
 must never appear anywhere below `package/`; validation and packing do not install,
 build, or execute companion source under `packages/tools/`.
 
-## Pet Plugin assets
+## Pet feature Plugin assets
 
-A pet-only `convax.plugin/5` package is also inert. Its ZIP may contain the
-manifest, license and documentation, plus the PNG or WebP referenced by
-`contributes.pet.spritesheet`; it must not contain an HTML entry, runtime,
-executable, dependency tree, installer, remote script, or server. Pet Plugins use
-the transport-neutral `convax.plugin-capability/1` compatibility pair and do not
-receive a host port.
+A `convax.plugin/5` Pet feature package remains inert, offline Web content. Its ZIP
+contains the manifest, license, documentation, static overlay and settings pages,
+browser JavaScript/CSS, a `convax.pet-library/1` document, and its referenced PNG
+or WebP atlases. The manifest's `contributes.pet` object names the packaged library
+and both static surfaces. The ZIP must not contain a runtime, executable,
+dependency tree, installer, remote script, or server. The Plugin uses the
+transport-neutral `convax.plugin-capability/1` compatibility pair and the narrow
+`convax.pet-host/1` surface protocol.
 
 For `spriteVersion: 2`, the sprite sheet is exactly 1536×1872 pixels: eight columns
 of 192-pixel cells and nine rows of 208-pixel cells. The ordinary 2 MiB per-file
 limit still applies. Keep asset paths package-relative and let Convax inspect
 dimensions, format, transparency, and decoded image safety before installation.
-The Plugin contributes appearance only; the host owns the floating window and all
-Agent activity data.
+The Plugin owns presentation, animation rules, collection, and selection. The host
+owns the native floating window and exposes only bounded, content-free Agent
+activity data.
 
 The matching source metadata declares the reviewed tool directory and build output
 for each target. For example:

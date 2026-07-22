@@ -57,19 +57,21 @@ rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
 Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
 target `microvoid/convax-plugins` Release assets.
 
-## Pet Plugins
+## Pet feature Plugins
 
-A pet is a declarative `convax.plugin/5` capability published through the normal
-Plugin Registry item. The complete embedded manifest contains
-`contributes.pet` with `name`, `description`, package-relative `spritesheet`,
-`spriteVersion: 2`, and `alt`. Pet-only Plugins have no `entry`, `runtime`, or
-companion executable. The `convax.plugin-capability/1` compatibility label is a
-transport-neutral admission contract; it is not a host-port version.
+One Pet feature Plugin is a `convax.plugin/5` capability published through the
+normal Plugin Registry item. Its complete embedded manifest contains
+`contributes.pet` with package-relative `library`, `overlay`, and `settings` paths
+plus `protocol: "convax.pet-host/1"`. It requests exactly `pet.activity.read`,
+`pet.activity.open`, and `pet.preferences.write`, and has no runtime or companion
+executable. The `convax.plugin-capability/1` compatibility label remains the
+transport-neutral admission contract.
 
-Clients validate the immutable artifact like every other Plugin, then validate the
-sprite image before making it selectable. Installation does not imply waking the
-pet. Convax—not the package—owns the desktop window, session activity, navigation,
-state persistence, and removal behavior.
+Clients validate both static surface entries, the strict `convax.pet-library/1`
+document, and every referenced atlas before activation. Installation does not
+imply waking the pet. The Plugin owns presentation and its packaged collection;
+Convax owns only native windowing, activity projection, navigation validation, and
+bounded persistence.
 
 ## Plugin-owned Skills
 

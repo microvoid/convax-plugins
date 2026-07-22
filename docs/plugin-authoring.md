@@ -53,42 +53,49 @@ it for a Skill whose lifecycle belongs to its Plugin.
 
 ## Pet contribution
 
-`convax.plugin/5` adds transport-neutral host capabilities. Its
-`convax.plugin-capability/1` compatibility label describes manifest support, not a
-MessagePort protocol. A pet-only Plugin is an inert package with no `entry`,
-`runtime`, or requested capabilities:
+`convax.plugin/5` adds a sandboxed Pet feature contribution. The public contract
+defines one Pet feature Plugin that owns its static overlay, settings, packaged
+collection, animation rules, and selection. Its `convax.plugin-capability/1`
+compatibility label describes manifest support; the surfaces use the separate
+`convax.pet-host/1` protocol:
+
+`contributes.pet` declares the library and both static feature surfaces.
 
 ```json
 {
   "schema": "convax.plugin/5",
   "id": "convax-pet",
   "name": "Convax Pet",
-  "description": "Adds Violet as a local desktop companion for Convax activity.",
-  "version": "0.1.0",
-  "capabilities": [],
+  "description": "A local desktop companion and pet library for Convax activity.",
+  "version": "0.2.0",
+  "capabilities": [
+    "pet.activity.read",
+    "pet.activity.open",
+    "pet.preferences.write"
+  ],
   "contributes": {
     "pet": {
-      "name": "Violet",
-      "description": "A pixel companion for Convax.",
-      "spritesheet": "assets/violet.webp",
-      "spriteVersion": 2,
-      "alt": "Violet, the Convax pixel companion"
+      "library": "pet-library.json",
+      "overlay": "pet/index.html",
+      "settings": "settings/index.html",
+      "protocol": "convax.pet-host/1"
     }
   }
 }
 ```
 
-`contributes.pet` accepts a package-relative PNG or WebP. `spriteVersion: 2`
-requires a 1536×1872 atlas containing eight 192×208 cells across and nine state
-rows in this order: `idle`, `running-right`, `running-left`, `waving`, `jumping`,
-`failed`, `waiting`, `running`, and `review`. Keep the figure within every cell and
-retain useful transparency around it.
+The `convax.pet-library/1` document contains one to 64 unique pet entries. Each
+entry supplies `id`, `displayName`, `description`, package-relative `spritesheet`,
+`spriteVersion: 2`, and `alt`. Every atlas is a 1536×1872 PNG or WebP containing
+eight 192×208 cells across and nine state rows in this order: `idle`,
+`running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`,
+`running`, and `review`.
 
-A pet-only Plugin does not receive a host port, cannot create windows, and cannot
-observe Agent content. Convax owns the native window, global activity projection,
-priority, navigation, persisted selection/position, reduced-motion behavior, and
-asset loading. Installation only makes the pet selectable; selection and wake are
-explicit user actions.
+The settings and overlay pages run with no Node, Electron, remote network, native
+path, or arbitrary IPC access. Their surface-scoped `convax.pet-host/1` ports expose
+only content-free activity, validated navigation, overlay movement, preferences,
+and wake/tuck lifecycle. Installation never wakes the pet automatically. New pets
+ship as library entries in a new version of the same feature Plugin.
 
 ## Plugin-owned Skills
 
@@ -281,7 +288,8 @@ Convax transfers one fresh `MessagePort` to each mounted Plugin node using the
 versioned `convax.plugin-host/1` through `/4` protocols. Accept it only
 from `window.parent`, for the host protocol matching the manifest major, the exact
 Plugin id, and only once. The transport-neutral v5 compatibility label does not by
-itself grant a port, and pet-only Plugins never receive one:
+itself grant this Canvas port. A Pet feature provider instead receives a separate
+`convax.pet-host/1` port only on its declared overlay and settings surfaces:
 
 ```js
 const PROTOCOL = "convax.plugin-host/1";

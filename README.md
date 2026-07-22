@@ -75,12 +75,13 @@ ZIP remains portable to Codex and other Agent Skills clients. Because the same s
 changes both archives, an owned Skill release must also bump and publish its owner
 Plugin; release coverage verifies the deterministic bytes of both.
 
-`convax.plugin/5` adds transport-neutral host capabilities, including declarative
-desktop pets. A pet Plugin uses the `convax.plugin-capability/1` compatibility pair
-and contributes only metadata plus a fixed sprite sheet through
-`contributes.pet`; it has no Web entry, executable runtime, host port, or authority
-to create a window. Convax owns the floating window, cross-project activity,
-navigation, preferences, and lifecycle. See the working inert package in
+`convax.plugin/5` adds transport-neutral host capabilities, including a sandboxed
+desktop pet feature. One Pet feature Plugin uses the
+`convax.plugin-capability/1` compatibility pair and contributes static overlay and
+settings surfaces plus a `convax.pet-library/1` packaged collection through
+`contributes.pet`. The surfaces use the scoped `convax.pet-host/1` protocol; Convax
+retains only the native window, content-free activity projection, validated
+navigation, installed asset serving, and bounded persistence. See the working package in
 [`packages/plugins/convax-pet`](packages/plugins/convax-pet).
 
 See the working example in
