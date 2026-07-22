@@ -1,0 +1,17 @@
+{
+  "schema": "convax.plugin/5",
+  "id": "convax-pet",
+  "name": "Convax Pet",
+  "description": "Adds Violet as a local desktop companion for Convax activity.",
+  "version": "0.1.0",
+  "capabilities": [],
+  "contributes": {
+    "pet": {
+      "name": "Violet",
+      "description": "A pixel companion for Convax.",
+      "spritesheet": "assets/violet.webp",
+      "spriteVersion": 2,
+      "alt": "Violet, the Convax pixel companion"
+    }
+  }
+}

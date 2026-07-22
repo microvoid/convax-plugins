@@ -6,6 +6,10 @@
       "name": "@microvoid/convax-plugins-registry",
       "version": "0.1.0"
     },
+    "packages/plugins/convax-pet": {
+      "name": "@microvoid/convax-plugin-convax-pet",
+      "version": "0.1.0"
+    },
     "packages/plugins/ffmpeg-tools": {
       "name": "@microvoid/convax-plugin-ffmpeg-tools",
       "version": "0.3.1",

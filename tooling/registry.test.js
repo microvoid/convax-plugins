@@ -33,6 +33,7 @@ describe("source packages", () => {
   test("validates the complete Plugin and Skill catalog", async () => {
     const packages = await discoverPackages()
     expect(packages.map((pkg) => `${pkg.metadata.kind}/${pkg.metadata.id}`)).toEqual([
+      "plugin/convax-pet",
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
       "plugin/xiaoyunque-generation",
@@ -49,10 +50,20 @@ describe("source packages", () => {
       "skill/skill-reviewer",
       "skill/video-prompting",
     ])
+    const violet = packages.find((pkg) => pkg.metadata.id === "convax-pet")
     const ffmpeg = packages.find((pkg) => pkg.metadata.id === "ffmpeg-tools")
     const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
+    expect(violet.manifest.contributes.pet).toEqual({
+      alt: "Violet, the Convax pixel companion",
+      description: "A pixel companion for Convax.",
+      name: "Violet",
+      spritesheet: "assets/violet.webp",
+      spriteVersion: 2,
+    })
+    expect(violet.manifest).not.toHaveProperty("entry")
+    expect(violet.manifest).not.toHaveProperty("runtime")
     expect(hello.manifest.schema).toBe("convax.plugin/1")
     expect(hello.manifest.capabilities).toEqual([])
     expect(xiaoyunque.manifest).toEqual(expect.objectContaining({
