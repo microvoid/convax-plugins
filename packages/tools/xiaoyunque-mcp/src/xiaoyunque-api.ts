@@ -138,6 +138,8 @@ interface XiaoYunqueUserInfo {
 }
 
 type FetchLike = typeof fetch
+type UploadAssetType = 1 | 2 | 4
+type RegisteredAssetType = 1 | 2
 
 function record(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -305,7 +307,7 @@ async function boundedJson(response: Response, label: string) {
   }
 }
 
-function uploadAssetType(reference: FileGenerationReference) {
+function uploadAssetType(reference: FileGenerationReference): UploadAssetType {
   if (reference.role === "reference_video" || reference.mime_type.startsWith("video/")) return 1
   if (reference.role === "audio" || reference.mime_type.startsWith("audio/")) return 4
   if (
@@ -317,10 +319,21 @@ function uploadAssetType(reference: FileGenerationReference) {
   throw new Error("XiaoYunque does not support this reference type")
 }
 
+function registeredAssetTypeForUpload(assetType: UploadAssetType): RegisteredAssetType | undefined {
+  switch (assetType) {
+    case 1: // video
+      return 2
+    case 2: // image
+      return 1
+    case 4: // audio does not require AssetCreateV2 registration
+      return undefined
+  }
+}
+
 function uploadedAsset(
   value: unknown,
   reference: FileGenerationReference,
-  assetType: 1 | 2 | 4,
+  assetType: UploadAssetType,
   allowLoopbackHttp: boolean,
 ): UploadedAsset {
   const data = record(value)
@@ -620,7 +633,7 @@ export class XiaoYunqueApi {
     const response = await this.#request(uploadPath, session, signal, { body, method: "POST" })
     const payload = requireSuccess(response.value, response.status, "XiaoYunque reference upload")
     const asset = uploadedAsset(payload.data, reference, assetType, this.#allowLoopbackTest)
-    const registeredAssetType = assetType === 2 ? 1 : assetType === 1 ? 2 : undefined
+    const registeredAssetType = registeredAssetTypeForUpload(assetType)
     if (registeredAssetType === undefined || asset.pippitAssetId !== undefined) return asset
 
     return {
@@ -636,7 +649,7 @@ export class XiaoYunqueApi {
 
   async #registerUploadedAsset(
     assetId: string,
-    assetType: 1 | 2,
+    assetType: RegisteredAssetType,
     session: StoredWebSession,
     signal: AbortSignal,
   ) {
