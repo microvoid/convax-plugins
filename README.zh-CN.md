@@ -75,6 +75,7 @@ Pet 功能插件使用 `convax.plugin-capability/1` 兼容性组合，通过 `co
 [`packages/plugins/hello-convax`](packages/plugins/hello-convax)，然后参考：
 
 - [`docs/plugin-authoring.md`](docs/plugin-authoring.md)：沙箱和宿主协议；
+- [`docs/panorama-viewer.md`](docs/panorama-viewer.md)：全景图预览的唯一源码归属与旧内置迁移边界；
 - [`docs/skill-authoring.md`](docs/skill-authoring.md)：安全、可移植的技能规范；
 - [`docs/packaging.md`](docs/packaging.md)：ZIP 和发布规则；
 - [`docs/registry-spec.md`](docs/registry-spec.md)：客户端 Registry 协议；

@@ -33,9 +33,13 @@ describe("source packages", () => {
   test("validates the complete Plugin and Skill catalog", async () => {
     const packages = await discoverPackages()
     expect(packages.map((pkg) => `${pkg.metadata.kind}/${pkg.metadata.id}`)).toEqual([
+      "plugin/codex-service",
       "plugin/convax-pet",
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
+      "plugin/multi-angle",
+      "plugin/panorama-viewer",
+      "plugin/relight-studio",
       "plugin/xiaoyunque-generation",
       "skill/ad-idea",
       "skill/audiobook",
@@ -54,6 +58,9 @@ describe("source packages", () => {
     const ffmpeg = packages.find((pkg) => pkg.metadata.id === "ffmpeg-tools")
     const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
+    const codex = packages.find((pkg) => pkg.metadata.id === "codex-service")
+    const multiAngle = packages.find((pkg) => pkg.metadata.id === "multi-angle")
+    const panorama = packages.find((pkg) => pkg.metadata.id === "panorama-viewer")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
     expect(violet.metadata.version).toBe("0.2.1")
     expect(violet.manifest.capabilities).toEqual([
@@ -69,14 +76,70 @@ describe("source packages", () => {
     })
     expect(violet.manifest).not.toHaveProperty("entry")
     expect(violet.manifest).not.toHaveProperty("runtime")
-    expect(violet.files.map((file) => file.relativePath)).toEqual(expect.arrayContaining([
-      "assets/violet.png",
-      "pet-library.json",
-      "pet/index.html",
-      "settings/index.html",
-    ]))
+    expect(violet.files.map((file) => file.relativePath)).toEqual(
+      expect.arrayContaining([
+        "assets/violet.png",
+        "pet-library.json",
+        "pet/index.html",
+        "settings/index.html",
+      ]),
+    )
     expect(hello.manifest.schema).toBe("convax.plugin/1")
     expect(hello.manifest.capabilities).toEqual([])
+    expect(codex.manifest).toEqual(expect.objectContaining({
+      runtime: { command: "convax-codex-mcp", type: "mcp-stdio" },
+      schema: "convax.plugin/5",
+    }))
+    expect(codex.manifest.contributes.llm).toEqual({
+      models: [
+        { id: "gpt-5.6-sol", name: "GPT-5.6-Sol" },
+        { id: "gpt-5.6-terra", name: "GPT-5.6-Terra" },
+        { id: "gpt-5.6-luna", name: "GPT-5.6-Luna" },
+        { id: "gpt-5.5", name: "GPT-5.5" },
+      ],
+      provider: { id: "codex", name: "Codex" },
+    })
+    expect(codex.manifest.contributes.generation.models).toEqual([
+      { name: "GPT Image 2", tool: "image.gpt-image-2" },
+    ])
+    expect(codex.manifest.contributes.service.actions).toEqual(["authorize", "reauthorize"])
+    expect(codex.metadata.companions).toEqual([{
+      command: "convax-codex-mcp",
+      version: "0.1.1",
+      source: "packages/tools/codex-mcp",
+      targets: [{
+        platform: "darwin",
+        arch: "arm64",
+        path: "dist/darwin-arm64/convax-codex-mcp",
+      }],
+    }])
+    expect(multiAngle.manifest).toEqual(expect.objectContaining({
+      capabilities: ["canvas.connectedImages.read", "canvas.node.write", "generation.execute"],
+      entry: "index.html",
+      schema: "convax.plugin/3",
+    }))
+    expect(multiAngle.manifest).not.toHaveProperty("runtime")
+    expect(multiAngle.manifest.contributes).not.toHaveProperty("generation")
+    expect(multiAngle.metadata.compatibility).toEqual({
+      pluginHost: "convax.plugin-host/3",
+      pluginSchema: "convax.plugin/3",
+    })
+    expect(panorama.manifest).toEqual(expect.objectContaining({
+      capabilities: [
+        "canvas.connectedImages.read",
+        "canvas.image.write",
+        "canvas.node.write",
+        "ui.fullscreen",
+      ],
+      entry: "index.html",
+      name: "全景图预览",
+      schema: "convax.plugin/1",
+      version: "0.2.1",
+    }))
+    expect(panorama.metadata.compatibility).toEqual({
+      pluginHost: "convax.plugin-host/1",
+      pluginSchema: "convax.plugin/1",
+    })
     expect(xiaoyunque.manifest).toEqual(expect.objectContaining({
       capabilities: [],
       runtime: { command: "convax-xiaoyunque-mcp", type: "mcp-stdio" },
@@ -107,7 +170,7 @@ describe("source packages", () => {
     }
     expect(xiaoyunque.metadata.companions).toEqual([{
       command: "convax-xiaoyunque-mcp",
-      version: "0.3.1",
+      version: "0.3.3",
       source: "packages/tools/xiaoyunque-mcp",
       targets: [{
         platform: "darwin",
@@ -185,16 +248,31 @@ describe("source packages", () => {
     const second = await packPackages(packages, path.join(await temporaryDirectory(), "second"))
     expect(first.map((item) => sha256(item.zip))).toEqual(second.map((item) => sha256(item.zip)))
     const byId = (id) => first.find((item) => item.pkg.metadata.id === id)
+    const codex = byId("codex-service")
     const hello = byId("hello-convax")
+    const multiAngle = byId("multi-angle")
     const xiaoyunque = byId("xiaoyunque-generation")
     const skill = byId("ad-idea")
     const ffmpeg = byId("ffmpeg-tools")
     expect(readStoredZip(hello.zip).map((entry) => entry.relativePath)).toContain("manifest.json")
+    expect(readStoredZip(codex.zip).map((entry) => entry.relativePath)).toEqual(["LICENSE", "manifest.json"])
+    expect(codex.companionAssets.map((asset) => asset.assetName)).toEqual([
+      "convax-companion-convax-codex-mcp-0.1.1-darwin-arm64",
+    ])
+    expect(codex.tag).toBe("plugin-codex-service-v0.1.1")
+    expect(readStoredZip(multiAngle.zip).map((entry) => entry.relativePath)).toEqual([
+      "LICENSE",
+      "assets/app.js",
+      "assets/multi-angle-model.js",
+      "assets/styles.css",
+      "index.html",
+      "manifest.json",
+    ])
     expect(readStoredZip(xiaoyunque.zip).map((entry) => entry.relativePath)).toEqual(["LICENSE", "manifest.json"])
     expect(xiaoyunque.companionAssets.map((asset) => asset.assetName)).toEqual([
-      "convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
+      "convax-companion-convax-xiaoyunque-mcp-0.3.3-darwin-arm64",
     ])
-    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.3")
+    expect(xiaoyunque.tag).toBe("plugin-xiaoyunque-generation-v0.3.5")
     expect(await fs.readFile(xiaoyunque.companionAssets[0].path)).toEqual(xiaoyunque.companionAssets[0].data)
     expect(readStoredZip(skill.zip).map((entry) => entry.relativePath)).toContain("SKILL.md")
     expect(readStoredZip(ffmpeg.zip).map((entry) => entry.relativePath)).toEqual([
@@ -330,7 +408,7 @@ describe("source packages", () => {
     expect(helloEntry.artifact.url).toContain("/plugin-hello-convax-v0.2.0/")
     expect(xiaoyunqueEntry.manifest.schema).toBe("convax.plugin/3")
     expect(xiaoyunqueEntry.companions[0].targets[0].artifact.url).toContain(
-      "/convax-companion-convax-xiaoyunque-mcp-0.3.1-darwin-arm64",
+      "/convax-companion-convax-xiaoyunque-mcp-0.3.3-darwin-arm64",
     )
     expect(firstSkill).not.toHaveProperty("manifest")
     expect(ffmpegSkillEntry.ownerPluginId).toBe("ffmpeg-tools")

@@ -19,8 +19,8 @@
     "capabilities": {
       "type": "array",
       "uniqueItems": true,
-      "maxItems": 6,
-      "items": { "enum": ["canvas.connectedImages.read", "canvas.node.read", "canvas.node.write", "project.files.read", "agent.prompt", "ui.fullscreen"] }
+      "maxItems": 7,
+      "items": { "enum": ["canvas.connectedImages.read", "canvas.image.write", "canvas.node.read", "canvas.node.write", "project.files.read", "agent.prompt", "ui.fullscreen"] }
     },
     "contributes": {
       "type": "object",

@@ -5,9 +5,10 @@ served through a private protocol and mounted in an iframe with exactly
 `sandbox="allow-scripts"`. It has an opaque origin: it cannot inspect the parent
 DOM, use browser storage as shared application state, or access Node/Electron.
 
-`convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, and `convax.plugin/5` may instead be headless
+`convax.plugin/2` through `convax.plugin/5` may instead be headless
 executable Tool Plugins. New executable Plugins should use v3, or v4 when they own
-Skills. Their ZIP still contains no executable code: the manifest names a separately distributed bare
+Skills; use v5 for transport-neutral capabilities such as an LLM provider or Pet
+feature. Their ZIP still contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
 bind that command to verified platform artifacts that Convax installs into
 host-owned storage. Explicit Plugin install/update authorizes that exact binding;
@@ -53,13 +54,13 @@ it for a Skill whose lifecycle belongs to its Plugin.
 
 ## Pet contribution
 
-`convax.plugin/5` adds a sandboxed Pet feature contribution. The public contract
-defines one Pet feature Plugin that owns its static overlay, settings, packaged
-collection, animation rules, and selection. Its `convax.plugin-capability/1`
-compatibility label describes manifest support; the surfaces use the separate
-`convax.pet-host/1` protocol:
+`convax.plugin/5` adds a sandboxed Pet feature contribution. A package contributes
+one Pet feature Plugin and
+owns its static overlay, settings, packaged collection, animation rules, and
+selection. Its `convax.plugin-capability/1` compatibility label describes manifest
+support; the surfaces use the separate `convax.pet-host/1` protocol:
 
-`contributes.pet` declares the library and both static feature surfaces.
+The `contributes.pet` object declares the library and both static feature surfaces:
 
 ```json
 {
@@ -99,7 +100,7 @@ ship as library entries in a new version of the same feature Plugin.
 
 ## Plugin-owned Skills
 
-`convax.plugin/4` replaces the ambiguous singular `skill` field with explicit
+`convax.plugin/4` and `convax.plugin/5` replace the ambiguous singular `skill` field with explicit
 Plugin-owned Skill contributions. The owner must still provide a real Plugin
 capability—such as a sandboxed Canvas renderer, an executable generation/service
 runtime, or a renderer-mediated generation action—beyond merely wrapping a Skill:
@@ -151,7 +152,7 @@ an honest missing-tool fallback instead.
 
 ## Declarative Tool Plugin
 
-A headless v3, v4, or v5 package declares `runtime` together with `contributes.generation`,
+A headless v3 or v4 package declares `runtime` together with `contributes.generation`,
 `contributes.service`, or both. It does not need an `entry`, `capabilities`, fake
 HTML, Canvas renderer, provider field, or credential field. The execution catalog
 and model catalog are deliberately separate:
@@ -229,7 +230,7 @@ closed and require reinstall. The Plugin manifest never contains build paths,
 vendor credentials, or a fallback download URL, and the user does not need to copy
 the executable into `PATH`.
 
-A v2, v3, v4, or v5 Web surface that calls installed generation tools requests
+A v2 through v5 Web surface that calls installed generation tools requests
 `generation.execute` and uses an ordinary `entry` plus Canvas contribution. It may
 omit `runtime` and `contributes.generation`. Declaring a runtime does not grant the
 Web surface caller authority, and granting `generation.execute` does not let the
@@ -237,7 +238,7 @@ iframe start processes or send arbitrary MCP requests.
 
 ## Plugin service contribution
 
-A v2, v3, v4, or v5 executable Plugin may expose bounded account/service state through the same
+A v2 through v5 executable Plugin may expose bounded account/service state through the same
 verified sidecar process used by generation. The manifest declares only which
 fixed host actions are meaningful; it cannot choose MCP method names or attach an
 action payload:
@@ -282,11 +283,45 @@ to the matching authorization generation, never return it through MCP, and clear
 it on sign-out. Mode `0600` is best-effort isolation from other OS users; it does
 not protect against processes already running as the same OS account.
 
+## LLM provider contribution
+
+`convax.plugin/5` may contribute one OpenAI-compatible provider through the same
+verified sidecar lifecycle. The manifest contains display and selection metadata
+only:
+
+```json
+{
+  "contributes": {
+    "llm": {
+      "provider": { "id": "example-llm", "name": "Example LLM" },
+      "models": [{ "id": "example-main", "name": "Example Main" }]
+    }
+  }
+}
+```
+
+The sidecar must expose the fixed, empty-input MCP tool `llm.gateway.start`. Its
+Main-only `structuredContent` is exactly `{schema, base_url, api_key}` with schema
+`convax.llm-gateway/1`, an ephemeral `http://127.0.0.1:<port>/v1` URL, and a random
+process-lifetime key. The gateway accepts only authenticated OpenAI-compatible
+requests for declared models. It owns upstream URLs, headers, credentials, Cookies,
+streaming, cancellation, and vendor error adaptation; none of those values belongs
+in the manifest, renderer, service status, or durable OpenCode config.
+
+Hosts namespace provider ids by Plugin identity, verify the installed executable
+before starting it, and discard the gateway when that exact Plugin runtime changes.
+An unavailable or invalid gateway is omitted rather than weakening loopback or
+executable verification.
+
+The v5 compatibility pair deliberately uses the independently versioned
+`convax.plugin-capability/1` broker. It does not extend the legacy iframe
+`convax.plugin-host/N` sequence.
+
 ## Host connection
 
 Convax transfers one fresh `MessagePort` to each mounted Plugin node using the
-versioned `convax.plugin-host/1` through `/4` protocols. Accept it only
-from `window.parent`, for the host protocol matching the manifest major, the exact
+versioned `convax.plugin-host/1` through `/4` protocols. Accept it only from
+`window.parent`, for the host protocol matching the manifest major, the exact
 Plugin id, and only once. The transport-neutral v5 compatibility label does not by
 itself grant this Canvas port. A Pet feature provider instead receives a separate
 `convax.pet-host/1` port only on its declared overlay and settings surfaces:
@@ -326,20 +361,30 @@ arrive as `{"protocol":"convax.plugin-host/1","type":"command","command":"refres
 
 ## Capabilities
 
-| Method                      | Manifest capability  | Scope                                               |
-| --------------------------- | -------------------- | --------------------------------------------------- |
-| `host.context.get`          | none                 | current Project, Canvas, and owning node            |
-| `canvas.node.get`           | `canvas.node.read`   | owning node only                                    |
-| `canvas.node.updateState`   | `canvas.node.write`  | Plugin-namespaced node state                        |
-| `project.file.readText`     | `project.files.read` | current Project-relative text file                  |
-| `agent.prompt`              | `agent.prompt`       | current Project and owning node resource            |
-| `generation.tools.list`     | `generation.execute` | installed generation contracts in the current scope |
-| `generation.canvas.execute` | `generation.execute` | shared scoped Canvas generation operation           |
+| Method                        | Manifest capability           | Scope                                                        |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `host.context.get`            | none                          | current Project, Canvas, and owning node                     |
+| `canvas.node.get`             | `canvas.node.read`            | owning node only                                             |
+| `canvas.node.updateState`     | `canvas.node.write`           | Plugin-namespaced node state                                 |
+| `canvas.connectedImages.list` | `canvas.connectedImages.read` | directly connected managed Canvas image nodes                |
+| `canvas.connectedImages.read` | `canvas.connectedImages.read` | bounded bytes for one directly connected managed image       |
+| `canvas.image.create`         | `canvas.image.write`          | one bounded PNG imported as a managed adjacent Canvas image  |
+| `project.file.readText`       | `project.files.read`          | current Project-relative text file                           |
+| `agent.prompt`                | `agent.prompt`                | current Project and owning node resource                     |
+| `generation.tools.list`       | `generation.execute`          | installed generation contracts in the current scope          |
+| `generation.canvas.execute`   | `generation.execute`          | shared scoped Canvas generation operation                    |
 
 Request the smallest set. Arguments cannot select another Project, Canvas, or node.
 Treat results as untrusted structured data, bound message sizes, handle errors, and
 render a useful disconnected state. A successful domain mutation may be followed by
 a failed optional view effect; do not report that as a reverted mutation.
+`canvas.image.create` accepts a bounded PNG data URL and a portable display name;
+the host owns asset admission, node placement, the connection from the Plugin node,
+persistence, and rollback if the Canvas commit fails.
+The canonical production example is
+[`panorama-viewer`](../packages/plugins/panorama-viewer); its complete Web surface
+and manifest live in this repository, while Convax Desktop owns only these generic
+host operations.
 
 ## Forbidden behavior
 

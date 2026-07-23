@@ -13,9 +13,8 @@ catalog-changing release or yanking deployment. `revision` is the lowercase, ful
 
 Every item contains `kind`, `id`, `name`, `description`, `version`,
 `compatibility`, `artifact`, and `yanked`, plus a complete `manifest` for Plugin items.
-A `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5`
-item with a generation, LLM, and/or service external runtime may additionally
-contain `companions`; no other item may contain it.
+A `convax.plugin/2` through `convax.plugin/5` item with an external runtime may additionally contain
+`companions`; no other item may contain it.
 The duplicated Plugin identity fields must equal the manifest so the management UI
 can render and filter without downloading ZIPs. Skill items have no `manifest`.
 
@@ -49,7 +48,7 @@ The abbreviated manifest above is explanatory only; production entries contain t
 complete validated manifest. Plugin compatibility accepts exactly one
 version-matched pair: `convax.plugin/1` + `convax.plugin-host/1`,
 `convax.plugin/2` + `convax.plugin-host/2`,
-`convax.plugin/3` + `convax.plugin-host/3`,
+`convax.plugin/3` + `convax.plugin-host/3`, or
 `convax.plugin/4` + `convax.plugin-host/4`, or
 `convax.plugin/5` + `convax.plugin-capability/1`. The embedded manifest schema must match
 that pair. Crossed pairs and a v1 compatibility envelope around a v2 manifest are
@@ -127,6 +126,11 @@ is not arbitrary: it must exactly equal the package's immutable Release tag plus
 Windows). Clients select only their exact target, then verify byte count and SHA-256
 before admitting the executable to host-owned storage. An absent target is an
 unsupported platform, never permission to search `PATH` or download another URL.
+An admitted asset beginning exactly with `#!/usr/bin/env convax-bun` is a bundled
+Bun program for a compatible host's app-owned shared runtime; every other asset is
+executed natively. This byte-level convention adds no Registry v1 field, so older
+clients still parse the catalog and fail closed at execution if the host runner is
+unavailable.
 
 `opencode.skill/1` is the retained Registry v1 compatibility label used by current
 Convax clients; it is not the bundle format. Published Skill ZIPs follow the open

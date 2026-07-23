@@ -67,6 +67,11 @@ platform/architecture companion artifacts beside the ZIP. Convax verifies their
 size and SHA-256 into host-owned storage, so users do not install a sidecar through
 `PATH` and executables still never enter a Plugin package.
 
+`convax.plugin/5` additionally declares an LLM provider as bounded provider/model
+metadata. The verified sidecar supplies a random, Main-only loopback gateway at
+runtime; manifests and service projections never contain upstream URLs, Cookies,
+headers, or credentials.
+
 `convax.plugin/4` adds Plugin-owned Skills. A v4 Plugin declares
 `contributes.skills`, and the packer injects each referenced standard Skill
 workspace into the Plugin ZIP. Convax may show that Skill in its catalog, but its
@@ -88,6 +93,7 @@ See the working example in
 [`packages/plugins/hello-convax`](packages/plugins/hello-convax), then read:
 
 - [`docs/plugin-authoring.md`](docs/plugin-authoring.md) for the sandbox and host protocol;
+- [`docs/panorama-viewer.md`](docs/panorama-viewer.md) for the Panorama Viewer source-ownership and clean-profile release boundary;
 - [`docs/skill-authoring.md`](docs/skill-authoring.md) for safe, portable Skills;
 - [`docs/packaging.md`](docs/packaging.md) for ZIP and release rules;
 - [`docs/registry-spec.md`](docs/registry-spec.md) for the client contract;

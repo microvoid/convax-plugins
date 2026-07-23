@@ -1,0 +1,28 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "codex-service",
+  "name": "Codex",
+  "description": "Binds an existing local Codex installation and account to Convax for GPT-5.6, GPT-5.5, and GPT Image 2 without copying Codex credentials.",
+  "version": "0.1.1",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/5",
+    "pluginHost": "convax.plugin-capability/1"
+  },
+  "companions": [
+    {
+      "command": "convax-codex-mcp",
+      "version": "0.1.1",
+      "source": "packages/tools/codex-mcp",
+      "targets": [
+        {
+          "platform": "darwin",
+          "arch": "arm64",
+          "path": "dist/darwin-arm64/convax-codex-mcp"
+        }
+      ]
+    }
+  ],
+  "yanked": false
+}

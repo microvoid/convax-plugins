@@ -58,7 +58,8 @@ export async function validateRepository(options = {}) {
   }
   for (const plugin of packages.filter((pkg) =>
     pkg.metadata.kind === "plugin" &&
-    (pkg.manifest.schema === "convax.plugin/4" || pkg.manifest.schema === "convax.plugin/5"))) {
+    (pkg.manifest.schema === "convax.plugin/4" || pkg.manifest.schema === "convax.plugin/5")
+  )) {
     for (const contribution of plugin.manifest.contributes.skills ?? []) {
       const prefix = `${contribution.path}/`
       const files = plugin.files

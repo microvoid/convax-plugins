@@ -26,7 +26,7 @@ STORE method. Thus identical source bytes produce identical SHA-256 digests acro
 machines. Uncompressed storage is intentional: packages are already size-bounded,
 and avoiding compressor-version drift makes releases reproducible.
 
-A headless `convax.plugin/2`, `convax.plugin/3`, `convax.plugin/4`, or `convax.plugin/5` Tool Plugin may contain only `manifest.json` and a
+A headless `convax.plugin/2` through `convax.plugin/5` Tool Plugin may contain only `manifest.json` and a
 license notice. Its generation and/or service contribution uses one declared
 `mcp-stdio` executable that is a separate distributable and
 must never appear anywhere below `package/`; validation and packing do not install,
@@ -79,6 +79,12 @@ declared target. `bun run build:companions` discovers those declarations and inv
 only that fixed reviewed script name (never a command supplied by package metadata),
 then immediately applies the same path, symlink, executable-mode, size, and digest
 admission checks used by packing.
+
+A reviewed Bun companion may publish a bundle beginning exactly with
+`#!/usr/bin/env convax-bun`. Compatible Convax hosts run that verified script through
+their app-owned shared Bun runtime, avoiding one embedded Bun runtime per companion.
+The script remains an immutable executable Release asset and follows the same target,
+mode, size and SHA-256 checks as a native companion. Native companions remain valid.
 
 ## Plugin-owned Skill composition
 

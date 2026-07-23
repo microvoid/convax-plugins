@@ -126,6 +126,18 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
     })
   })
 
+  test("keeps endpoints, credentials, and headers out of LLM manifests", () => {
+    for (const field of ["apiKey", "baseUrl", "headers"]) {
+      expect(() =>
+        parsePluginManifest(
+          llmManifest({
+            contributes: { llm: { ...llmManifest().contributes.llm, [field]: "private" } },
+          }),
+        ),
+      ).toThrow("unsupported field")
+    }
+  })
+
   test("accepts only the transport-neutral v5 compatibility pair", () => {
     const metadata = {
       schema: "convax.package/1",

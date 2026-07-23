@@ -9,6 +9,7 @@ import { publicGenerationErrorMessage, safeGenerationDiagnosticCode } from "../s
 import {
   XiaoYunqueAuthenticationError,
   XiaoYunqueQueryTimeoutError,
+  XiaoYunqueReferenceAssetRegistrationError,
   XiaoYunqueRequestRejectedError,
 } from "../src/xiaoyunque-api.ts"
 
@@ -33,6 +34,14 @@ describe("safe public generation errors", () => {
       .toBe(
         "The selected XiaoYunque image model is no longer available. Choose another image model and try again.",
       )
+    expect(publicGenerationErrorMessage(new XiaoYunqueReferenceAssetRegistrationError()))
+      .toBe(
+        "XiaoYunque could not prepare the reference image for generation. No generation was submitted; try again.",
+      )
+    expect(publicGenerationErrorMessage(new XiaoYunqueReferenceAssetRegistrationError("video")))
+      .toBe(
+        "XiaoYunque could not prepare the reference video for generation. No generation was submitted; try again.",
+      )
     expect(publicGenerationErrorMessage(new XiaoYunqueRequestRejectedError("private rejection detail")))
       .toBe(
         "XiaoYunque did not accept this generation request. Refresh Services and try a model listed for this capability.",
@@ -45,6 +54,8 @@ describe("safe public generation errors", () => {
       publicGenerationErrorMessage(new XiaoYunqueAuthenticationError()),
       publicGenerationErrorMessage(new XiaoYunqueObservationRejectedError("upstream-envelope-rejected")),
       publicGenerationErrorMessage(new XiaoYunqueQueryTimeoutError()),
+      publicGenerationErrorMessage(new XiaoYunqueReferenceAssetRegistrationError()),
+      publicGenerationErrorMessage(new XiaoYunqueReferenceAssetRegistrationError("video")),
       publicGenerationErrorMessage(new XiaoYunqueRequestRejectedError("private rejection detail")),
       publicGenerationErrorMessage(new XiaoYunqueUnsupportedImageModelError()),
     ]
@@ -67,6 +78,8 @@ describe("safe public generation errors", () => {
       safeGenerationDiagnosticCode(new XiaoYunqueAuthenticationError(privateDetail)),
       safeGenerationDiagnosticCode(new XiaoYunqueObservationRejectedError("upstream-http-rejected")),
       safeGenerationDiagnosticCode(new XiaoYunqueQueryTimeoutError(privateDetail)),
+      safeGenerationDiagnosticCode(new XiaoYunqueReferenceAssetRegistrationError()),
+      safeGenerationDiagnosticCode(new XiaoYunqueReferenceAssetRegistrationError("video")),
       safeGenerationDiagnosticCode(new XiaoYunqueUnsupportedImageModelError()),
       safeGenerationDiagnosticCode(new XiaoYunqueRequestRejectedError(
         privateDetail,
@@ -79,6 +92,8 @@ describe("safe public generation errors", () => {
       "sign-in-expired",
       "status-check-rejected",
       "status-check-timeout",
+      "reference-image-registration-failed",
+      "reference-video-registration-failed",
       "unsupported-image-model",
       "upstream-envelope-rejected",
       "unclassified-failure",
