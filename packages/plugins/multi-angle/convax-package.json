@@ -1,0 +1,14 @@
+{
+  "schema": "convax.package/1",
+  "kind": "plugin",
+  "id": "multi-angle",
+  "name": "多角度",
+  "description": "通过已安装的统一图片生成工具，一次生成一张多宫格图片，每个格子展示同一主体的一个一致视角。",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compatibility": {
+    "pluginSchema": "convax.plugin/3",
+    "pluginHost": "convax.plugin-host/3"
+  },
+  "yanked": false
+}

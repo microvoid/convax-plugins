@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>多角度</title>
+    <script type="module" src="./assets/app.js"></script>
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M8 15h10l2.5-4h7L30 15h10a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V19a4 4 0 0 1 4-4Z"></path>
+              <circle cx="24" cy="28" r="8"></circle>
+              <path d="M24 3v5M3 9l4 4M45 9l-4 4"></path>
+            </svg>
+          </span>
+          <div>
+            <div class="brand-line">
+              <h1>多角度</h1>
+              <span class="api-badge">UNIFIED GENERATION</span>
+            </div>
+            <p>从同一张参考图生成一张一致的多视角宫格图</p>
+          </div>
+        </div>
+        <div class="topbar-meta">
+          <span class="keyword">多角度</span>
+          <span class="keyword">多宫格</span>
+          <span class="keyword">角色设定</span>
+          <span class="connection-pill" id="connectionPill">
+            <span class="connection-dot"></span>
+            <span id="connectionText">等待宿主</span>
+          </span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="panel source-panel" aria-labelledby="sourceTitle">
+          <div class="panel-heading">
+            <div>
+              <span class="step-number">01</span>
+              <h2 id="sourceTitle">参考主体</h2>
+            </div>
+            <button class="icon-button" id="refreshButton" type="button" title="刷新参考图与模型" aria-label="刷新参考图与模型">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"></path></svg>
+            </button>
+          </div>
+
+          <div class="source-stage" id="sourceStage">
+            <img class="source-image is-hidden" id="sourceImage" alt="当前多角度参考图" />
+            <div class="source-grid" aria-hidden="true"></div>
+            <div class="empty-source" id="emptySource">
+              <span class="empty-camera" aria-hidden="true">
+                <svg viewBox="0 0 80 80">
+                  <path d="M15 27h15l4-6h12l4 6h15a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H15a6 6 0 0 1-6-6V33a6 6 0 0 1 6-6Z"></path>
+                  <circle cx="40" cy="47" r="13"></circle>
+                  <path d="M40 8v7M9 16l5 5M71 16l-5 5"></path>
+                </svg>
+              </span>
+              <strong>连接一张参考图</strong>
+              <p>从 Canvas 图片节点连线到“多角度”节点</p>
+              <span>JPEG · PNG · WebP · ≤ 16 MiB</span>
+            </div>
+            <div class="source-overlay is-hidden" id="sourceOverlay">
+              <span class="source-badge">REFERENCE</span>
+              <span class="source-size" id="sourceSize"></span>
+            </div>
+            <div class="loading-overlay is-hidden" id="loadingOverlay" role="status" aria-live="polite">
+              <span class="spinner"></span>
+              <span id="loadingText">正在读取参考图…</span>
+            </div>
+          </div>
+
+          <label class="select-field is-hidden" id="sourceSelectShell">
+            <span>画布连接图片</span>
+            <span class="select-control">
+              <select id="sourceSelect" aria-label="选择参考图片"></select>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+            </span>
+          </label>
+          <p class="source-help" id="sourceHelp">连接范围由当前 Project、Canvas 与本节点共同约束。</p>
+        </section>
+
+        <section class="panel controls-panel" aria-labelledby="controlsTitle">
+          <div class="panel-heading">
+            <div>
+              <span class="step-number">02</span>
+              <h2 id="controlsTitle">宫格方案</h2>
+            </div>
+            <span class="selection-count" id="selectionCount">已选 4 / 6</span>
+          </div>
+
+          <label class="field-group tool-field">
+            <span class="field-label-row">
+              <span>AI 图片模型</span>
+              <span class="model-count" id="modelCount">0 个可用</span>
+            </span>
+            <span class="select-control tool-select-control">
+              <select id="toolSelect" aria-label="选择 AI 图片模型" disabled></select>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"></path></svg>
+            </span>
+            <span class="tool-help" id="toolHelp">正在读取已安装的统一生图模型…</span>
+          </label>
+
+          <fieldset class="field-group subject-group">
+            <legend>主体类型</legend>
+            <div class="segmented" id="subjectTypes"></div>
+          </fieldset>
+
+          <fieldset class="field-group preset-group">
+            <legend>宫格视角</legend>
+            <div class="preset-grid" id="presetGrid"></div>
+          </fieldset>
+
+          <label class="field-group notes-field">
+            <span class="field-label-row">
+              <span>一致性要求 <em>可选</em></span>
+              <output id="notesCount" for="notesInput">0 / 1000</output>
+            </span>
+            <textarea
+              id="notesInput"
+              maxlength="1000"
+              rows="3"
+              placeholder="例如：保持人物面部、服装和蓝色背包不变；统一柔和侧光与纯色背景。"
+            ></textarea>
+          </label>
+
+          <div class="action-card">
+            <div class="action-copy">
+              <strong id="actionTitle">准备生成 1 张 4 宫格图片</strong>
+              <span id="actionHint">将通过所选模型发起 1 次统一生图</span>
+              <span class="capability-boundary">每个格子展示一个视角，最终只输出一张图片并成为一个 Canvas 节点。</span>
+            </div>
+            <button class="generate-button" id="generateButton" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z"></path>
+                <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path>
+              </svg>
+              <span id="generateLabel">生成宫格图</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel results-panel" aria-labelledby="resultsTitle">
+          <div class="results-heading">
+            <div class="panel-heading">
+              <div>
+                <span class="step-number">03</span>
+                <h2 id="resultsTitle">Canvas 宫格结果</h2>
+              </div>
+            </div>
+            <div class="run-status is-idle" id="runStatus" role="status" aria-live="polite" aria-atomic="true">
+              <span class="run-status-dot"></span>
+              <span id="runStatusText">等待生成</span>
+            </div>
+          </div>
+          <div class="results-grid" id="resultsGrid"></div>
+          <div class="message-panel is-hidden" id="messagePanel" role="status" aria-live="polite" aria-atomic="true">
+            <strong id="messageTitle">任务提示</strong>
+            <p id="messageText"></p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer-note">
+        <span>同一张图内的跨视角一致性是生成目标，不等同于真实 3D 重建或工业 CAD。</span>
+        <span>插件不联网、不保存图片像素、原生路径或供应商密钥。</span>
+      </footer>
+      <div class="toast is-hidden" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </body>
+</html>

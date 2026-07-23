@@ -25,6 +25,10 @@
       "name": "@microvoid/convax-plugin-hello-convax",
       "version": "0.1.0"
     },
+    "packages/plugins/multi-angle": {
+      "name": "@microvoid/convax-plugin-multi-angle",
+      "version": "0.1.0"
+    },
     "packages/plugins/relight-studio": {
       "name": "@microvoid/convax-plugin-relight-studio",
       "version": "0.1.2",
@@ -176,6 +180,9 @@
     ],
     "@microvoid/convax-plugin-hello-convax": [
       "@microvoid/convax-plugin-hello-convax@workspace:packages/plugins/hello-convax"
+    ],
+    "@microvoid/convax-plugin-multi-angle": [
+      "@microvoid/convax-plugin-multi-angle@workspace:packages/plugins/multi-angle"
     ],
     "@microvoid/convax-plugin-relight-studio": [
       "@microvoid/convax-plugin-relight-studio@workspace:packages/plugins/relight-studio"
