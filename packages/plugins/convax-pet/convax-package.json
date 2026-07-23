@@ -4,7 +4,7 @@
   "id": "convax-pet",
   "name": "Convax Pet",
   "description": "A local desktop companion and pet library for Convax activity.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "MIT",
   "compatibility": {
     "pluginSchema": "convax.plugin/5",

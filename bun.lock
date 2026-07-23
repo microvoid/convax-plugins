@@ -15,7 +15,7 @@
     },
     "packages/plugins/convax-pet": {
       "name": "@microvoid/convax-plugin-convax-pet",
-      "version": "0.2.1"
+      "version": "0.2.2"
     },
     "packages/plugins/ffmpeg-tools": {
       "name": "@microvoid/convax-plugin-ffmpeg-tools",
