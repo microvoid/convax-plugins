@@ -4,7 +4,7 @@
   "id": "panorama-viewer",
   "name": "全景图预览",
   "description": "预览等距柱状投影 360° 全景图，支持拖拽环视、滚轮缩放、自动旋转、全屏、本地文件及画布连接图片。",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "compatibility": {
     "pluginSchema": "convax.plugin/1",

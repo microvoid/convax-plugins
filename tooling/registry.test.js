@@ -110,7 +110,7 @@ describe("source packages", () => {
       entry: "index.html",
       name: "全景图预览",
       schema: "convax.plugin/1",
-      version: "0.2.0",
+      version: "0.2.1",
     }))
     expect(panorama.metadata.compatibility).toEqual({
       pluginHost: "convax.plugin-host/1",

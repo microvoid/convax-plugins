@@ -331,6 +331,10 @@ a failed optional view effect; do not report that as a reverted mutation.
 `canvas.image.create` accepts a bounded PNG data URL and a portable display name;
 the host owns asset admission, node placement, the connection from the Plugin node,
 persistence, and rollback if the Canvas commit fails.
+The canonical production example is
+[`panorama-viewer`](../packages/plugins/panorama-viewer); its complete Web surface
+and manifest live in this repository, while Convax Desktop owns only these generic
+host operations.
 
 ## Forbidden behavior
 

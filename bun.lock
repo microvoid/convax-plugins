@@ -31,7 +31,7 @@
     },
     "packages/plugins/panorama-viewer": {
       "name": "@microvoid/convax-plugin-panorama-viewer",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     "packages/plugins/relight-studio": {
       "name": "@microvoid/convax-plugin-relight-studio",
