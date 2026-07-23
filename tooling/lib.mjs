@@ -1118,7 +1118,7 @@ function parsePetLibrary(value, label) {
     }
   })
   if (new Set(pets.map((pet) => pet.id)).size !== pets.length) error(label, "pets contain duplicate ids")
-  if (new Set(pets.map((pet) => pet.spritesheet)).size !== pets.length) {
+  if (new Set(pets.map((pet) => pet.spritesheet.toLocaleLowerCase("en-US"))).size !== pets.length) {
     error(label, "pets contain duplicate spritesheet paths")
   }
   return { schema: "convax.pet-library/1", pets }

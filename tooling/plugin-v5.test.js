@@ -211,6 +211,23 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
       ],
     ],
     [
+      "case-colliding atlas paths",
+      [
+        ...petSurfaceFiles(),
+        packageFile(
+          "pet-library.json",
+          JSON.stringify(
+            petLibrary([
+              ...petLibrary().pets,
+              { ...petLibrary().pets[0], id: "comet", spritesheet: "assets/VIOLET.WEBP" },
+            ]),
+          ),
+        ),
+        packageFile("assets/violet.webp", webp(1536, 1872)),
+        packageFile("assets/VIOLET.WEBP", webp(1536, 1872)),
+      ],
+    ],
+    [
       "missing atlas",
       [...petSurfaceFiles(), packageFile("pet-library.json", JSON.stringify(petLibrary()))],
     ],
