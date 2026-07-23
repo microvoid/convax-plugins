@@ -31,7 +31,7 @@ describe("panorama-viewer package", () => {
       id: "panorama-viewer",
       name: "全景图预览",
       description: manifest.description,
-      version: "0.2.0",
+      version: "0.2.1",
       license: "MIT",
       compatibility: {
         pluginSchema: "convax.plugin/1",
