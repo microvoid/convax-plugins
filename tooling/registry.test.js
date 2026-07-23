@@ -37,6 +37,7 @@ describe("source packages", () => {
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
       "plugin/multi-angle",
+      "plugin/panorama-viewer",
       "plugin/relight-studio",
       "plugin/xiaoyunque-generation",
       "skill/ad-idea",
@@ -57,6 +58,7 @@ describe("source packages", () => {
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
     const codex = packages.find((pkg) => pkg.metadata.id === "codex-service")
     const multiAngle = packages.find((pkg) => pkg.metadata.id === "multi-angle")
+    const panorama = packages.find((pkg) => pkg.metadata.id === "panorama-viewer")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
     expect(hello.manifest.schema).toBe("convax.plugin/1")
     expect(hello.manifest.capabilities).toEqual([])
@@ -97,6 +99,22 @@ describe("source packages", () => {
     expect(multiAngle.metadata.compatibility).toEqual({
       pluginHost: "convax.plugin-host/3",
       pluginSchema: "convax.plugin/3",
+    })
+    expect(panorama.manifest).toEqual(expect.objectContaining({
+      capabilities: [
+        "canvas.connectedImages.read",
+        "canvas.image.write",
+        "canvas.node.write",
+        "ui.fullscreen",
+      ],
+      entry: "index.html",
+      name: "全景图预览",
+      schema: "convax.plugin/1",
+      version: "0.2.0",
+    }))
+    expect(panorama.metadata.compatibility).toEqual({
+      pluginHost: "convax.plugin-host/1",
+      pluginSchema: "convax.plugin/1",
     })
     expect(xiaoyunque.manifest).toEqual(expect.objectContaining({
       capabilities: [],

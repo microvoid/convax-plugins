@@ -1,0 +1,10 @@
+{
+  "name": "@microvoid/convax-plugin-panorama-viewer",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id panorama-viewer",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id panorama-viewer"
+  }
+}
