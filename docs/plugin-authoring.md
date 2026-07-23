@@ -311,20 +311,26 @@ arrive as `{"protocol":"convax.plugin-host/1","type":"command","command":"refres
 
 ## Capabilities
 
-| Method                      | Manifest capability  | Scope                                               |
-| --------------------------- | -------------------- | --------------------------------------------------- |
-| `host.context.get`          | none                 | current Project, Canvas, and owning node            |
-| `canvas.node.get`           | `canvas.node.read`   | owning node only                                    |
-| `canvas.node.updateState`   | `canvas.node.write`  | Plugin-namespaced node state                        |
-| `project.file.readText`     | `project.files.read` | current Project-relative text file                  |
-| `agent.prompt`              | `agent.prompt`       | current Project and owning node resource            |
-| `generation.tools.list`     | `generation.execute` | installed generation contracts in the current scope |
-| `generation.canvas.execute` | `generation.execute` | shared scoped Canvas generation operation           |
+| Method                        | Manifest capability           | Scope                                                        |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `host.context.get`            | none                          | current Project, Canvas, and owning node                     |
+| `canvas.node.get`             | `canvas.node.read`            | owning node only                                             |
+| `canvas.node.updateState`     | `canvas.node.write`           | Plugin-namespaced node state                                 |
+| `canvas.connectedImages.list` | `canvas.connectedImages.read` | directly connected managed Canvas image nodes                |
+| `canvas.connectedImages.read` | `canvas.connectedImages.read` | bounded bytes for one directly connected managed image       |
+| `canvas.image.create`         | `canvas.image.write`          | one bounded PNG imported as a managed adjacent Canvas image  |
+| `project.file.readText`       | `project.files.read`          | current Project-relative text file                           |
+| `agent.prompt`                | `agent.prompt`                | current Project and owning node resource                     |
+| `generation.tools.list`       | `generation.execute`          | installed generation contracts in the current scope          |
+| `generation.canvas.execute`   | `generation.execute`          | shared scoped Canvas generation operation                    |
 
 Request the smallest set. Arguments cannot select another Project, Canvas, or node.
 Treat results as untrusted structured data, bound message sizes, handle errors, and
 render a useful disconnected state. A successful domain mutation may be followed by
 a failed optional view effect; do not report that as a reverted mutation.
+`canvas.image.create` accepts a bounded PNG data URL and a portable display name;
+the host owns asset admission, node placement, the connection from the Plugin node,
+persistence, and rollback if the Canvas commit fails.
 
 ## Forbidden behavior
 

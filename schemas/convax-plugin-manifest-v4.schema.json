@@ -15,10 +15,11 @@
     "capabilities": {
       "type": "array",
       "uniqueItems": true,
-      "maxItems": 7,
+      "maxItems": 8,
       "items": {
         "enum": [
           "canvas.connectedImages.read",
+          "canvas.image.write",
           "canvas.node.read",
           "canvas.node.write",
           "project.files.read",

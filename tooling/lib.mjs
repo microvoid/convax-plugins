@@ -21,6 +21,7 @@ const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const windowsReservedName = /^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$)$/i
 const pluginCapabilities = new Set([
   "canvas.connectedImages.read",
+  "canvas.image.write",
   "canvas.node.read",
   "canvas.node.write",
   "project.files.read",

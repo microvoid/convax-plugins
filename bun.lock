@@ -29,6 +29,10 @@
       "name": "@microvoid/convax-plugin-multi-angle",
       "version": "0.1.0"
     },
+    "packages/plugins/panorama-viewer": {
+      "name": "@microvoid/convax-plugin-panorama-viewer",
+      "version": "0.2.0"
+    },
     "packages/plugins/relight-studio": {
       "name": "@microvoid/convax-plugin-relight-studio",
       "version": "0.1.2",
