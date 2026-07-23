@@ -4,9 +4,9 @@ import { selectedPet } from "../assets/pet-library.js"
 import {
   backgroundPositionFor,
   createDragGesture,
+  createMoveScheduler,
   frameFor,
   keyAction,
-  moveOverlay,
   openActivity,
   reconcileExpanded,
 } from "./model.js"
@@ -15,7 +15,9 @@ const root = document.querySelector("#pet-root")
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
 let client
 let expanded = false
+let expansionPending = false
 let jumping = false
+let moveScheduler
 let animationStarted = performance.now()
 let animationFrame
 let snapshot = { activities: [], preferences: { selectedPetId: "violet" }, revision: 0 }
@@ -43,13 +45,16 @@ function stopAnimation() {
 }
 
 async function setExpanded(next) {
-  const previous = expanded
-  expanded = next
-  render()
-  const reconciled = await reconcileExpanded(client, previous, next)
-  if (expanded !== next || reconciled === next) return
-  expanded = reconciled
-  render()
+  if (expansionPending || next === expanded) return
+  expansionPending = true
+  try {
+    const reconciled = await reconcileExpanded(client, expanded, next)
+    if (reconciled === expanded) return
+    expanded = reconciled
+    render()
+  } finally {
+    expansionPending = false
+  }
 }
 
 async function navigate(activity) {
@@ -116,7 +121,7 @@ function render() {
   sprite.setAttribute("aria-hidden", "true")
   sprite.style.backgroundImage = `url("${new URL(`../${pet.spritesheet}`, import.meta.url)}")`
   spriteButton.append(sprite)
-  const drag = createDragGesture((input) => void moveOverlay(client, input))
+  const drag = createDragGesture(moveScheduler.push)
   let dragged = false
   spriteButton.addEventListener("pointerdown", (event) => {
     dragged = false
@@ -154,6 +159,7 @@ function render() {
 
 async function start() {
   client = await connectPetHost({ pluginId: "convax-pet", surface: "overlay" })
+  moveScheduler = createMoveScheduler(client)
   const initial = await client.request("activity.getSnapshot", {})
   const preferences = await client.request("preferences.get", {})
   snapshot = { ...initial, activities: orderedActivities(initial.activities), preferences }
