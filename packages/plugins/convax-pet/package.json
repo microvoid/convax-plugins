@@ -1,0 +1,11 @@
+{
+  "name": "@microvoid/convax-plugin-convax-pet",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "bun ../../../tooling/validate.mjs --kind plugin --id convax-pet",
+    "pack": "bun ../../../tooling/pack.mjs --kind plugin --id convax-pet",
+    "test": "bun test"
+  }
+}

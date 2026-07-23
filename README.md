@@ -80,6 +80,15 @@ ZIP remains portable to Codex and other Agent Skills clients. Because the same s
 changes both archives, an owned Skill release must also bump and publish its owner
 Plugin; release coverage verifies the deterministic bytes of both.
 
+`convax.plugin/5` adds transport-neutral host capabilities, including a sandboxed
+desktop pet feature. One Pet feature Plugin uses the
+`convax.plugin-capability/1` compatibility pair and contributes static overlay and
+settings surfaces plus a `convax.pet-library/1` packaged collection through
+`contributes.pet`. The surfaces use the scoped `convax.pet-host/1` protocol; Convax
+retains only the native window, content-free activity projection, validated
+navigation, installed asset serving, and bounded persistence. See the working package in
+[`packages/plugins/convax-pet`](packages/plugins/convax-pet).
+
 See the working example in
 [`packages/plugins/hello-convax`](packages/plugins/hello-convax), then read:
 
@@ -116,10 +125,10 @@ Open **Settings → Skills and Plugins** in a compatible Convax build. The catal
 loaded from the public Registry above; selecting **Install Plugin** or **Install
 Skill** sends only the package id to Convax main, which downloads and validates the
 corresponding immutable Release ZIP.
-If a v2, v3, or v4 Plugin declares Registry companions, the same install transaction selects
+If a v2, v3, v4, or v5 Plugin declares Registry companions, the same install transaction selects
 only the exact local platform/architecture artifact and verifies its immutable URL,
 byte count, and SHA-256 separately from the static ZIP.
-For v4, Plugin-owned Skills are admitted and removed in that same Plugin transaction;
+For v4 and v5, Plugin-owned Skills are admitted and removed in that same Plugin transaction;
 they are never an independent Convax install action.
 
 The `microvoid/convax-plugins` repository, Registry, and Release assets are public
@@ -191,7 +200,7 @@ entries only.
 Third-party Plugin ZIPs are inert. Web surfaces are static HTML/CSS/JavaScript
 rendered by Convax in an iframe with exactly `sandbox="allow-scripts"`; they cannot
 contain native executables, Node/Electron code, network permissions, or a generic
-host bridge. A v2, v3, or v4 Tool Plugin may name a separately installed external command.
+host bridge. A v2, v3, v4, or v5 Tool Plugin may name a separately installed external command.
 Convax resolves and fingerprints it during explicit Plugin install/update; that
 transaction is consent to the exact binding, so later calls do not show a separate
 command prompt. It never becomes part of the ZIP. A Registry companion is an independent immutable Release asset,

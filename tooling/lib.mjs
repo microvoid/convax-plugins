@@ -28,6 +28,24 @@ const pluginCapabilities = new Set([
   "agent.prompt",
   "generation.execute",
   "ui.fullscreen",
+  "projects.read",
+  "canvas.catalog.read",
+  "canvas.document.read",
+  "canvas.document.write",
+  "canvas.events.subscribe",
+  "pet.activity.read",
+  "pet.activity.open",
+  "pet.preferences.write",
+])
+const pluginV5Capabilities = new Set([
+  "projects.read",
+  "canvas.catalog.read",
+  "canvas.document.read",
+  "canvas.document.write",
+  "canvas.events.subscribe",
+  "pet.activity.read",
+  "pet.activity.open",
+  "pet.preferences.write",
 ])
 const generationModalities = new Set(["text", "image", "video", "audio"])
 const generationInputRoles = new Set([
@@ -146,7 +164,7 @@ function parseCompatibility(value, kind, label) {
     const v4 = value.pluginSchema === "convax.plugin/4" && value.pluginHost === "convax.plugin-host/4"
     const v5 = value.pluginSchema === "convax.plugin/5" && value.pluginHost === "convax.plugin-capability/1"
     if (!v1 && !v2 && !v3 && !v4 && !v5) {
-      error(label, "must pair matching convax.plugin and convax.plugin-host versions, or convax.plugin/5 with convax.plugin-capability/1")
+      error(label, "must pair matching convax.plugin and convax.plugin-host versions 1-4, or convax.plugin/5 with convax.plugin-capability/1")
     }
     return { pluginSchema: value.pluginSchema, pluginHost: value.pluginHost }
   }
@@ -230,7 +248,7 @@ export function parseSourceMetadata(value, label = "convax-package.json") {
   if (companions && compatibility.pluginSchema !== "convax.plugin/2" &&
       compatibility.pluginSchema !== "convax.plugin/3" && compatibility.pluginSchema !== "convax.plugin/4" &&
       compatibility.pluginSchema !== "convax.plugin/5") {
-    error(label, "companions require convax.plugin/2 through convax.plugin/5 compatibility")
+    error(label, "companions require convax.plugin/2 or later compatibility")
   }
   return {
     schema: "convax.package/1",
@@ -322,6 +340,9 @@ function parseLegacyPluginManifest(value, label) {
   if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
       capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
       new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+  if (capabilities.some((capability) => pluginV5Capabilities.has(capability))) {
+    error(label, "Project-wide Canvas capabilities are available only to convax.plugin/5")
+  }
   if (!v2 && capabilities.includes("generation.execute")) {
     error(label, "generation.execute is available only to convax.plugin/2")
   }
@@ -528,6 +549,9 @@ function parsePluginManifestV3(value, label) {
   if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
       capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
       new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+  if (capabilities.some((capability) => pluginV5Capabilities.has(capability))) {
+    error(label, "Project-wide Canvas capabilities are available only to convax.plugin/5")
+  }
 
   const hasRuntime = value.runtime !== undefined
   const hasGeneration = value.contributes.generation !== undefined
@@ -611,43 +635,25 @@ function parseOwnedSkillsV4(value, label) {
   return skills
 }
 
-function parseLlmV5(value, label) {
-  exactKeys(value, ["models", "provider"], ["models", "provider"], label)
-  exactKeys(value.provider, ["id", "name"], ["id", "name"], `${label} provider`)
-  const providerId = parseId(value.provider.id, `${label} provider id`)
-  if (!Array.isArray(value.models) || value.models.length < 1 || value.models.length > 32) {
-    error(label, "models must be a non-empty array with at most 32 items")
-  }
-  const models = value.models.map((item, index) => {
-    const itemLabel = `${label} model ${index}`
-    exactKeys(item, ["id", "name"], ["id", "name"], itemLabel)
-    const id = cleanString(item.id, `${itemLabel} id`, 128)
-    if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) error(itemLabel, "id is invalid")
-    return { id, name: cleanString(item.name, `${itemLabel} name`, 120) }
-  })
-  if (new Set(models.map((model) => model.id)).size !== models.length) error(label, "models contain duplicate ids")
-  return { models, provider: { id: providerId, name: cleanString(value.provider.name, `${label} provider name`, 120) } }
-}
-
-function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
+function parsePluginManifestV4(value, label) {
   const required = ["contributes", "description", "id", "name", "schema", "version"]
   exactKeys(value,
     ["capabilities", "contributes", "description", "entry", "id", "name", "runtime", "schema", "version"],
     required, label)
-  exactKeys(value.contributes,
-    ["agent", "canvas", "generation", ...(schema === "convax.plugin/5" ? ["llm"] : []), "service", "skills"],
-    [], `${label} contributes`)
+  exactKeys(value.contributes, ["agent", "canvas", "generation", "service", "skills"], [], `${label} contributes`)
 
   const capabilities = value.capabilities ?? []
   if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
       capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
       new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+  if (capabilities.some((capability) => pluginV5Capabilities.has(capability))) {
+    error(label, "Project-wide Canvas capabilities are available only to convax.plugin/5")
+  }
 
   const hasRuntime = value.runtime !== undefined
   const hasGeneration = value.contributes.generation !== undefined
   const hasService = value.contributes.service !== undefined
-  const hasLlm = value.contributes.llm !== undefined
-  if (hasRuntime !== (hasGeneration || hasService || hasLlm)) {
+  if (hasRuntime !== (hasGeneration || hasService)) {
     error(label, "runtime and executable contribution must appear together")
   }
 
@@ -668,7 +674,7 @@ function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
     : undefined
   const hasRenderer = canvas?.renderer !== undefined
   if (!hasRuntime && !hasRenderer && !capabilities.includes("generation.execute")) {
-    error(label, `${schema} must declare a Plugin capability beyond owned Skills`)
+    error(label, "convax.plugin/4 must declare a Plugin capability beyond owned Skills")
   }
   const hasEntry = value.entry !== undefined
   if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
@@ -683,7 +689,6 @@ function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
   }
 
   const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
-  const llm = hasLlm ? parseLlmV5(value.contributes.llm, `${label} llm`) : undefined
   const skills = parseOwnedSkillsV4(value.contributes.skills, `${label} skills`)
   const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
   return {
@@ -692,7 +697,6 @@ function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
       ...(agent === undefined ? {} : { agent }),
       ...(canvas === undefined ? {} : { canvas }),
       ...(generation === undefined ? {} : { generation }),
-      ...(llm === undefined ? {} : { llm }),
       ...(service === undefined ? {} : { service }),
       ...(skills === undefined ? {} : { skills }),
     },
@@ -700,7 +704,137 @@ function parsePluginManifestV4(value, label, schema = "convax.plugin/4") {
     ...(entry === undefined ? {} : { entry }),
     id: parseId(value.id, `${label} id`),
     name: cleanString(value.name, `${label} name`, 120),
-    schema,
+    schema: "convax.plugin/4",
+    ...(runtime === undefined ? {} : { runtime }),
+    version: parseSemver(value.version, `${label} version`),
+  }
+}
+
+function parseLlmV5(value, label) {
+  exactKeys(value, ["models", "provider"], ["models", "provider"], label)
+  exactKeys(value.provider, ["id", "name"], ["id", "name"], `${label} provider`)
+  const providerId = parseId(value.provider.id, `${label} provider id`)
+  if (!Array.isArray(value.models) || value.models.length < 1 || value.models.length > 32) {
+    error(label, "models must be a non-empty array with at most 32 items")
+  }
+  const models = value.models.map((item, index) => {
+    const itemLabel = `${label} model ${index}`
+    exactKeys(item, ["id", "name"], ["id", "name"], itemLabel)
+    const id = cleanString(item.id, `${itemLabel} id`, 128)
+    if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) error(itemLabel, "invalid id")
+    return { id, name: cleanString(item.name, `${itemLabel} name`, 120) }
+  })
+  if (new Set(models.map((model) => model.id)).size !== models.length) error(label, "models contain duplicate ids")
+  return {
+    models,
+    provider: { id: providerId, name: cleanString(value.provider.name, `${label} provider name`, 120) },
+  }
+}
+
+function parsePetV5(value, label) {
+  exactKeys(value, ["library", "overlay", "protocol", "settings"], ["library", "overlay", "protocol", "settings"], label)
+  const library = parseRelativePath(value.library, `${label} library`)
+  const overlay = parseRelativePath(value.overlay, `${label} overlay`)
+  const settings = parseRelativePath(value.settings, `${label} settings`)
+  if (!library.toLowerCase().endsWith(".json")) error(label, "library must be a JSON file")
+  if (!overlay.toLowerCase().endsWith(".html")) error(label, "overlay must be an HTML file")
+  if (!settings.toLowerCase().endsWith(".html")) error(label, "settings must be an HTML file")
+  if (value.protocol !== "convax.pet-host/1") error(label, "protocol must equal convax.pet-host/1")
+  return { library, overlay, protocol: "convax.pet-host/1", settings }
+}
+
+function parsePluginManifestV5(value, label) {
+  const required = ["contributes", "description", "id", "name", "schema", "version"]
+  exactKeys(
+    value,
+    ["capabilities", "contributes", "description", "entry", "id", "name", "runtime", "schema", "version"],
+    required,
+    label,
+  )
+  exactKeys(
+    value.contributes,
+    ["agent", "canvas", "generation", "llm", "pet", "service", "skills"],
+    [],
+    `${label} contributes`,
+  )
+
+  const capabilities = value.capabilities ?? []
+  if (!Array.isArray(capabilities) || capabilities.length > pluginCapabilities.size ||
+      capabilities.some((item) => typeof item !== "string" || !pluginCapabilities.has(item)) ||
+      new Set(capabilities).size !== capabilities.length) error(label, "invalid or duplicate capability")
+
+  const hasGeneration = value.contributes.generation !== undefined
+  const hasService = value.contributes.service !== undefined
+  const hasLlm = value.contributes.llm !== undefined
+  const hasRuntime = value.runtime !== undefined
+  if (hasRuntime !== (hasGeneration || hasService || hasLlm)) {
+    error(label, "runtime and executable contribution must appear together")
+  }
+
+  const generation = hasGeneration ? parseGenerationV3(value.contributes.generation, `${label} generation`) : undefined
+  if (value.contributes.agent !== undefined && generation === undefined) {
+    error(label, "agent tools require a generation contribution")
+  }
+  const agent = value.contributes.agent === undefined
+    ? undefined
+    : parseAgentV3(value.contributes.agent, generation, `${label} agent`)
+
+  const hasCanvas = value.contributes.canvas !== undefined
+  if (hasCanvas && value.contributes.canvas.selectionActions !== undefined && generation === undefined) {
+    error(label, "selectionActions require a generation contribution")
+  }
+  const canvas = hasCanvas
+    ? parseCanvasV3(value.contributes.canvas, generation, `${label} canvas`)
+    : undefined
+  const hasRenderer = canvas?.renderer !== undefined
+  const hasEntry = value.entry !== undefined
+  if (hasEntry !== hasRenderer) error(label, "entry and Canvas renderer must appear together")
+  if (capabilities.includes("generation.execute") && !hasRenderer) {
+    error(label, "generation.execute requires a sandboxed Canvas renderer")
+  }
+
+  const skills = parseOwnedSkillsV4(value.contributes.skills, `${label} skills`)
+  const pet = value.contributes.pet === undefined
+    ? undefined
+    : parsePetV5(value.contributes.pet, `${label} pet`)
+  if (pet !== undefined) {
+    const requiredPetCapabilities = ["pet.activity.read", "pet.activity.open", "pet.preferences.write"]
+    if (capabilities.length !== requiredPetCapabilities.length ||
+        requiredPetCapabilities.some((capability) => !capabilities.includes(capability))) {
+      error(label, "pet capabilities must be exactly pet.activity.read, pet.activity.open, and pet.preferences.write")
+    }
+    if (hasRuntime) error(label, "pet feature cannot declare an executable runtime")
+  }
+  const hasProjectCapability = capabilities.some((capability) => pluginV5Capabilities.has(capability))
+  if (!hasRuntime && !hasRenderer && !canvas?.selectionActions?.length &&
+      !capabilities.includes("generation.execute") && !hasProjectCapability && pet === undefined) {
+    error(label, "convax.plugin/5 must declare a Plugin capability beyond owned Skills")
+  }
+
+  let entry
+  if (hasEntry) {
+    entry = parseRelativePath(value.entry, `${label} entry`)
+    if (!entry.toLowerCase().endsWith(".html")) error(label, "entry must be an HTML file")
+  }
+  const llm = hasLlm ? parseLlmV5(value.contributes.llm, `${label} llm`) : undefined
+  const service = hasService ? parseService(value.contributes.service, `${label} service`) : undefined
+  const runtime = hasRuntime ? parseMcpStdioRuntime(value.runtime, `${label} runtime`) : undefined
+  return {
+    capabilities: [...capabilities],
+    contributes: {
+      ...(agent === undefined ? {} : { agent }),
+      ...(canvas === undefined ? {} : { canvas }),
+      ...(generation === undefined ? {} : { generation }),
+      ...(llm === undefined ? {} : { llm }),
+      ...(pet === undefined ? {} : { pet }),
+      ...(service === undefined ? {} : { service }),
+      ...(skills === undefined ? {} : { skills }),
+    },
+    description: cleanString(value.description, `${label} description`, 2_000),
+    ...(entry === undefined ? {} : { entry }),
+    id: parseId(value.id, `${label} id`),
+    name: cleanString(value.name, `${label} name`, 120),
+    schema: "convax.plugin/5",
     ...(runtime === undefined ? {} : { runtime }),
     version: parseSemver(value.version, `${label} version`),
   }
@@ -713,7 +847,7 @@ export function parsePluginManifest(value, label = "manifest.json") {
        value.schema !== "convax.plugin/5")) {
     error(label, "unsupported schema")
   }
-  if (value.schema === "convax.plugin/5") return parsePluginManifestV4(value, label, "convax.plugin/5")
+  if (value.schema === "convax.plugin/5") return parsePluginManifestV5(value, label)
   if (value.schema === "convax.plugin/4") return parsePluginManifestV4(value, label)
   if (value.schema === "convax.plugin/3") return parsePluginManifestV3(value, label)
   return parseLegacyPluginManifest(value, label)
@@ -958,6 +1092,70 @@ function webpDimensions(data, label) {
   error(label, "unsupported or malformed WebP bitstream")
 }
 
+function parsePetLibrary(value, label) {
+  exactKeys(value, ["pets", "schema"], ["pets", "schema"], label)
+  if (value.schema !== "convax.pet-library/1") error(label, "schema must equal convax.pet-library/1")
+  if (!Array.isArray(value.pets) || value.pets.length < 1 || value.pets.length > 64) {
+    error(label, "pets must contain between 1 and 64 entries")
+  }
+  const pets = value.pets.map((item, index) => {
+    const itemLabel = `${label} pets[${index}]`
+    exactKeys(
+      item,
+      ["alt", "description", "displayName", "id", "spritesheet", "spriteVersion"],
+      ["alt", "description", "displayName", "id", "spritesheet", "spriteVersion"],
+      itemLabel,
+    )
+    const spritesheet = parseRelativePath(item.spritesheet, `${itemLabel} spritesheet`)
+    if (!/\.(?:png|webp)$/i.test(spritesheet)) error(itemLabel, "spritesheet must be a PNG or WebP file")
+    if (item.spriteVersion !== 2) error(itemLabel, "spriteVersion must equal 2")
+    return {
+      alt: cleanString(item.alt, `${itemLabel} alt`, 500),
+      description: cleanString(item.description, `${itemLabel} description`, 2_000),
+      displayName: cleanString(item.displayName, `${itemLabel} displayName`, 120),
+      id: parseId(item.id, `${itemLabel} id`),
+      spritesheet,
+      spriteVersion: 2,
+    }
+  })
+  if (new Set(pets.map((pet) => pet.id)).size !== pets.length) error(label, "pets contain duplicate ids")
+  if (new Set(pets.map((pet) => pet.spritesheet.toLocaleLowerCase("en-US"))).size !== pets.length) {
+    error(label, "pets contain duplicate spritesheet paths")
+  }
+  return { schema: "convax.pet-library/1", pets }
+}
+
+export function validatePetPackageLibrary(manifest, files, label = "Plugin") {
+  const pet = manifest.contributes?.pet
+  if (!pet) return undefined
+  const entries = new Map(files.map((file) => [file.relativePath, file]))
+  for (const [field, kind] of [["overlay", "overlay"], ["settings", "settings"]]) {
+    if (!entries.has(pet[field])) error(label, `missing declared pet ${kind} ${pet[field]}`)
+  }
+  const libraryFile = entries.get(pet.library)
+  if (!libraryFile) error(label, `missing declared pet library ${pet.library}`)
+  let libraryValue
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(libraryFile.data)
+    libraryValue = JSON.parse(text)
+  } catch (cause) {
+    throw new Error(`${label} pet library: invalid UTF-8 JSON`, { cause })
+  }
+  const library = parsePetLibrary(libraryValue, `${label} pet library`)
+  for (const petEntry of library.pets) {
+    const asset = entries.get(petEntry.spritesheet)
+    if (!asset) error(label, `missing declared pet spritesheet ${petEntry.spritesheet}`)
+    const extension = path.posix.extname(petEntry.spritesheet).toLowerCase()
+    const dimensions = extension === ".png"
+      ? pngDimensions(asset.data, `${label} pet spritesheet ${petEntry.id}`)
+      : webpDimensions(asset.data, `${label} pet spritesheet ${petEntry.id}`)
+    if (dimensions.width !== 1536 || dimensions.height !== 1872) {
+      error(label, `pet spritesheet ${petEntry.id} must be exactly 1536 by 1872 pixels`)
+    }
+  }
+  return library
+}
+
 function mp4Dimensions(data, label) {
   if (data.length < 24 || data.toString("ascii", 4, 8) !== "ftyp") error(label, "content is not an MP4 file")
   for (let offset = 4; offset + 4 <= data.length; offset += 1) {
@@ -1102,6 +1300,7 @@ export async function discoverPackages(options = {}) {
       }
       const names = new Set(files.map((file) => file.relativePath))
       if (manifest.entry && !names.has(manifest.entry)) error(`${candidate.kind}/${candidate.id}`, `missing entry ${manifest.entry}`)
+      validatePetPackageLibrary(manifest, files, `${candidate.kind}/${candidate.id}`)
       if (manifest.runtime && names.has(manifest.runtime.command)) {
         error(`${candidate.kind}/${candidate.id}`, "external runtime executable must not be included in the Plugin ZIP")
       }
@@ -1557,7 +1756,7 @@ function parseRegistryCompanions(value, metadata, manifest, label) {
   if (value === undefined) return undefined
   if ((manifest.schema !== "convax.plugin/2" && manifest.schema !== "convax.plugin/3" &&
        manifest.schema !== "convax.plugin/4" && manifest.schema !== "convax.plugin/5") || !manifest.runtime) {
-    error(label, "companions require a convax.plugin/2 through convax.plugin/5 external runtime")
+    error(label, "companions require a convax.plugin/2 or later external runtime")
   }
   if (!Array.isArray(value) || value.length < 1 || value.length > 16) {
     error(label, "must be a non-empty array with at most 16 items")

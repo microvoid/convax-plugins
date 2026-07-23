@@ -13,6 +13,10 @@
         "@microvoid/convax-codex-mcp": "workspace:*"
       }
     },
+    "packages/plugins/convax-pet": {
+      "name": "@microvoid/convax-plugin-convax-pet",
+      "version": "0.2.1"
+    },
     "packages/plugins/ffmpeg-tools": {
       "name": "@microvoid/convax-plugin-ffmpeg-tools",
       "version": "0.3.1",

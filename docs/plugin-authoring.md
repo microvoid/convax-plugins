@@ -7,7 +7,8 @@ DOM, use browser storage as shared application state, or access Node/Electron.
 
 `convax.plugin/2` through `convax.plugin/5` may instead be headless
 executable Tool Plugins. New executable Plugins should use v3, or v4 when they own
-Skills; use v5 only when they contribute an LLM provider. Their ZIP still contains no executable code: the manifest names a separately distributed bare
+Skills; use v5 for transport-neutral capabilities such as an LLM provider or Pet
+feature. Their ZIP still contains no executable code: the manifest names a separately distributed bare
 `mcp-stdio` command for generation and/or fixed service actions. The Registry may
 bind that command to verified platform artifacts that Convax installs into
 host-owned storage. Explicit Plugin install/update authorizes that exact binding;
@@ -21,8 +22,8 @@ documented fields are accepted. Source metadata must use the matching pair:
 
 - `convax.plugin/1` with `convax.plugin-host/1`;
 - `convax.plugin/2` with `convax.plugin-host/2`;
-- `convax.plugin/3` with `convax.plugin-host/3`.
-- `convax.plugin/4` with `convax.plugin-host/4`.
+- `convax.plugin/3` with `convax.plugin-host/3`;
+- `convax.plugin/4` with `convax.plugin-host/4`;
 - `convax.plugin/5` with `convax.plugin-capability/1`.
 
 The v1 schema is static-only:
@@ -51,9 +52,55 @@ a companion `SKILL.md` inside the same Plugin ZIP; installing it remains an expl
 independent user action. This legacy field is available only through v3. Do not use
 it for a Skill whose lifecycle belongs to its Plugin.
 
+## Pet contribution
+
+`convax.plugin/5` adds a sandboxed Pet feature contribution. A package contributes
+one Pet feature Plugin and
+owns its static overlay, settings, packaged collection, animation rules, and
+selection. Its `convax.plugin-capability/1` compatibility label describes manifest
+support; the surfaces use the separate `convax.pet-host/1` protocol:
+
+The `contributes.pet` object declares the library and both static feature surfaces:
+
+```json
+{
+  "schema": "convax.plugin/5",
+  "id": "convax-pet",
+  "name": "Convax Pet",
+  "description": "A local desktop companion and pet library for Convax activity.",
+  "version": "0.2.1",
+  "capabilities": [
+    "pet.activity.read",
+    "pet.activity.open",
+    "pet.preferences.write"
+  ],
+  "contributes": {
+    "pet": {
+      "library": "pet-library.json",
+      "overlay": "pet/index.html",
+      "settings": "settings/index.html",
+      "protocol": "convax.pet-host/1"
+    }
+  }
+}
+```
+
+The `convax.pet-library/1` document contains one to 64 unique pet entries. Each
+entry supplies `id`, `displayName`, `description`, package-relative `spritesheet`,
+`spriteVersion: 2`, and `alt`. Every atlas is a 1536×1872 PNG or WebP containing
+eight 192×208 cells across and nine state rows in this order: `idle`,
+`running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`,
+`running`, and `review`.
+
+The settings and overlay pages run with no Node, Electron, remote network, native
+path, or arbitrary IPC access. Their surface-scoped `convax.pet-host/1` ports expose
+only content-free activity, validated navigation, overlay movement, preferences,
+and wake/tuck lifecycle. Installation never wakes the pet automatically. New pets
+ship as library entries in a new version of the same feature Plugin.
+
 ## Plugin-owned Skills
 
-`convax.plugin/4` replaces the ambiguous singular `skill` field with explicit
+`convax.plugin/4` and `convax.plugin/5` replace the ambiguous singular `skill` field with explicit
 Plugin-owned Skill contributions. The owner must still provide a real Plugin
 capability—such as a sandboxed Canvas renderer, an executable generation/service
 runtime, or a renderer-mediated generation action—beyond merely wrapping a Skill:
@@ -272,9 +319,12 @@ The v5 compatibility pair deliberately uses the independently versioned
 
 ## Host connection
 
-Convax transfers one fresh `MessagePort` to each mounted Plugin node. Accept it only
-from `window.parent`, for the host protocol matching the manifest major (`/1`,
-`/2`, `/3`, `/4`, or `/5`), the exact Plugin id, and only once:
+Convax transfers one fresh `MessagePort` to each mounted Plugin node using the
+versioned `convax.plugin-host/1` through `/4` protocols. Accept it only from
+`window.parent`, for the host protocol matching the manifest major, the exact
+Plugin id, and only once. The transport-neutral v5 compatibility label does not by
+itself grant this Canvas port. A Pet feature provider instead receives a separate
+`convax.pet-host/1` port only on its declared overlay and settings surfaces:
 
 ```js
 const PROTOCOL = "convax.plugin-host/1";
@@ -341,5 +391,5 @@ host operations.
 No remote scripts/assets, iframe network APIs, popups, downloads, eval-generated
 code, native/WASM executables, packaged Node servers, filesystem paths, secrets,
 telemetry, service workers, or generic method forwarding. Do not edit `.convax`
-files. A v2, v3, or v4 external runtime is a separately installed and authorized tool, never a
+files. A v2, v3, v4, or v5 external runtime is a separately installed and authorized tool, never a
 Plugin ZIP asset. Use host capabilities only.

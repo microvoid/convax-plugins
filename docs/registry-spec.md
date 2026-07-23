@@ -56,11 +56,27 @@ rejected. Skill compatibility is exactly `{"skillSchema":"opencode.skill/1"}`.
 Artifact objects contain only `url`, `size`, and lowercase hex `sha256`; URLs always
 target `microvoid/convax-plugins` Release assets.
 
+## Pet feature Plugins
+
+One Pet feature Plugin is a `convax.plugin/5` capability published through the
+normal Plugin Registry item. Its complete embedded manifest contains
+`contributes.pet` with package-relative `library`, `overlay`, and `settings` paths
+plus `protocol: "convax.pet-host/1"`. It requests exactly `pet.activity.read`,
+`pet.activity.open`, and `pet.preferences.write`, and has no runtime or companion
+executable. The `convax.plugin-capability/1` compatibility label remains the
+transport-neutral admission contract.
+
+Clients validate both static surface entries, the strict `convax.pet-library/1`
+document, and every referenced atlas before activation. Installation does not
+imply waking the pet. The Plugin owns presentation and its packaged collection;
+Convax owns only native windowing, activity projection, navigation validation, and
+bounded persistence.
+
 ## Plugin-owned Skills
 
 A Skill item may additionally contain `ownerPluginId`. This is lifecycle metadata
 for Convax, not an Agent Skills field. The id must resolve to a Plugin item whose
-`convax.plugin/4` manifest contains a matching `contributes.skills` item. The
+`convax.plugin/4` or `convax.plugin/5` manifest contains a matching `contributes.skills` item. The
 Registry is rejected if either side is missing.
 
 Convax may show an owned Skill as a normal Skill detail with a “Provided by”
@@ -83,7 +99,7 @@ Release entry; a new Skill entry cannot be published beside stale owner Plugin b
 
 ## Verified companion executables
 
-An external v2, v3, or v4 runtime is distributed beside, never inside, its static Plugin ZIP.
+An external v2, v3, v4, or v5 runtime is distributed beside, never inside, its static Plugin ZIP.
 Its Plugin item has the following optional strict field:
 
 ```json
