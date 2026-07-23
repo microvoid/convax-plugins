@@ -55,7 +55,7 @@ describe("source packages", () => {
     const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
-    expect(violet.metadata.version).toBe("0.2.0")
+    expect(violet.metadata.version).toBe("0.2.1")
     expect(violet.manifest.capabilities).toEqual([
       "pet.activity.read",
       "pet.activity.open",
@@ -70,7 +70,7 @@ describe("source packages", () => {
     expect(violet.manifest).not.toHaveProperty("entry")
     expect(violet.manifest).not.toHaveProperty("runtime")
     expect(violet.files.map((file) => file.relativePath)).toEqual(expect.arrayContaining([
-      "assets/violet.webp",
+      "assets/violet.png",
       "pet-library.json",
       "pet/index.html",
       "settings/index.html",

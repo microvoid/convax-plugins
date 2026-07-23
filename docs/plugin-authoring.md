@@ -67,7 +67,7 @@ compatibility label describes manifest support; the surfaces use the separate
   "id": "convax-pet",
   "name": "Convax Pet",
   "description": "A local desktop companion and pet library for Convax activity.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "capabilities": [
     "pet.activity.read",
     "pet.activity.open",

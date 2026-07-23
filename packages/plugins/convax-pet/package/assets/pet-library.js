@@ -3,7 +3,7 @@ const pets = Object.freeze([
     id: "violet",
     displayName: "Violet",
     description: "A pixel companion for Convax.",
-    spritesheet: "assets/violet.webp",
+    spritesheet: "assets/violet.png",
     spriteVersion: 2,
     alt: "Violet, the Convax pixel companion",
   }),

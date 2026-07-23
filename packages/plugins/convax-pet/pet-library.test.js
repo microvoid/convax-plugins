@@ -7,6 +7,7 @@ describe("packaged pet library", () => {
     const json = JSON.parse(await fs.readFile(new URL("./package/pet-library.json", import.meta.url), "utf8"))
 
     expect(module.petLibrary).toEqual(json)
+    expect(json.pets.map((pet) => pet.spritesheet)).toEqual(["assets/violet.png"])
     expect(module.selectedPet("violet").id).toBe("violet")
     expect(module.selectedPet("missing").id).toBe("violet")
   })

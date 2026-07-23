@@ -204,7 +204,7 @@ pet asset:
   "id": "convax-pet",
   "name": "Convax Pet",
   "description": "A local desktop companion and pet library for Convax activity.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "capabilities": [
     "pet.activity.read",
     "pet.activity.open",
@@ -281,7 +281,7 @@ The Plugin owns a static `convax.pet-library/1` document:
       "id": "violet",
       "displayName": "Violet",
       "description": "A pixel companion for Convax.",
-      "spritesheet": "assets/violet.webp",
+      "spritesheet": "assets/violet.png",
       "spriteVersion": 2,
       "alt": "Violet, the Convax pixel companion"
     }
