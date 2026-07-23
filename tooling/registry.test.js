@@ -36,6 +36,7 @@ describe("source packages", () => {
       "plugin/codex-service",
       "plugin/ffmpeg-tools",
       "plugin/hello-convax",
+      "plugin/multi-angle",
       "plugin/relight-studio",
       "plugin/xiaoyunque-generation",
       "skill/ad-idea",
@@ -55,6 +56,7 @@ describe("source packages", () => {
     const ffmpegSkill = packages.find((pkg) => pkg.metadata.kind === "skill" && pkg.metadata.id === "ffmpeg-canvas")
     const hello = packages.find((pkg) => pkg.metadata.id === "hello-convax")
     const codex = packages.find((pkg) => pkg.metadata.id === "codex-service")
+    const multiAngle = packages.find((pkg) => pkg.metadata.id === "multi-angle")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
     expect(hello.manifest.schema).toBe("convax.plugin/1")
     expect(hello.manifest.capabilities).toEqual([])
@@ -85,6 +87,17 @@ describe("source packages", () => {
         path: "dist/darwin-arm64/convax-codex-mcp",
       }],
     }])
+    expect(multiAngle.manifest).toEqual(expect.objectContaining({
+      capabilities: ["canvas.connectedImages.read", "canvas.node.write", "generation.execute"],
+      entry: "index.html",
+      schema: "convax.plugin/3",
+    }))
+    expect(multiAngle.manifest).not.toHaveProperty("runtime")
+    expect(multiAngle.manifest.contributes).not.toHaveProperty("generation")
+    expect(multiAngle.metadata.compatibility).toEqual({
+      pluginHost: "convax.plugin-host/3",
+      pluginSchema: "convax.plugin/3",
+    })
     expect(xiaoyunque.manifest).toEqual(expect.objectContaining({
       capabilities: [],
       runtime: { command: "convax-xiaoyunque-mcp", type: "mcp-stdio" },
@@ -195,6 +208,7 @@ describe("source packages", () => {
     const byId = (id) => first.find((item) => item.pkg.metadata.id === id)
     const codex = byId("codex-service")
     const hello = byId("hello-convax")
+    const multiAngle = byId("multi-angle")
     const xiaoyunque = byId("xiaoyunque-generation")
     const skill = byId("ad-idea")
     const ffmpeg = byId("ffmpeg-tools")
@@ -204,6 +218,14 @@ describe("source packages", () => {
       "convax-companion-convax-codex-mcp-0.1.1-darwin-arm64",
     ])
     expect(codex.tag).toBe("plugin-codex-service-v0.1.1")
+    expect(readStoredZip(multiAngle.zip).map((entry) => entry.relativePath)).toEqual([
+      "LICENSE",
+      "assets/app.js",
+      "assets/multi-angle-model.js",
+      "assets/styles.css",
+      "index.html",
+      "manifest.json",
+    ])
     expect(readStoredZip(xiaoyunque.zip).map((entry) => entry.relativePath)).toEqual(["LICENSE", "manifest.json"])
     expect(xiaoyunque.companionAssets.map((asset) => asset.assetName)).toEqual([
       "convax-companion-convax-xiaoyunque-mcp-0.3.3-darwin-arm64",
