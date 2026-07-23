@@ -16,11 +16,11 @@ Plugins:
   buttons.
 
 Desktop must not carry a second Panorama Viewer static bundle or reserve
-`panorama-viewer` as a built-in id. Hosts that previously installed the trusted
-built-in verify and remove only its host-authored provenance marker, preserving
-the package as an ordinary installation. Version `0.2.1` is intentionally newer
-than the final built-in `0.2.0`, so the normal Registry update transaction can
-replace those preserved bytes with this repository's licensed release package.
+`panorama-viewer` as a built-in id. Version `0.2.1` targets clean/current profiles
+and is installed only as an ordinary Registry package. This release deliberately
+does not migrate profiles created by the unreleased trusted built-in implementation;
+those experimental profiles must remove the old installation or be reset before
+installing this repository's licensed release package.
 
 ## Verification
 
