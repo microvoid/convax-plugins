@@ -20,7 +20,9 @@ describe("Plugin-owned pet overlay", () => {
   test("distinguishes click from a four-pixel drag", async () => {
     const { createDragGesture } = await import("./package/pet/model.js")
     const onDrag = mock(() => undefined)
-    const gesture = createDragGesture(onDrag)
+    const gesture = createDragGesture(onDrag, {
+      createSession: () => "drag-one",
+    })
 
     gesture.start({ clientX: 10, clientY: 10, screenX: 110, screenY: 210 })
     expect(gesture.move({ clientX: 12, clientY: 12, screenX: 112, screenY: 212 })).toBe(false)
@@ -28,26 +30,74 @@ describe("Plugin-owned pet overlay", () => {
     gesture.start({ clientX: 10, clientY: 10, screenX: 110, screenY: 210 })
     expect(gesture.move({ clientX: 15, clientY: 10, screenX: 115, screenY: 210 })).toBe(true)
     expect(gesture.end({ clientX: 18, clientY: 8, screenX: 118, screenY: 208 })).toBe(true)
-    expect(onDrag).toHaveBeenCalledWith({ dx: 5, dy: 0, phase: "move" })
-    expect(onDrag).toHaveBeenCalledWith({ dx: 3, dy: -2, phase: "end" })
+    expect(onDrag).toHaveBeenNthCalledWith(1, {
+      phase: "start",
+      screenX: 110,
+      screenY: 210,
+      sequence: 0,
+      session: "drag-one",
+    })
+    expect(onDrag).toHaveBeenNthCalledWith(2, {
+      phase: "end",
+      screenX: 112,
+      screenY: 212,
+      sequence: 1,
+      session: "drag-one",
+    })
+    expect(onDrag).toHaveBeenNthCalledWith(3, {
+      phase: "start",
+      screenX: 110,
+      screenY: 210,
+      sequence: 0,
+      session: "drag-one",
+    })
+    expect(onDrag).toHaveBeenNthCalledWith(4, {
+      phase: "move",
+      screenX: 115,
+      screenY: 210,
+      sequence: 1,
+      session: "drag-one",
+    })
+    expect(onDrag).toHaveBeenNthCalledWith(5, {
+      phase: "end",
+      screenX: 118,
+      screenY: 208,
+      sequence: 2,
+      session: "drag-one",
+    })
   })
 
   test("uses stable screen coordinates while the native window moves", async () => {
     const { createDragGesture } = await import("./package/pet/model.js")
     const onDrag = mock(() => undefined)
-    const gesture = createDragGesture(onDrag)
+    const gesture = createDragGesture(onDrag, {
+      createSession: () => "drag-two",
+    })
 
     gesture.start({ clientX: 80, clientY: 50, screenX: 500, screenY: 300 })
     expect(gesture.move({ clientX: 20, clientY: 50, screenX: 506, screenY: 300 })).toBe(true)
     expect(gesture.end({ clientX: 18, clientY: 48, screenX: 509, screenY: 298 })).toBe(true)
 
-    expect(onDrag).toHaveBeenNthCalledWith(1, { dx: 6, dy: 0, phase: "move" })
-    expect(onDrag).toHaveBeenNthCalledWith(2, { dx: 3, dy: -2, phase: "end" })
+    expect(onDrag).toHaveBeenNthCalledWith(2, {
+      phase: "move",
+      screenX: 506,
+      screenY: 300,
+      sequence: 1,
+      session: "drag-two",
+    })
+    expect(onDrag).toHaveBeenNthCalledWith(3, {
+      phase: "end",
+      screenX: 509,
+      screenY: 298,
+      sequence: 2,
+      session: "drag-two",
+    })
   })
 
-  test("serializes and coalesces movement before the final commit", async () => {
+  test("sends the latest absolute pointer frame without waiting for older host responses", async () => {
     const { createMoveScheduler } = await import("./package/pet/model.js")
     const releases = []
+    const scheduled = []
     const client = {
       request: mock(
         () =>
@@ -56,21 +106,74 @@ describe("Plugin-owned pet overlay", () => {
           }),
       ),
     }
-    const scheduler = createMoveScheduler(client)
+    const scheduler = createMoveScheduler(client, {
+      cancel: (id) => {
+        scheduled[id] = undefined
+      },
+      schedule: (callback) => {
+        scheduled.push(callback)
+        return scheduled.length - 1
+      },
+    })
 
-    scheduler.push({ dx: 2, dy: 1, phase: "move" })
-    scheduler.push({ dx: 3, dy: -1, phase: "move" })
-    scheduler.push({ dx: 4, dy: 2, phase: "end" })
+    scheduler.push({
+      phase: "start",
+      screenX: 100,
+      screenY: 200,
+      sequence: 0,
+      session: "drag-one",
+    })
+    scheduler.push({
+      phase: "move",
+      screenX: 102,
+      screenY: 201,
+      sequence: 1,
+      session: "drag-one",
+    })
+    scheduler.push({
+      phase: "move",
+      screenX: 105,
+      screenY: 199,
+      sequence: 2,
+      session: "drag-one",
+    })
     expect(client.request).toHaveBeenCalledTimes(1)
 
-    releases.shift()?.()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    scheduled[0]?.()
     expect(client.request).toHaveBeenCalledTimes(2)
-    releases.shift()?.()
+    scheduler.push({
+      phase: "end",
+      screenX: 109,
+      screenY: 202,
+      sequence: 3,
+      session: "drag-one",
+    })
+    expect(client.request).toHaveBeenCalledTimes(3)
+
+    releases.splice(0).forEach((release) => release())
     await scheduler.whenIdle()
 
-    expect(client.request).toHaveBeenNthCalledWith(1, "overlay.move", { dx: 2, dy: 1, phase: "move" })
-    expect(client.request).toHaveBeenNthCalledWith(2, "overlay.move", { dx: 7, dy: 1, phase: "end" })
+    expect(client.request).toHaveBeenNthCalledWith(1, "overlay.move", {
+      phase: "start",
+      screenX: 100,
+      screenY: 200,
+      sequence: 0,
+      session: "drag-one",
+    })
+    expect(client.request).toHaveBeenNthCalledWith(2, "overlay.move", {
+      phase: "move",
+      screenX: 105,
+      screenY: 199,
+      sequence: 2,
+      session: "drag-one",
+    })
+    expect(client.request).toHaveBeenNthCalledWith(3, "overlay.move", {
+      phase: "end",
+      screenX: 109,
+      screenY: 202,
+      sequence: 3,
+      session: "drag-one",
+    })
   })
 
   test("supports keyboard actions and jump-before-navigation", async () => {
@@ -91,31 +194,50 @@ describe("Plugin-owned pet overlay", () => {
 
   test("contains activity.open failures and always resets jumping", async () => {
     const { openActivity } = await import("./package/pet/model.js")
-    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
+    const client = {
+      request: mock(() => Promise.reject(new Error("host unavailable"))),
+    }
     const calls = []
 
-    await expect(openActivity(client, { id: "activity-one" }, 7, {
-      jump: () => calls.push("jump"),
-      settle: () => calls.push("settle"),
-      wait: async () => calls.push("wait"),
-    })).resolves.toBeUndefined()
+    await expect(
+      openActivity(client, { id: "activity-one" }, 7, {
+        jump: () => calls.push("jump"),
+        settle: () => calls.push("settle"),
+        wait: async () => calls.push("wait"),
+      }),
+    ).resolves.toBeUndefined()
 
-    expect(client.request).toHaveBeenCalledWith("activity.open", { activityId: "activity-one", revision: 7 })
+    expect(client.request).toHaveBeenCalledWith("activity.open", {
+      activityId: "activity-one",
+      revision: 7,
+    })
     expect(calls).toEqual(["jump", "wait", "settle"])
   })
 
   test("reconciles failed expansion requests to the previous state", async () => {
     const { reconcileExpanded } = await import("./package/pet/model.js")
-    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
+    const client = {
+      request: mock(() => Promise.reject(new Error("host unavailable"))),
+    }
 
     await expect(reconcileExpanded(client, false, true)).resolves.toBe(false)
-    expect(client.request).toHaveBeenCalledWith("overlay.setExpanded", { expanded: true })
+    expect(client.request).toHaveBeenCalledWith("overlay.setExpanded", {
+      expanded: true,
+    })
   })
 
   test("contains overlay.move failures", async () => {
     const { moveOverlay } = await import("./package/pet/model.js")
-    const client = { request: mock(() => Promise.reject(new Error("host unavailable"))) }
-    const input = { dx: 4, dy: -2, phase: "move" }
+    const client = {
+      request: mock(() => Promise.reject(new Error("host unavailable"))),
+    }
+    const input = {
+      phase: "move",
+      screenX: 404,
+      screenY: 198,
+      sequence: 2,
+      session: "drag-one",
+    }
 
     await expect(moveOverlay(client, input)).resolves.toBeUndefined()
     expect(client.request).toHaveBeenCalledWith("overlay.move", input)

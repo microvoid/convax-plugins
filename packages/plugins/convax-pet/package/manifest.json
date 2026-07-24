@@ -4,11 +4,7 @@
   "name": "Convax Pet",
   "description": "A local desktop companion and pet library for Convax activity.",
   "version": "0.2.2",
-  "capabilities": [
-    "pet.activity.read",
-    "pet.activity.open",
-    "pet.preferences.write"
-  ],
+  "capabilities": ["pet.activity.read", "pet.activity.open", "pet.preferences.write", "pet.custom.manage"],
   "contributes": {
     "pet": {
       "library": "pet-library.json",

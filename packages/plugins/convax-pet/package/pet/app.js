@@ -1,6 +1,6 @@
 import { animationFor, orderedActivities, statusText } from "../assets/activity.js"
 import { connectPetHost } from "../assets/pet-host.js"
-import { selectedPet } from "../assets/pet-library.js"
+import { petsForCollection, selectedPet } from "../assets/pet-library.js"
 import {
   backgroundPositionFor,
   createDragGesture,
@@ -20,7 +20,12 @@ let jumping = false
 let moveScheduler
 let animationStarted = performance.now()
 let animationFrame
-let snapshot = { activities: [], preferences: { selectedPetId: "violet" }, revision: 0 }
+let snapshot = {
+  activities: [],
+  collection: { pets: [], revision: 0 },
+  preferences: { selectedPetId: "violet" },
+  revision: 0,
+}
 
 function element(tag, className, text) {
   const node = document.createElement(tag)
@@ -91,7 +96,7 @@ function render() {
   root.className = expanded ? "pet-shell pet-shell--expanded" : "pet-shell"
   const activities = orderedActivities(snapshot.activities)
   const primary = activities[0]
-  const pet = selectedPet(snapshot.preferences.selectedPetId)
+  const pet = selectedPet(snapshot.preferences.selectedPetId, petsForCollection(snapshot.collection))
 
   if (expanded) {
     const tray = element("section", "pet-tray")
@@ -119,7 +124,7 @@ function render() {
   spriteButton.setAttribute("aria-label", primary ? `${pet.displayName}: ${statusText(primary)}` : pet.alt)
   const sprite = element("span", "pet-sprite")
   sprite.setAttribute("aria-hidden", "true")
-  sprite.style.backgroundImage = `url("${new URL(`../${pet.spritesheet}`, import.meta.url)}")`
+  sprite.style.backgroundImage = `url("${pet.spritesheetUrl}")`
   spriteButton.append(sprite)
   const drag = createDragGesture(moveScheduler.push)
   let dragged = false
@@ -132,6 +137,12 @@ function render() {
     dragged = drag.move(event) || dragged
   })
   spriteButton.addEventListener("pointerup", (event) => {
+    dragged = drag.end(event) || dragged
+  })
+  spriteButton.addEventListener("pointercancel", (event) => {
+    dragged = drag.end(event) || dragged
+  })
+  spriteButton.addEventListener("lostpointercapture", (event) => {
     dragged = drag.end(event) || dragged
   })
   spriteButton.addEventListener("click", () => {
@@ -147,7 +158,11 @@ function render() {
       void setExpanded(false)
     }
   })
-  const toggle = element("button", `pet-tray-toggle pet-tray-toggle--${primary?.state ?? "idle"}`, primary ? statusText(primary) : "Idle")
+  const toggle = element(
+    "button",
+    `pet-tray-toggle pet-tray-toggle--${primary?.state ?? "idle"}`,
+    primary ? statusText(primary) : "Idle",
+  )
   toggle.type = "button"
   toggle.setAttribute("aria-expanded", String(expanded))
   toggle.addEventListener("click", () => void setExpanded(!expanded))
@@ -161,15 +176,30 @@ async function start() {
   client = await connectPetHost({ pluginId: "convax-pet", surface: "overlay" })
   moveScheduler = createMoveScheduler(client)
   const initial = await client.request("activity.getSnapshot", {})
+  const collection = await client.request("collection.get", {})
   const preferences = await client.request("preferences.get", {})
-  snapshot = { ...initial, activities: orderedActivities(initial.activities), preferences }
+  snapshot = {
+    ...initial,
+    activities: orderedActivities(initial.activities),
+    collection,
+    preferences,
+  }
   client.subscribe("activity.changed", (next) => {
     if (next.revision < snapshot.revision) return
-    snapshot = { ...snapshot, ...next, activities: orderedActivities(next.activities) }
+    snapshot = {
+      ...snapshot,
+      ...next,
+      activities: orderedActivities(next.activities),
+    }
     render()
   })
   client.subscribe("preferences.changed", (preferencesNext) => {
     snapshot = { ...snapshot, preferences: preferencesNext }
+    render()
+  })
+  client.subscribe("collection.changed", (collectionNext) => {
+    if (collectionNext.revision < snapshot.collection.revision) return
+    snapshot = { ...snapshot, collection: collectionNext }
     render()
   })
   reducedMotion.addEventListener("change", render)

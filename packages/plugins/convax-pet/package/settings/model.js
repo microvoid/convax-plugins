@@ -1,14 +1,14 @@
 import { selectedPet } from "../assets/pet-library.js"
 
-export function normalizePreferences(value) {
+export function normalizePreferences(value, pets) {
   return {
     awake: value?.awake === true,
-    selectedPetId: selectedPet(value?.selectedPetId).id,
+    selectedPetId: selectedPet(value?.selectedPetId, pets).id,
   }
 }
 
-export function selectPreference(_current, selectedPetId) {
-  return { selectedPetId: selectedPet(selectedPetId).id }
+export function selectPreference(_current, selectedPetId, pets) {
+  return { selectedPetId: selectedPet(selectedPetId, pets).id }
 }
 
 export function wakeRequest(awake) {

@@ -20,18 +20,37 @@ function dragPoint(point) {
   return { x: point.screenX, y: point.screenY }
 }
 
-export function createDragGesture(onDrag) {
+let nextDragSession = 1
+
+function createDragSession() {
+  const session = `drag-${Date.now().toString(36)}-${nextDragSession.toString(36)}`
+  nextDragSession += 1
+  return session
+}
+
+export function createDragGesture(onDrag, { createSession = createDragSession } = {}) {
   let origin
-  let previous
+  let sequence = 0
+  let session
   let dragging = false
+  const emit = (phase, point) => {
+    const current = dragPoint(point)
+    onDrag({
+      phase,
+      screenX: current.x,
+      screenY: current.y,
+      sequence,
+      session,
+    })
+    sequence += 1
+  }
   return {
     end(point) {
       if (!origin) return false
       const wasDragging = dragging
-      const current = dragPoint(point)
-      if (dragging) onDrag({ dx: current.x - previous.x, dy: current.y - previous.y, phase: "end" })
+      emit("end", point)
       origin = undefined
-      previous = undefined
+      session = undefined
       dragging = false
       return wasDragging
     },
@@ -39,14 +58,15 @@ export function createDragGesture(onDrag) {
       if (!origin) return false
       const current = dragPoint(point)
       if (!dragging && Math.hypot(current.x - origin.x, current.y - origin.y) >= 4) dragging = true
-      if (dragging) onDrag({ dx: current.x - previous.x, dy: current.y - previous.y, phase: "move" })
-      previous = current
+      if (dragging) emit("move", point)
       return dragging
     },
     start(point) {
       origin = dragPoint(point)
-      previous = origin
+      session = createSession()
+      sequence = 0
       dragging = false
+      emit("start", point)
     },
   }
 }
@@ -72,44 +92,51 @@ export async function moveOverlay(client, input) {
   }
 }
 
-export function createMoveScheduler(client) {
-  let pending
-  let flushing
+export function createMoveScheduler(
+  client,
+  { cancel = (id) => cancelAnimationFrame(id), schedule = (callback) => requestAnimationFrame(callback) } = {},
+) {
+  const active = new Set()
+  let pendingMove
+  let scheduled
 
-  async function flush() {
-    while (pending) {
-      const batch = pending
-      pending = undefined
-      await moveOverlay(client, batch)
-    }
+  function send(input) {
+    const request = moveOverlay(client, input)
+    active.add(request)
+    void request.finally(() => active.delete(request))
   }
 
-  function ensureFlush() {
-    if (flushing) return
-    flushing = flush().finally(() => {
-      flushing = undefined
-      if (pending) ensureFlush()
-    })
+  function flush() {
+    scheduled = undefined
+    if (!pendingMove) return
+    const input = pendingMove
+    pendingMove = undefined
+    send(input)
   }
 
   function push(input) {
-    pending = pending
-      ? {
-          dx: pending.dx + input.dx,
-          dy: pending.dy + input.dy,
-          phase: pending.phase === "end" || input.phase === "end" ? "end" : "move",
-        }
-      : { ...input }
-    ensureFlush()
+    if (input.phase === "move") {
+      pendingMove = { ...input }
+      if (scheduled === undefined) scheduled = schedule(flush)
+      return
+    }
+    if (input.phase === "end" && scheduled !== undefined) {
+      cancel(scheduled)
+      scheduled = undefined
+      flush()
+    }
+    send(input)
   }
 
   return {
     push,
     async whenIdle() {
-      while (flushing || pending) {
-        ensureFlush()
-        await flushing
+      if (scheduled !== undefined) {
+        cancel(scheduled)
+        scheduled = undefined
+        flush()
       }
+      while (active.size) await Promise.all([...active])
     },
   }
 }
@@ -121,7 +148,10 @@ export async function openActivity(client, activity, revision, { jump, settle, w
       jump,
       navigate: async () => {
         try {
-          await client.request("activity.open", { activityId: activity.id, revision })
+          await client.request("activity.open", {
+            activityId: activity.id,
+            revision,
+          })
         } catch {
           // The overlay remains usable when the target activity disappears.
         }

@@ -21,24 +21,27 @@ button {
 
 #settings-root {
   display: grid;
-  gap: 24px;
-  min-height: 320px;
-  padding: 2px;
+  gap: 20px;
+  width: min(100%, 1080px);
+  min-height: 520px;
+  padding: 4px 2px 28px;
 }
 
-.settings-header {
+.studio-header,
+.collection-header {
   display: flex;
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.settings-eyebrow {
-  margin: 0 0 5px;
+.settings-eyebrow,
+.section-kicker {
+  margin: 0 0 6px;
   color: #7657e8;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 750;
+  letter-spacing: 0.12em;
 }
 
 h1,
@@ -49,97 +52,306 @@ p {
 
 h1 {
   margin-bottom: 6px;
-  font-size: 18px;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
 
 h2 {
-  margin-bottom: 4px;
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .settings-description,
 .collection-description,
-.pet-card__description {
+.pet-card__description,
+.current-pet__copy p,
+.format-hint {
   color: #68716c;
   font-size: 12px;
   line-height: 1.55;
 }
 
-.lifecycle-button {
-  min-width: 92px;
-  height: 34px;
-  padding: 0 13px;
-  border: 1px solid #d9ddda;
-  border-radius: 6px;
-  background: #fff;
+.settings-description,
+.collection-description,
+.current-pet__copy p {
+  margin-bottom: 0;
+}
+
+.current-pet {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid #ded9fa;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 14% 10%, rgb(255 255 255 / 82%), transparent 42%),
+    linear-gradient(135deg, #eeeafd 0%, #f6f3ff 54%, #eff5f0 100%);
+  box-shadow: 0 10px 28px rgb(62 44 123 / 8%);
+}
+
+.current-pet__preview {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-right: 1px solid rgb(118 87 232 / 12%);
+  background:
+    linear-gradient(rgb(118 87 232 / 5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(118 87 232 / 5%) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.current-pet__copy {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  padding: 32px 38px;
+}
+
+.current-pet__copy h2 {
+  margin: 10px 0 4px;
+  font-size: 30px;
+}
+
+.current-pet__copy p {
+  max-width: 520px;
+  font-size: 13px;
+}
+
+.pet-state,
+.pet-source {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.pet-state {
+  padding: 5px 8px;
+  color: #68716c;
+  background: rgb(255 255 255 / 70%);
+}
+
+.pet-state--awake {
+  color: #176b48;
+  background: #e2f5ea;
+}
+
+.primary-button,
+.add-button {
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #7657e8;
+  box-shadow: 0 5px 14px rgb(91 65 190 / 20%);
+  font-weight: 650;
   cursor: pointer;
+}
+
+.primary-button {
+  min-width: 104px;
+  height: 38px;
+  margin-top: 22px;
+  padding: 0 16px;
+}
+
+.primary-button--quiet {
+  border: 1px solid rgb(118 87 232 / 25%);
+  color: #553bc0;
+  background: rgb(255 255 255 / 68%);
+  box-shadow: none;
+}
+
+.collection {
+  padding-top: 4px;
+}
+
+.collection-header {
+  align-items: end;
+}
+
+.collection-header h2 {
+  margin-bottom: 3px;
+}
+
+.add-group {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+
+.add-button {
+  min-width: 142px;
+  height: 38px;
+  padding: 0 15px;
+}
+
+.format-hint {
+  font-size: 10px;
 }
 
 .pet-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .pet-card {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-height: 92px;
-  padding: 10px;
-  border: 1px solid #d9ddda;
-  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dfe3e0;
+  border-radius: 13px;
   background: #fff;
-  text-align: left;
-  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.pet-card:hover {
+  transform: translateY(-1px);
+  border-color: #c8c1ee;
+  box-shadow: 0 8px 20px rgb(33 29 47 / 7%);
 }
 
 .pet-card--selected {
   border-color: #7657e8;
-  box-shadow: 0 0 0 1px #7657e8;
+  box-shadow:
+    0 0 0 1px #7657e8,
+    0 8px 22px rgb(91 65 190 / 10%);
+}
+
+.pet-card__select {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  width: 100%;
+  min-height: 118px;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
 .pet-preview {
-  width: 68px;
-  height: 74px;
+  display: block;
+  width: 82px;
+  height: 89px;
   background-position: 0 0;
   background-repeat: no-repeat;
   background-size: 800% 900%;
   image-rendering: pixelated;
+  filter: drop-shadow(0 5px 6px rgb(23 26 24 / 14%));
+}
+
+.pet-preview--hero {
+  width: 142px;
+  height: 154px;
 }
 
 .pet-card__copy,
 .pet-card__title {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   min-width: 0;
 }
 
 .pet-card__title {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  font-size: 13px;
-  font-weight: 600;
 }
 
-.pet-selected {
-  padding: 2px 6px;
-  border-radius: 999px;
-  color: #7657e8;
+.pet-card__title strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pet-source {
+  padding: 3px 6px;
+  color: #5e6862;
+  background: #eef1ef;
+  letter-spacing: 0.03em;
+}
+
+.pet-source--custom {
+  color: #5b42be;
   background: #eeeafd;
+}
+
+.pet-card__description {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.pet-card__footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-top: 1px solid #eef0ee;
+  color: #7a837e;
   font-size: 10px;
-  font-weight: 600;
+}
+
+.remove-button {
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 6px;
+  color: #8d4a50;
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.remove-button:hover,
+.remove-button--confirm {
+  color: #9e303b;
+  background: #fff0f1;
+}
+
+.settings-status,
+.settings-error {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(23 26 24 / 12%);
+  font-size: 12px;
+}
+
+.settings-status {
+  color: #49359a;
+  background: #eeeafd;
 }
 
 .settings-error {
-  padding: 9px 11px;
   border: 1px solid #e8b9bd;
-  border-radius: 6px;
   color: #9e303b;
   background: #fff1f2;
-  font-size: 12px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 button:focus-visible {
@@ -147,12 +359,86 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+@media (max-width: 680px) {
+  .current-pet {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+
+  .current-pet__copy {
+    padding: 24px;
+  }
+
+  .current-pet__copy h2 {
+    font-size: 24px;
+  }
+
+  .collection-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .add-group {
+    justify-items: start;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
-  :root { color: #f1f3f1; background: #1c1f1d; }
-  .lifecycle-button,
-  .pet-card { border-color: #3a403c; background: #242824; }
+  :root {
+    color: #f1f3f1;
+    background: #1c1f1d;
+  }
+
+  .current-pet {
+    border-color: #4c426d;
+    background:
+      radial-gradient(circle at 14% 10%, rgb(255 255 255 / 7%), transparent 42%),
+      linear-gradient(135deg, #302943 0%, #25222e 56%, #252c28 100%);
+  }
+
+  .current-pet__preview {
+    border-color: rgb(198 185 255 / 10%);
+  }
+
+  .primary-button--quiet {
+    color: #cdbfff;
+    background: rgb(255 255 255 / 6%);
+  }
+
+  .pet-card {
+    border-color: #3a403c;
+    background: #242824;
+  }
+
+  .pet-card--selected {
+    border-color: #9c84f3;
+    box-shadow: 0 0 0 1px #9c84f3;
+  }
+
+  .pet-card__footer {
+    border-color: #353a37;
+  }
+
   .settings-description,
   .collection-description,
-  .pet-card__description { color: #aab1ad; }
-  .pet-selected { background: #322b4e; }
+  .pet-card__description,
+  .current-pet__copy p,
+  .format-hint {
+    color: #aab1ad;
+  }
+
+  .pet-source {
+    color: #bbc2be;
+    background: #343936;
+  }
+
+  .pet-source--custom {
+    color: #cdbfff;
+    background: #3c315f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-card {
+    transition: none;
+  }
 }

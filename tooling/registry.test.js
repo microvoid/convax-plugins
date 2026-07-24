@@ -67,6 +67,7 @@ describe("source packages", () => {
       "pet.activity.read",
       "pet.activity.open",
       "pet.preferences.write",
+      "pet.custom.manage",
     ])
     expect(violet.manifest.contributes.pet).toEqual({
       library: "pet-library.json",
