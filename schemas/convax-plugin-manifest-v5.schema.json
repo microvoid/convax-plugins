@@ -33,7 +33,8 @@
           "canvas.events.subscribe",
           "pet.activity.read",
           "pet.activity.open",
-          "pet.preferences.write"
+          "pet.preferences.write",
+          "pet.custom.manage"
         ]
       }
     },
@@ -150,12 +151,13 @@
         "required": ["capabilities"],
         "properties": {
           "capabilities": {
-            "minItems": 3,
-            "maxItems": 3,
+            "minItems": 4,
+            "maxItems": 4,
             "allOf": [
               { "contains": { "const": "pet.activity.read" } },
               { "contains": { "const": "pet.activity.open" } },
-              { "contains": { "const": "pet.preferences.write" } }
+              { "contains": { "const": "pet.preferences.write" } },
+              { "contains": { "const": "pet.custom.manage" } }
             ]
           }
         },

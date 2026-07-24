@@ -20,4 +20,25 @@ describe("packaged pet library", () => {
     expect(Object.isFrozen(petLibrary.pets[0])).toBe(true)
     expect(selectedPet("violet")).not.toBe(petLibrary.pets[0])
   })
+
+  test("merges only canonical managed custom pets with the packaged collection", async () => {
+    const { petsForCollection, selectedPet } = await import("./package/assets/pet-library.js")
+    const custom = {
+      alt: "Nova",
+      description: "A local custom companion.",
+      displayName: "Nova",
+      id: "custom-nova",
+      source: "custom",
+      spritesheetUrl: "convax-pet-asset://pet/custom-nova",
+      spriteVersion: 2,
+    }
+    const pets = petsForCollection({
+      pets: [custom, { ...custom, id: "custom-bad", spritesheetUrl: "file:///private/bad.png" }],
+      revision: 1,
+    })
+
+    expect(pets.map((pet) => pet.id)).toEqual(["violet", "custom-nova"])
+    expect(selectedPet("custom-nova", pets)).toMatchObject(custom)
+    expect(pets[0].spritesheetUrl).toEndWith("/assets/violet.png")
+  })
 })

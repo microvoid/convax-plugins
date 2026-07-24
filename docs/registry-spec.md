@@ -62,9 +62,9 @@ One Pet feature Plugin is a `convax.plugin/5` capability published through the
 normal Plugin Registry item. Its complete embedded manifest contains
 `contributes.pet` with package-relative `library`, `overlay`, and `settings` paths
 plus `protocol: "convax.pet-host/1"`. It requests exactly `pet.activity.read`,
-`pet.activity.open`, and `pet.preferences.write`, and has no runtime or companion
-executable. The `convax.plugin-capability/1` compatibility label remains the
-transport-neutral admission contract.
+`pet.activity.open`, `pet.preferences.write`, and `pet.custom.manage`, and has no
+runtime or companion executable. The `convax.plugin-capability/1` compatibility
+label remains the transport-neutral admission contract.
 
 Clients validate both static surface entries, the strict `convax.pet-library/1`
 document, and every referenced atlas before activation. Installation does not

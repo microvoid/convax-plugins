@@ -72,7 +72,8 @@ The `contributes.pet` object declares the library and both static feature surfac
   "capabilities": [
     "pet.activity.read",
     "pet.activity.open",
-    "pet.preferences.write"
+    "pet.preferences.write",
+    "pet.custom.manage"
   ],
   "contributes": {
     "pet": {
@@ -91,6 +92,13 @@ entry supplies `id`, `displayName`, `description`, package-relative `spritesheet
 eight 192×208 cells across and nine state rows in this order: `idle`,
 `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`,
 `running`, and `review`.
+
+The exact `pet.custom.manage` grant exposes only the scoped
+`collection.get`/`collection.import`/`collection.delete` host methods. Import uses
+the native Convax file picker; a Pet surface never receives a filesystem path.
+Convax accepts one current-format transparent 1536×1872 PNG or WebP atlas, stores a
+managed copy, and serves it through `convax-pet-asset:`. Legacy Goku folders,
+`pet.json`, remote assets, and arbitrary file reads are not supported.
 
 The settings and overlay pages run with no Node, Electron, remote network, native
 path, or arbitrary IPC access. Their surface-scoped `convax.pet-host/1` ports expose

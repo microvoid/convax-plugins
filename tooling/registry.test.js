@@ -62,11 +62,12 @@ describe("source packages", () => {
     const multiAngle = packages.find((pkg) => pkg.metadata.id === "multi-angle")
     const panorama = packages.find((pkg) => pkg.metadata.id === "panorama-viewer")
     const xiaoyunque = packages.find((pkg) => pkg.metadata.id === "xiaoyunque-generation")
-    expect(violet.metadata.version).toBe("0.2.1")
+    expect(violet.metadata.version).toBe("0.2.2")
     expect(violet.manifest.capabilities).toEqual([
       "pet.activity.read",
       "pet.activity.open",
       "pet.preferences.write",
+      "pet.custom.manage",
     ])
     expect(violet.manifest.contributes.pet).toEqual({
       library: "pet-library.json",

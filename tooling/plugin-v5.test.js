@@ -47,7 +47,12 @@ function petManifest(overrides = {}) {
     name: "Convax Pet",
     description: "A local desktop companion and pet library.",
     version: "0.2.0",
-    capabilities: ["pet.activity.read", "pet.activity.open", "pet.preferences.write"],
+    capabilities: [
+      "pet.activity.read",
+      "pet.activity.open",
+      "pet.preferences.write",
+      "pet.custom.manage",
+    ],
     contributes: {
       pet: {
         library: "pet-library.json",
@@ -109,7 +114,12 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
       protocol: "convax.pet-host/1",
       settings: "settings/index.html",
     })
-    expect(parsed.capabilities).toEqual(["pet.activity.read", "pet.activity.open", "pet.preferences.write"])
+    expect(parsed.capabilities).toEqual([
+      "pet.activity.read",
+      "pet.activity.open",
+      "pet.preferences.write",
+      "pet.custom.manage",
+    ])
     expect(parsed).not.toHaveProperty("entry")
     expect(parsed).not.toHaveProperty("runtime")
   })

@@ -16,31 +16,57 @@ export function frameFor(animation, elapsed, reducedMotion) {
   return { column: 0, row: definition.row }
 }
 
-export function createDragGesture(onDrag) {
+function dragPoint(point) {
+  return { x: point.screenX, y: point.screenY }
+}
+
+let nextDragSession = 1
+
+function createDragSession() {
+  const session = `drag-${Date.now().toString(36)}-${nextDragSession.toString(36)}`
+  nextDragSession += 1
+  return session
+}
+
+export function createDragGesture(onDrag, { createSession = createDragSession } = {}) {
   let origin
-  let previous
+  let sequence = 0
+  let session
   let dragging = false
+  const emit = (phase, point) => {
+    const current = dragPoint(point)
+    onDrag({
+      phase,
+      screenX: current.x,
+      screenY: current.y,
+      sequence,
+      session,
+    })
+    sequence += 1
+  }
   return {
     end(point) {
       if (!origin) return false
       const wasDragging = dragging
-      if (dragging) onDrag({ dx: point.clientX - previous.clientX, dy: point.clientY - previous.clientY, phase: "end" })
+      emit("end", point)
       origin = undefined
-      previous = undefined
+      session = undefined
       dragging = false
       return wasDragging
     },
     move(point) {
       if (!origin) return false
-      if (!dragging && Math.hypot(point.clientX - origin.clientX, point.clientY - origin.clientY) >= 4) dragging = true
-      if (dragging) onDrag({ dx: point.clientX - previous.clientX, dy: point.clientY - previous.clientY, phase: "move" })
-      previous = point
+      const current = dragPoint(point)
+      if (!dragging && Math.hypot(current.x - origin.x, current.y - origin.y) >= 4) dragging = true
+      if (dragging) emit("move", point)
       return dragging
     },
     start(point) {
-      origin = point
-      previous = point
+      origin = dragPoint(point)
+      session = createSession()
+      sequence = 0
       dragging = false
+      emit("start", point)
     },
   }
 }
@@ -66,6 +92,55 @@ export async function moveOverlay(client, input) {
   }
 }
 
+export function createMoveScheduler(
+  client,
+  { cancel = (id) => cancelAnimationFrame(id), schedule = (callback) => requestAnimationFrame(callback) } = {},
+) {
+  const active = new Set()
+  let pendingMove
+  let scheduled
+
+  function send(input) {
+    const request = moveOverlay(client, input)
+    active.add(request)
+    void request.finally(() => active.delete(request))
+  }
+
+  function flush() {
+    scheduled = undefined
+    if (!pendingMove) return
+    const input = pendingMove
+    pendingMove = undefined
+    send(input)
+  }
+
+  function push(input) {
+    if (input.phase === "move") {
+      pendingMove = { ...input }
+      if (scheduled === undefined) scheduled = schedule(flush)
+      return
+    }
+    if (input.phase === "end" && scheduled !== undefined) {
+      cancel(scheduled)
+      scheduled = undefined
+      flush()
+    }
+    send(input)
+  }
+
+  return {
+    push,
+    async whenIdle() {
+      if (scheduled !== undefined) {
+        cancel(scheduled)
+        scheduled = undefined
+        flush()
+      }
+      while (active.size) await Promise.all([...active])
+    },
+  }
+}
+
 export async function openActivity(client, activity, revision, { jump, settle, wait }) {
   if (!activity?.id) return
   try {
@@ -73,7 +148,10 @@ export async function openActivity(client, activity, revision, { jump, settle, w
       jump,
       navigate: async () => {
         try {
-          await client.request("activity.open", { activityId: activity.id, revision })
+          await client.request("activity.open", {
+            activityId: activity.id,
+            revision,
+          })
         } catch {
           // The overlay remains usable when the target activity disappears.
         }
