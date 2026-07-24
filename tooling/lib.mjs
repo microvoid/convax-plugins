@@ -800,15 +800,13 @@ function parsePluginManifestV5(value, label) {
     ? undefined
     : parsePetV5(value.contributes.pet, `${label} pet`)
   if (pet !== undefined) {
-    const requiredPetCapabilities = [
-      "pet.activity.read",
-      "pet.activity.open",
-      "pet.preferences.write",
-      "pet.custom.manage",
-    ]
-    if (capabilities.length !== requiredPetCapabilities.length ||
-        requiredPetCapabilities.some((capability) => !capabilities.includes(capability))) {
-      error(label, "pet capabilities must be exactly pet.activity.read, pet.activity.open, pet.preferences.write, and pet.custom.manage")
+    const requiredPetCapabilities = ["pet.activity.read", "pet.activity.open", "pet.preferences.write"]
+    const allowedPetCapabilities = new Set([...requiredPetCapabilities, "pet.custom.manage"])
+    if (capabilities.length < requiredPetCapabilities.length ||
+        capabilities.length > allowedPetCapabilities.size ||
+        requiredPetCapabilities.some((capability) => !capabilities.includes(capability)) ||
+        capabilities.some((capability) => !allowedPetCapabilities.has(capability))) {
+      error(label, "pet capabilities must be exactly pet.activity.read, pet.activity.open, and pet.preferences.write, with optional pet.custom.manage")
     }
     if (hasRuntime) error(label, "pet feature cannot declare an executable runtime")
   }

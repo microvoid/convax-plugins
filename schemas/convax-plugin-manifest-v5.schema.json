@@ -151,13 +151,20 @@
         "required": ["capabilities"],
         "properties": {
           "capabilities": {
-            "minItems": 4,
+            "minItems": 3,
             "maxItems": 4,
+            "items": {
+              "enum": [
+                "pet.activity.read",
+                "pet.activity.open",
+                "pet.preferences.write",
+                "pet.custom.manage"
+              ]
+            },
             "allOf": [
               { "contains": { "const": "pet.activity.read" } },
               { "contains": { "const": "pet.activity.open" } },
-              { "contains": { "const": "pet.preferences.write" } },
-              { "contains": { "const": "pet.custom.manage" } }
+              { "contains": { "const": "pet.preferences.write" } }
             ]
           }
         },
