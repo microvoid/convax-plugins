@@ -99,6 +99,8 @@ the native Convax file picker; a Pet surface never receives a filesystem path.
 Convax accepts one current-format transparent 1536×1872 PNG or WebP atlas, stores a
 managed copy, and serves it through `convax-pet-asset:`. Legacy Goku folders,
 `pet.json`, remote assets, and arbitrary file reads are not supported.
+Pet Plugins that do not offer custom collection management omit this optional
+grant while retaining the three required activity and preference capabilities.
 
 The settings and overlay pages run with no Node, Electron, remote network, native
 path, or arbitrary IPC access. Their surface-scoped `convax.pet-host/1` ports expose

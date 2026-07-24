@@ -196,10 +196,29 @@ describe("convax.plugin/5 transport-neutral and pet contributions", () => {
     expect(() =>
       parsePluginManifest({
         ...petManifest(),
+        capabilities: [...petManifest().capabilities, "projects.read"],
+      }),
+    ).toThrow("pet capabilities")
+    expect(() =>
+      parsePluginManifest({
+        ...petManifest(),
         contributes: { ...petManifest().contributes, llm: llmManifest().contributes.llm },
         runtime: { command: "pet-runtime", type: "mcp-stdio" },
       }),
     ).toThrow("pet feature")
+  })
+
+  test("keeps historical Pet manifests valid when custom management is absent", () => {
+    const historical = petManifest({
+      version: "0.2.1",
+      capabilities: petManifest().capabilities.filter((capability) => capability !== "pet.custom.manage"),
+    })
+
+    expect(parsePluginManifest(historical).capabilities).toEqual([
+      "pet.activity.read",
+      "pet.activity.open",
+      "pet.preferences.write",
+    ])
   })
 
   test("validates every packaged pet library atlas", () => {
